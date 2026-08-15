@@ -111,12 +111,12 @@ export class MasterBootEngine {
             this.openAptioBIOSSetup();
         });
 
-        // Key listeners for DEL / F2 / F11 / F12 during 1.2s splash
+        // Key listeners for DEL / F2 / F11 / F12 during 2.4s splash
         this.keyListener = (e) => {
             if (!this.keyInterruptActive) return;
 
-            const isBios = (e.key === 'F2' || e.code === 'F2' || e.key === 'Delete' || e.code === 'Delete');
-            const isBootMenu = (e.key === 'F11' || e.code === 'F11' || e.key === 'F12' || e.code === 'F12');
+            const isBios = !e.ctrlKey && !e.altKey && (e.key === 'F2' || e.code === 'F2' || e.key === 'Delete' || e.code === 'Delete');
+            const isBootMenu = !e.ctrlKey && !e.altKey && (e.key === 'F11' || e.code === 'F11' || e.key === 'F12' || e.code === 'F12');
 
             if (isBios || isBootMenu) {
                 e.preventDefault();
@@ -127,13 +127,13 @@ export class MasterBootEngine {
 
         document.addEventListener('keydown', this.keyListener);
 
-        // Exactly 1.2 seconds (1200ms) splash
+        // Exactly 2.4 seconds (2400ms) splash
         this.splashTimer = setTimeout(() => {
             if (this.phase === 'SPLASH') {
                 this.clearTimers();
                 this.resolveActiveBootDevice();
             }
-        }, 1200);
+        }, 2400);
     }
 
     clearTimers() {
@@ -585,16 +585,18 @@ export class MasterBootEngine {
         this.keyListener = (e) => {
             if (this.phase !== 'BOOT_ERROR') return;
 
-            const isCtrlAltDel = (e.ctrlKey && e.altKey && (e.key === 'Delete' || e.code === 'Delete'));
+            const isRebootKey = (e.ctrlKey && (e.key === 'Delete' || e.code === 'Delete'));
 
-            if (isCtrlAltDel) {
+            if (isRebootKey) {
                 e.preventDefault();
                 document.removeEventListener('keydown', this.keyListener);
                 this.start();
                 return;
             }
 
-            if (e.key === 'Delete' || e.key === 'F2' || e.code === 'Delete' || e.code === 'F2') {
+            const isBios = !e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === 'Delete' || e.key === 'F2' || e.code === 'Delete' || e.code === 'F2');
+
+            if (isBios) {
                 e.preventDefault();
                 document.removeEventListener('keydown', this.keyListener);
                 this.openAptioBIOSSetup();
@@ -795,7 +797,16 @@ export class MasterBootEngine {
 
             this.keyListener = (e) => {
                 if (this.phase !== 'GRUB_RESCUE') return;
-                if (e.key === 'Delete' || e.key === 'F2') {
+                const isRebootKey = (e.ctrlKey && (e.key === 'Delete' || e.code === 'Delete'));
+                if (isRebootKey) {
+                    e.preventDefault();
+                    document.removeEventListener('keydown', this.keyListener);
+                    this.start();
+                    return;
+                }
+
+                const isBios = !e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === 'Delete' || e.key === 'F2');
+                if (isBios) {
                     e.preventDefault();
                     document.removeEventListener('keydown', this.keyListener);
                     this.openAptioBIOSSetup();
@@ -811,6 +822,15 @@ export class MasterBootEngine {
 }
 
 export const boot = new MasterBootEngine();
+
+// Global Hardware Reset Key Listener (Ctrl+Alt+Del or Ctrl+Shift+Del)
+window.addEventListener('keydown', (e) => {
+    const isReboot = e.ctrlKey && (e.altKey || e.shiftKey) && (e.key === 'Delete' || e.code === 'Delete');
+    if (isReboot) {
+        e.preventDefault();
+        boot.start();
+    }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     boot.start();

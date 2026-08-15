@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2560 1440" width="100%" height="100%">
+  <defs>
+    <radialGradient id="topoGlow" cx="65%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#0e172a" />
+      <stop offset="60%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#05070c" />
+    </radialGradient>
+    <linearGradient id="lineCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.6" />
+      <stop offset="50%" stop-color="#38bdf8" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0.1" />
+    </linearGradient>
+    <filter id="glowTopo">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Deep Obsidian Slate -->
+  <rect width="2560" height="1440" fill="url(#topoGlow)" />
+
+  <!-- Topographic Elevation Contour Lines -->
+  <g fill="none" stroke="url(#lineCyan)" stroke-width="1.8" filter="url(#glowTopo)">
+    <!-- Elevation 1 -->
+    <path d="M 0,200 C 400,100 800,350 1200,220 C 1600,90 2000,300 2560,180" />
+    
+    <!-- Elevation 2 -->
+    <path d="M 0,340 C 350,220 750,480 1250,330 C 1750,180 2150,420 2560,300" opacity="0.8" />
+    
+    <!-- Elevation 3 -->
+    <path d="M 0,480 C 420,380 820,620 1320,450 C 1820,280 2220,540 2560,420" opacity="0.75" />
+    
+    <!-- Elevation 4 (Main Ridge Peak Loop) -->
+    <path d="M -100,640 C 300,520 700,780 1200,580 C 1650,400 1950,580 2300,480 C 2450,440 2560,520 2700,500" opacity="0.85" stroke-width="2.4" />
+    
+    <!-- Elevation 5 -->
+    <path d="M 0,780 C 450,680 850,920 1380,720 C 1900,520 2280,780 2560,660" opacity="0.7" />
+    
+    <!-- Elevation 6 -->
+    <path d="M 0,920 C 380,820 780,1050 1300,850 C 1820,650 2200,920 2560,800" opacity="0.65" />
+    
+    <!-- Elevation 7 -->
+    <path d="M 0,1060 C 420,960 820,1180 1350,980 C 1880,780 2250,1050 2560,940" opacity="0.6" />
+    
+    <!-- Elevation 8 -->
+    <path d="M 0,1200 C 480,1100 880,1320 1420,1120 C 1950,920 2320,1180 2560,1080" opacity="0.5" />
+    
+    <!-- Elevation 9 -->
+    <path d="M 0,1340 C 520,1240 920,1460 1480,1260 C 2020,1060 2380,1320 2560,1220" opacity="0.4" />
+  </g>
+
+  <!-- Secondary Fine Topological Strata -->
+  <g fill="none" stroke="rgba(255, 255, 255, 0.04)" stroke-width="1">
+    <path d="M 0,270 C 375,160 775,415 1225,275 C 1675,135 2075,360 2560,240" />
+    <path d="M 0,410 C 385,300 785,550 1285,390 C 1785,230 2185,480 2560,360" />
+    <path d="M 0,560 C 360,450 760,700 1260,515 C 1735,340 2085,560 2560,460" />
+    <path d="M 0,710 C 375,600 775,850 1290,650 C 1775,460 2115,680 2560,580" />
+    <path d="M 0,850 C 415,750 815,985 1340,785 C 1860,585 2240,850 2560,730" />
+    <path d="M 0,990 C 400,890 800,1115 1325,915 C 1850,715 2225,985 2560,870" />
+    <path d="M 0,1130 C 450,1030 850,1250 1385,1050 C 1915,850 2285,1115 2560,1010" />
+    <path d="M 0,1270 C 500,1170 900,1390 1450,1190 C 1985,990 2350,1250 2560,1150" />
+  </g>
+
+  <!-- Elevation Coordinate Marker -->
+  <text x="140" y="180" font-family="'Outfit', system-ui, sans-serif" font-size="12" font-weight="700" letter-spacing="3" fill="rgba(0, 240, 255, 0.4)">
+    LAT 45° 28' 04" N • LON 09° 16' 52" E • ELEV 1440M
+  </text>
+</svg>

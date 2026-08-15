@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2560 1440" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070913" />
+      <stop offset="40%" stop-color="#0c1021" />
+      <stop offset="80%" stop-color="#11162b" />
+      <stop offset="100%" stop-color="#080a14" />
+    </linearGradient>
+
+    <!-- Aurora Waves Gradients -->
+    <linearGradient id="auroraCyan" x1="0%" y1="0%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.55" />
+      <stop offset="50%" stop-color="#3b82f6" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#00f0ff" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="auroraViolet" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.6" />
+      <stop offset="60%" stop-color="#ec4899" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="auroraEmerald" x1="20%" y1="100%" x2="80%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.4" />
+      <stop offset="50%" stop-color="#06b6d4" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Radial Glows -->
+    <radialGradient id="glowTop" cx="35%" cy="20%" r="50%">
+      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#070913" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="glowBottom" cx="75%" cy="80%" r="55%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#070913" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Blur Filter for Soft Aurora Flow -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="75" result="blur" />
+    </filter>
+    <filter id="ultraGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="130" result="blur" />
+    </filter>
+  </defs>
+
+  <!-- Deep Obsidian Slate Background -->
+  <rect width="2560" height="1440" fill="url(#bgGrad)" />
+
+  <!-- Ambient Light Orbs -->
+  <circle cx="900" cy="300" r="700" fill="url(#glowTop)" filter="url(#ultraGlow)" />
+  <circle cx="1900" cy="1100" r="800" fill="url(#glowBottom)" filter="url(#ultraGlow)" />
+
+  <!-- Layer 1: Emerald Flow Wave -->
+  <path d="M -200,900 C 400,600 800,1200 1400,800 C 2000,400 2400,900 2800,700 L 2800,1500 L -200,1500 Z" fill="url(#auroraEmerald)" filter="url(#softGlow)" />
+
+  <!-- Layer 2: Cyan Ribbons -->
+  <path d="M -100,500 C 500,200 900,900 1600,450 C 2100,150 2500,600 2700,400 L 2700,1500 L -100,1500 Z" fill="url(#auroraCyan)" filter="url(#softGlow)" />
+
+  <!-- Layer 3: Violet / Magenta Luminescence -->
+  <path d="M 100,1100 C 600,700 1200,1300 1800,750 C 2200,400 2600,850 2800,650 L 2800,1500 L 100,1500 Z" fill="url(#auroraViolet)" filter="url(#softGlow)" />
+
+  <!-- Subtle Geometric Grid Topology Overlay -->
+  <g stroke="rgba(255, 255, 255, 0.025)" stroke-width="1.2">
+    <line x1="0" y1="240" x2="2560" y2="240" />
+    <line x1="0" y1="480" x2="2560" y2="480" />
+    <line x1="0" y1="720" x2="2560" y2="720" />
+    <line x1="0" y1="960" x2="2560" y2="960" />
+    <line x1="0" y1="1200" x2="2560" y2="1200" />
+    
+    <line x1="320" y1="0" x2="320" y2="1440" />
+    <line x1="640" y1="0" x2="640" y2="1440" />
+    <line x1="960" y1="0" x2="960" y2="1440" />
+    <line x1="1280" y1="0" x2="1280" y2="1440" />
+    <line x1="1600" y1="0" x2="1600" y2="1440" />
+    <line x1="1920" y1="0" x2="1920" y2="1440" />
+    <line x1="2240" y1="0" x2="2240" y2="1440" />
+  </g>
+
+  <!-- Modern Subtle Star Dust -->
+  <g fill="#ffffff" opacity="0.4">
+    <circle cx="340" cy="210" r="1.5" />
+    <circle cx="780" cy="140" r="1.2" />
+    <circle cx="1240" cy="280" r="2" opacity="0.7" />
+    <circle cx="1680" cy="190" r="1.5" />
+    <circle cx="2120" cy="310" r="1.2" />
+    <circle cx="560" cy="620" r="1.8" />
+    <circle cx="1450" cy="710" r="1.2" />
+    <circle cx="2320" cy="850" r="2" opacity="0.6" />
+    <circle cx="920" cy="980" r="1.5" />
+    <circle cx="1840" cy="1120" r="1.8" />
+  </g>
+</svg>

@@ -95,21 +95,18 @@ export function openSettings(initialTab = 'appearance') {
    1. Appearance Tab (Wallpapers, Themes, Accents)
    -------------------------------------------------------------------------- */
 function renderAppearanceTab(container) {
-    const currentWallpaper = localStorage.getItem('krypton_wallpaper') || 'nebula';
+    const currentWallpaper = localStorage.getItem('krypton_wallpaper') || 'aurora';
     const currentTheme = localStorage.getItem('krypton_theme') || 'theme-cyberpunk';
     const customBgUrl = localStorage.getItem('krypton_custom_wallpaper_url') || '';
 
     const wallpapers = [
-        { id: 'nebula', name: 'Deep Space Nebula', preview: 'linear-gradient(135deg, #0c0818, #1d0f3a, #0b223d)' },
-        { id: 'xubuntu', name: 'Xubuntu Blue Whispers', preview: 'linear-gradient(135deg, #1b2838, #203a56, #152232)' },
-        { id: 'cyberpunk', name: 'Cyberpunk Grid', preview: 'linear-gradient(180deg, #0d051e, #1a0b38, #051829)' },
-        { id: 'nord', name: 'Nordic Mountain Slate', preview: 'linear-gradient(135deg, #2e3440, #3b4252, #434c5e)' },
-        { id: 'matrix', name: 'Matrix Terminal Green', preview: 'radial-gradient(ellipse, #051b0f, #000000)' },
-        { id: 'teal', name: 'Classic Live CD Teal', preview: '#008080' }
+        { id: 'aurora', name: 'Krypton Aurora (SVG)', file: 'assets/wallpapers/krypton_aurora.svg', preview: 'url("assets/wallpapers/krypton_aurora.svg") center/cover' },
+        { id: 'geometric', name: 'Geometric Slate (SVG)', file: 'assets/wallpapers/krypton_geometric.svg', preview: 'url("assets/wallpapers/krypton_geometric.svg") center/cover' },
+        { id: 'topographic', name: 'Topographic Obsidian (SVG)', file: 'assets/wallpapers/krypton_topographic.svg', preview: 'url("assets/wallpapers/krypton_topographic.svg") center/cover' }
     ];
 
     const themes = [
-        { id: 'theme-cyberpunk', name: 'Cyberpunk Dark (Default)', accent: '#00f0ff' },
+        { id: 'theme-cyberpunk', name: 'Obsidian Dark (Default)', accent: '#00f0ff' },
         { id: 'theme-xubuntu', name: 'Xubuntu Greybird GTK', accent: '#3b82f6' },
         { id: 'theme-nord', name: 'Nord Minimal Slate', accent: '#88c0d0' },
         { id: 'theme-synthwave', name: 'Synthwave Neon 80s', accent: '#ff007f' },
@@ -119,12 +116,12 @@ function renderAppearanceTab(container) {
     container.innerHTML = `
         <div class="settings-header">
             <h3>🎨 Appearance & Desktop Styling</h3>
-            <p class="settings-subtext">Customize desktop background wallpaper, interface themes, and visual accents.</p>
+            <p class="settings-subtext">Customize desktop background wallpaper, interface themes, and typography.</p>
         </div>
 
         <!-- Wallpaper Section -->
         <div class="settings-section-box">
-            <h4 class="section-title">Desktop Wallpaper / Background Picture</h4>
+            <h4 class="section-title">Modern Vector Wallpapers (SVG)</h4>
             <div class="wallpaper-grid">
                 ${wallpapers.map(w => `
                     <div class="wallpaper-card ${currentWallpaper === w.id ? 'selected' : ''}" data-wall-id="${w.id}">
@@ -134,12 +131,19 @@ function renderAppearanceTab(container) {
                 `).join('')}
             </div>
 
-            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
-                <span style="font-size: 12px; color: #94a3b8; font-weight: 600;">Custom Background Image URL</span>
-                <div style="display: flex; gap: 8px; margin-top: 6px;">
-                    <input type="text" id="custom-wall-input" value="${escapeHtml(customBgUrl)}" placeholder="https://example.com/wallpaper.jpg" style="flex: 1; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: #fff; font-size: 12px;">
-                    <button id="apply-custom-wall-btn" style="padding: 8px 16px; background: var(--accent-primary); color: #000; font-weight: 700; border-radius: 6px; border: none; cursor: pointer; font-size: 12px;">Apply Picture</button>
+            <!-- Custom Wallpaper Controls -->
+            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 10px;">
+                <span style="font-size: 12px; color: #94a3b8; font-weight: 600;">Custom Background (URL, File Upload, or Drag & Drop)</span>
+                
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="custom-wall-input" value="${escapeHtml(customBgUrl.startsWith('data:') ? 'Local Image Loaded' : customBgUrl)}" placeholder="Paste image URL (e.g. https://...)" style="flex: 1; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: #fff; font-size: 12px;">
+                    <button id="apply-custom-wall-btn" style="padding: 8px 16px; background: var(--accent-primary); color: #000; font-weight: 700; border-radius: 6px; border: none; cursor: pointer; font-size: 12px;">Apply URL</button>
+                    <label style="padding: 8px 16px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-color); border-radius: 6px; color: #fff; font-weight: 600; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                        📁 Upload File
+                        <input type="file" id="wall-file-input" accept="image/*" style="display: none;">
+                    </label>
                 </div>
+                <small style="color: #64748b; font-size: 11px;">💡 Tip: You can also drag & drop any image file directly onto the desktop to set it as wallpaper!</small>
             </div>
         </div>
 
@@ -174,11 +178,28 @@ function renderAppearanceTab(container) {
     const customInput = container.querySelector('#custom-wall-input');
     customBtn?.addEventListener('click', () => {
         const url = customInput.value.trim();
-        if (url) {
+        if (url && url !== 'Local Image Loaded') {
             localStorage.setItem('krypton_custom_wallpaper_url', url);
             applyWallpaper('custom', url);
             sound.playSuccess();
             story.showToast('🖼️ Custom Wallpaper', 'Loaded custom desktop background picture.', 'success');
+        }
+    });
+
+    // File Upload input
+    const fileInput = container.querySelector('#wall-file-input');
+    fileInput?.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const dataUrl = evt.target.result;
+                localStorage.setItem('krypton_custom_wallpaper_url', dataUrl);
+                applyWallpaper('custom', dataUrl);
+                sound.playSuccess();
+                story.showToast('🖼️ File Uploaded', `Applied '${file.name}' as desktop wallpaper.`, 'success');
+            };
+            reader.readAsDataURL(file);
         }
     });
 
@@ -199,7 +220,6 @@ function renderAppearanceTab(container) {
 export function applyWallpaper(wallId, customUrl = '') {
     localStorage.setItem('krypton_wallpaper', wallId);
     const desktop = document.getElementById('desktop-environment');
-    const retroWall = desktop?.querySelector('.retro-wallpaper');
     const canvas = document.getElementById('wallpaper-canvas');
 
     if (!desktop) return;
@@ -208,7 +228,6 @@ export function applyWallpaper(wallId, customUrl = '') {
         const effUrl = customUrl || localStorage.getItem('krypton_custom_wallpaper_url') || '';
         if (effUrl) {
             desktop.style.background = `url("${effUrl}") no-repeat center center / cover`;
-            if (retroWall) retroWall.style.display = 'none';
             if (canvas) canvas.style.display = 'none';
         }
         return;
@@ -217,30 +236,15 @@ export function applyWallpaper(wallId, customUrl = '') {
     if (canvas) canvas.style.display = 'block';
 
     switch (wallId) {
-        case 'nebula':
-            desktop.style.background = 'linear-gradient(135deg, #0c0818 0%, #1d0f3a 50%, #0b223d 100%)';
-            if (retroWall) retroWall.style.display = 'none';
+        case 'geometric':
+            desktop.style.background = '#0c0e18 url("assets/wallpapers/krypton_geometric.svg") no-repeat center center / cover';
             break;
-        case 'xubuntu':
-            desktop.style.background = 'linear-gradient(135deg, #1b2838 0%, #203a56 50%, #152232 100%)';
-            if (retroWall) retroWall.style.display = 'none';
+        case 'topographic':
+            desktop.style.background = '#05070c url("assets/wallpapers/krypton_topographic.svg") no-repeat center center / cover';
             break;
-        case 'cyberpunk':
-            desktop.style.background = 'linear-gradient(180deg, #0d051e 0%, #1a0b38 60%, #051829 100%)';
-            if (retroWall) retroWall.style.display = 'none';
-            break;
-        case 'nord':
-            desktop.style.background = 'linear-gradient(135deg, #2e3440 0%, #3b4252 50%, #434c5e 100%)';
-            if (retroWall) retroWall.style.display = 'none';
-            break;
-        case 'matrix':
-            desktop.style.background = 'radial-gradient(ellipse at center, #051b0f 0%, #000000 100%)';
-            if (retroWall) retroWall.style.display = 'none';
-            break;
-        case 'teal':
+        case 'aurora':
         default:
-            desktop.style.background = '#008080';
-            if (retroWall) retroWall.style.display = 'block';
+            desktop.style.background = '#080a14 url("assets/wallpapers/krypton_aurora.svg") no-repeat center center / cover';
             break;
     }
 }

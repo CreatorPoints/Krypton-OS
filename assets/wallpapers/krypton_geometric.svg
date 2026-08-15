@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2560 1440" width="100%" height="100%">
+  <defs>
+    <linearGradient id="facetBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c0e18" />
+      <stop offset="50%" stop-color="#121628" />
+      <stop offset="100%" stop-color="#090b14" />
+    </linearGradient>
+
+    <!-- Polygon Shading Gradients -->
+    <linearGradient id="facet1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e2438" />
+      <stop offset="100%" stop-color="#141828" />
+    </linearGradient>
+    <linearGradient id="facet2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#28324e" />
+      <stop offset="100%" stop-color="#171d30" />
+    </linearGradient>
+    <linearGradient id="facetCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.1" />
+    </linearGradient>
+    <linearGradient id="facetPurple" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#1e1b4b" stop-opacity="0.1" />
+    </linearGradient>
+
+    <filter id="facetDrop" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+  </defs>
+
+  <!-- Deep Base -->
+  <rect width="2560" height="1440" fill="url(#facetBg)" />
+
+  <!-- Background Facets Layer 1 -->
+  <polygon points="0,0 800,0 450,600 0,400" fill="#131726" />
+  <polygon points="800,0 1700,0 1350,550 450,600" fill="#171d30" />
+  <polygon points="1700,0 2560,0 2560,500 1350,550" fill="#111524" />
+
+  <polygon points="0,400 450,600 250,1100 0,1000" fill="#161b2d" />
+  <polygon points="450,600 1350,550 950,1150 250,1100" fill="#1c233a" />
+  <polygon points="1350,550 2560,500 2200,1050 950,1150" fill="#151b2c" />
+  <polygon points="2560,500 2560,1100 2200,1050" fill="#1a2034" />
+
+  <!-- Focal Geometric Gem Shards (Center / Lower Center) -->
+  <polygon points="450,600 950,1150 1350,550" fill="url(#facetCyan)" filter="url(#facetDrop)" stroke="rgba(0, 240, 255, 0.3)" stroke-width="1.5" />
+  <polygon points="950,1150 1850,950 1350,550" fill="url(#facetPurple)" filter="url(#facetDrop)" stroke="rgba(139, 92, 246, 0.3)" stroke-width="1.5" />
+  <polygon points="1350,550 2200,1050 1850,950" fill="url(#facet2)" filter="url(#facetDrop)" stroke="rgba(255, 255, 255, 0.08)" stroke-width="1" />
+
+  <!-- Bottom Edge Facets -->
+  <polygon points="0,1000 250,1100 0,1440" fill="#0d101c" />
+  <polygon points="250,1100 950,1150 700,1440 0,1440" fill="#121626" />
+  <polygon points="950,1150 1850,950 1600,1440 700,1440" fill="#181f33" />
+  <polygon points="1850,950 2200,1050 2560,1440 1600,1440" fill="#111627" />
+  <polygon points="2200,1050 2560,1100 2560,1440" fill="#0f1322" />
+
+  <!-- Ambient Light Reflection -->
+  <circle cx="1280" cy="720" r="450" fill="#00f0ff" opacity="0.05" filter="url(#facetDrop)" />
+</svg>

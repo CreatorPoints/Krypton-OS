@@ -31,8 +31,12 @@
         <!-- Wallpaper Canvas / Particle Effects -->
         <canvas id="wallpaper-canvas"></canvas>
 
-        <!-- Low-res Retro Pixel Background (for Live CD mode) -->
-        <div class="retro-wallpaper"></div>
+        <!-- Drag & Drop Wallpaper Active Overlay Indicator -->
+        <div id="desktop-drop-indicator" class="desktop-drop-indicator">
+            <div class="drop-icon">🖼️</div>
+            <div class="drop-title">Drop Picture to Set as Wallpaper</div>
+            <div class="drop-sub">Release image file to update KryptonOS desktop background</div>
+        </div>
         
         <!-- Desktop Shortcuts Grid -->
         <div id="desktop-grid" class="desktop-grid">
@@ -70,10 +74,10 @@
             </div>
         </div>
 
-        <!-- Taskbar -->
+        <!-- Modern Taskbar Panel -->
         <div id="taskbar" class="taskbar">
-            <button id="start-button" class="start-button">
-                <div class="logo-icon">☢️</div>
+            <button id="start-button" class="start-button" title="Open Applications Menu">
+                <div class="logo-icon">⚛️</div>
                 <span>Krypton</span>
             </button>
 
@@ -85,14 +89,14 @@
 
             <!-- System Tray -->
             <div class="system-tray">
-                <div class="tray-item" id="tray-adblock-status" title="KryptonOS AdBlocker Status">
+                <div class="tray-item" id="tray-adblock-status" title="KryptonOS Network Shield Status">
                     🛡️ <span id="tray-adblock-text" class="adblock-badge off">OFF</span>
                 </div>
-                <div class="tray-item" id="tray-sound-toggle" title="Sound Effects">🔊</div>
-                <div class="tray-item" id="tray-battery" title="Battery Level: 98% (Discharging)">🔋 98%</div>
-                <div class="tray-item tray-clock" id="tray-clock">
-                    <span id="clock-time">00:00:00</span>
-                    <span id="clock-date">2026-08-14</span>
+                <div class="tray-item tray-icon-btn" id="tray-sound-toggle" title="Toggle Sound Feedback">🔊</div>
+                <div class="tray-item tray-icon-btn" id="tray-battery" title="Battery Level: 98% (Discharging)">🔋 98%</div>
+                <div class="clock-pill" id="tray-clock" title="Click to open Date & Time Settings">
+                    <span class="clock-time" id="clock-time">00:00:00</span>
+                    <span class="clock-date" id="clock-date">2026-08-14</span>
                 </div>
             </div>
         </div>

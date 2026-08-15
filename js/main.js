@@ -34,8 +34,10 @@ const MAIN_APPS = [
 
 document.addEventListener('DOMContentLoaded', () => {
     initWallpaper();
+    initDragAndDropWallpaper();
     checkEnvironmentState();
     initClock();
+    initSystemTrayControls();
 });
 
 export function checkEnvironmentState() {
@@ -199,7 +201,7 @@ function initStartMenu() {
    4. Animated Wallpaper Canvas & Clock
    -------------------------------------------------------------------------- */
 function initWallpaper() {
-    const savedWall = localStorage.getItem('krypton_wallpaper') || 'nebula';
+    const savedWall = localStorage.getItem('krypton_wallpaper') || 'aurora';
     const savedCustom = localStorage.getItem('krypton_custom_wallpaper_url') || '';
     applyWallpaper(savedWall, savedCustom);
 
@@ -212,38 +214,22 @@ function initWallpaper() {
 
     const resize = () => {
         canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight - 48;
+        canvas.height = window.innerHeight - 46;
     };
     resize();
     window.addEventListener('resize', resize);
 
-    const particles = Array.from({ length: 35 }, () => ({
+    const particles = Array.from({ length: 30 }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
         r: Math.random() * 2 + 1,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        alpha: Math.random() * 0.4 + 0.2
+        vx: (Math.random() - 0.5) * 0.25,
+        vy: (Math.random() - 0.5) * 0.25,
+        alpha: Math.random() * 0.35 + 0.15
     }));
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        ctx.strokeStyle = 'rgba(0, 229, 255, 0.04)';
-        ctx.lineWidth = 1;
-        const gridSize = 60;
-        for (let x = 0; x < canvas.width; x += gridSize) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.height);
-            ctx.stroke();
-        }
-        for (let y = 0; y < canvas.height; y += gridSize) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(canvas.width, y);
-            ctx.stroke();
-        }
 
         particles.forEach(p => {
             p.x += p.vx;
@@ -263,6 +249,77 @@ function initWallpaper() {
         requestAnimationFrame(draw);
     }
     draw();
+}
+
+function initDragAndDropWallpaper() {
+    const desktopEnv = document.getElementById('desktop-environment');
+    const dropIndicator = document.getElementById('desktop-drop-indicator');
+    if (!desktopEnv) return;
+
+    let dragCounter = 0;
+
+    window.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragCounter++;
+        if (dropIndicator) dropIndicator.classList.add('active');
+    });
+
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+
+    window.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter <= 0) {
+            dragCounter = 0;
+            if (dropIndicator) dropIndicator.classList.remove('active');
+        }
+    });
+
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dragCounter = 0;
+        if (dropIndicator) dropIndicator.classList.remove('active');
+
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) {
+            const file = files[0];
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const dataUrl = evt.target.result;
+                    localStorage.setItem('krypton_custom_wallpaper_url', dataUrl);
+                    applyWallpaper('custom', dataUrl);
+                    sound.playSuccess();
+                    story.showToast('🖼️ Wallpaper Dropped', `Applied '${file.name}' as desktop background picture.`, 'success');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                story.showToast('⚠️ Unsupported File', 'Please drop an image file (PNG, JPG, SVG, WebP).', 'warning');
+            }
+        }
+    });
+}
+
+function initSystemTrayControls() {
+    document.getElementById('tray-clock')?.addEventListener('click', () => {
+        sound.playClick();
+        openSettings('datetime');
+    });
+
+    document.getElementById('tray-sound-toggle')?.addEventListener('click', () => {
+        sound.enabled = !sound.enabled;
+        const iconEl = document.getElementById('tray-sound-toggle');
+        if (iconEl) iconEl.textContent = sound.enabled ? '🔊' : '🔇';
+        if (sound.enabled) sound.playClick();
+        story.showToast('🔊 Audio Feedback', `System sound ${sound.enabled ? 'enabled' : 'muted'}.`, 'info');
+    });
+
+    document.getElementById('tray-adblock-status')?.addEventListener('click', () => {
+        sound.playClick();
+        story.setAdblock(!story.adblockEnabled);
+    });
 }
 
 function initClock() {

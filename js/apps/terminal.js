@@ -350,7 +350,6 @@ export function openTerminal() {
 
             commandHistory.push(rawLine);
             appendLine(`${promptText.textContent} ${rawLine}`, 'prompt');
-            story.logUserAction('terminal_command', rawLine);
 
             executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prevDir, (res) => {
                 if (res.newDir) {
@@ -1407,7 +1406,6 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
                 return;
             }
 
-            story.logUserAction('file_read', f);
             const contentLines = (node.content || '').split('\n');
             contentLines.forEach((l, i) => {
                 outLines.push({ text: showLineNums ? `     ${i + 1}  ${l}` : l, type: 'normal' });

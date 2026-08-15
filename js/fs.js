@@ -339,6 +339,10 @@ export class VirtualFileSystem {
         return true;
     }
 
+    createDirectory(pathStr, recursive = true) {
+        return this.mkdir(pathStr, recursive);
+    }
+
     remove(pathStr, recursive = false) {
         const normalized = this.normalizePath(pathStr);
         if (normalized === '/') return false;

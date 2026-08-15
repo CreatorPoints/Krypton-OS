@@ -7,6 +7,8 @@ import { vfs } from './fs.js';
 export class SystemService {
     constructor() {
         this.adblockEnabled = false;
+        this.petInstalled = false;
+        this.antigravityInstalled = false;
         this.listeners = [];
 
         // Initialize adblock state from /etc/adblock.conf if present
@@ -14,6 +16,10 @@ export class SystemService {
         if (conf && conf.includes('enabled=true')) {
             this.adblockEnabled = true;
         }
+    }
+
+    logUserAction(action, detail) {
+        // Safe no-op logger for legacy action hooks
     }
 
     setAdblock(enabled) {

@@ -942,29 +942,36 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     /* 3. System Reboot & Power Controls */
-    if (cmd === 'reboot' || (cmd === 'sudo' && args[0] === 'reboot') || (cmd === 'init' && args[0] === '6')) {
+    if (cmd === 'reboot' || (cmd === 'sudo' && args[0] === 'reboot') || (cmd === 'init' && args[0] === '6') || (cmd === 'systemctl' && args[0] === 'reboot')) {
         callback({
-            lines: [{ text: "Broadcast message from root@krypton-station:\nThe system is going down for reboot NOW!", type: 'warning' }],
-            exitCode: 0
+            lines: [
+                { text: "Broadcast message from root@krypton-station (pts/0):", type: 'warning' },
+                { text: "The system is going down for reboot NOW!", type: 'warning' }
+            ],
+            exitCode: 0,
+            stop: true
         });
 
         setTimeout(() => {
             wm.windows.forEach((_, id) => wm.closeWindow(id));
-            document.getElementById('desktop-environment').classList.add('hidden');
+            document.getElementById('desktop-environment')?.classList.add('hidden');
+            document.getElementById('tty-screen')?.classList.add('hidden');
             boot.start();
-        }, 1000);
+        }, 600);
         return;
     }
 
-    if (cmd === 'shutdown' || cmd === 'poweroff' || (cmd === 'sudo' && (args[0] === 'shutdown' || args[0] === 'poweroff')) || (cmd === 'init' && args[0] === '0')) {
+    if (cmd === 'shutdown' || cmd === 'poweroff' || (cmd === 'sudo' && (args[0] === 'shutdown' || args[0] === 'poweroff')) || (cmd === 'init' && args[0] === '0') || (cmd === 'systemctl' && args[0] === 'poweroff')) {
         callback({
             lines: [{ text: "System halted. Halting all virtual processes...", type: 'warning' }],
-            exitCode: 0
+            exitCode: 0,
+            stop: true
         });
 
         setTimeout(() => {
             wm.windows.forEach((_, id) => wm.closeWindow(id));
-            document.getElementById('desktop-environment').classList.add('hidden');
+            document.getElementById('desktop-environment')?.classList.add('hidden');
+            document.getElementById('tty-screen')?.classList.add('hidden');
             const bootScreen = document.getElementById('boot-screen');
             if (bootScreen) {
                 bootScreen.style.display = 'flex';
@@ -975,7 +982,7 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
                     </div>
                 `;
             }
-        }, 1000);
+        }, 600);
         return;
     }
 

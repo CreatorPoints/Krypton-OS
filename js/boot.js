@@ -25,21 +25,21 @@ export class MasterBootEngine {
             'Disabled'
         ];
 
-        // Load persisted boot priority or default to Live USB first
+        // Load persisted boot priority or default for new users (1: SSD, 2: Disabled)
         const savedPriority = localStorage.getItem('krypton_boot_priority');
         if (savedPriority) {
             try {
                 this.bootPriority = JSON.parse(savedPriority);
             } catch (e) {
                 this.bootPriority = [
-                    'USB: SanDisk Ultra 32GB',
-                    'NVMe: Samsung SSD 980 PRO 1TB'
+                    'NVMe: Samsung SSD 980 PRO 1TB',
+                    'Disabled'
                 ];
             }
         } else {
             this.bootPriority = [
-                'USB: SanDisk Ultra 32GB',
-                'NVMe: Samsung SSD 980 PRO 1TB'
+                'NVMe: Samsung SSD 980 PRO 1TB',
+                'Disabled'
             ];
         }
 
@@ -47,12 +47,15 @@ export class MasterBootEngine {
     }
 
     start() {
+        this.container = document.getElementById('boot-screen');
         if (!this.container) return;
 
         this.clearTimers();
         this.phase = 'SPLASH';
         this.container.innerHTML = '';
         this.container.style.display = 'flex';
+        document.getElementById('desktop-environment')?.classList.add('hidden');
+        document.getElementById('tty-screen')?.classList.add('hidden');
         this.showVividDisplaySplash();
     }
 
@@ -454,8 +457,8 @@ export class MasterBootEngine {
             } else if (this.selectedRow === 2) {
                 // Restore defaults
                 this.bootPriority = [
-                    'USB: SanDisk Ultra 32GB',
-                    'NVMe: Samsung SSD 980 PRO 1TB'
+                    'NVMe: Samsung SSD 980 PRO 1TB',
+                    'Disabled'
                 ];
                 localStorage.setItem('krypton_boot_priority', JSON.stringify(this.bootPriority));
                 this.renderAptioScreen();

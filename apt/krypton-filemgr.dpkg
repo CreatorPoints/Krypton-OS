@@ -1,0 +1,11 @@
+Package: krypton-filemgr
+Version: 1.3.0-release
+Architecture: amd64
+Section: utils/files
+Priority: standard
+Maintainer: Krypton System Team <sysadmin@krypton-os.org>
+Installed-Size: 5600
+Depends: krypton-desktop
+Homepage: https://krypton-os.org
+Description: Graphical File Explorer and Storage Navigator
+ Multi-pane filesystem browser for navigating POSIX paths, `/etc`, `/proc`, `/home/guest`, and flash storage.

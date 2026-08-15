@@ -1,0 +1,11 @@
+Package: krypton-browser
+Version: 1.4.2-release
+Architecture: amd64
+Section: web/browsers
+Priority: standard
+Maintainer: Krypton Web Team <browser@krypton-os.org>
+Installed-Size: 42100
+Depends: krypton-desktop, libcurl4
+Homepage: https://krypton-os.org/browser
+Description: Quantum Sandboxed Web Browser
+ Built-in virtual browser with address navigation, bookmarking, and integrated AdBlock security shield.

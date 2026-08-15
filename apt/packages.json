@@ -1,0 +1,112 @@
+[
+  {
+    "id": "cmatrix",
+    "name": "cmatrix",
+    "version": "2.0-3",
+    "architecture": "amd64",
+    "section": "utils/console",
+    "size": 128,
+    "summary": "Matrix Digital Rain Terminal Screensaver",
+    "file": "cmatrix.dpkg"
+  },
+  {
+    "id": "cowsay",
+    "name": "cowsay",
+    "version": "3.03+dfsg2-8",
+    "architecture": "all",
+    "section": "games/toys",
+    "size": 96,
+    "summary": "Configurable talking and thinking ASCII cow",
+    "file": "cowsay.dpkg"
+  },
+  {
+    "id": "neofetch",
+    "name": "neofetch",
+    "version": "7.1.0-2",
+    "architecture": "all",
+    "section": "utils/system",
+    "size": 340,
+    "summary": "Fast, highly customizable CLI system information tool",
+    "file": "neofetch.dpkg"
+  },
+  {
+    "id": "sl",
+    "name": "sl",
+    "version": "5.02-1",
+    "architecture": "amd64",
+    "section": "games/toys",
+    "size": 48,
+    "summary": "Steam Locomotive animator for typo prevention",
+    "file": "sl.dpkg"
+  },
+  {
+    "id": "krypton-desktop",
+    "name": "krypton-desktop",
+    "version": "1.0.4-release",
+    "architecture": "amd64",
+    "section": "x11/desktop",
+    "size": 84200,
+    "summary": "Next-generation cyberpunk Wayland desktop environment",
+    "file": "krypton-desktop.dpkg"
+  },
+  {
+    "id": "krypton-browser",
+    "name": "krypton-browser",
+    "version": "1.4.2-release",
+    "architecture": "amd64",
+    "section": "web/browsers",
+    "size": 42100,
+    "summary": "Sandboxed Web Browser Engine",
+    "file": "krypton-browser.dpkg"
+  },
+  {
+    "id": "krypton-taskmgr",
+    "name": "krypton-taskmgr",
+    "version": "1.2.0-release",
+    "architecture": "amd64",
+    "section": "admin/monitoring",
+    "size": 3200,
+    "summary": "GUI System Task Manager and Performance Monitor",
+    "file": "krypton-taskmgr.dpkg"
+  },
+  {
+    "id": "krypton-filemgr",
+    "name": "krypton-filemgr",
+    "version": "1.3.0-release",
+    "architecture": "amd64",
+    "section": "utils/files",
+    "size": 5600,
+    "summary": "Graphical File Explorer and Storage Navigator",
+    "file": "krypton-filemgr.dpkg"
+  },
+  {
+    "id": "krypton-notes",
+    "name": "krypton-notes",
+    "version": "1.1.0-release",
+    "architecture": "amd64",
+    "section": "editors/text",
+    "size": 1800,
+    "summary": "Fast lightweight text and code editor",
+    "file": "krypton-notes.dpkg"
+  },
+  {
+    "id": "krypton-calculator",
+    "name": "krypton-calculator",
+    "version": "1.0.2-release",
+    "architecture": "amd64",
+    "section": "math/calculators",
+    "size": 950,
+    "summary": "Scientific and standard desktop calculator",
+    "file": "krypton-calculator.dpkg"
+  },
+  {
+    "id": "adblock",
+    "name": "krypton-adblock",
+    "version": "2.4.0-beryllium",
+    "architecture": "all",
+    "section": "net/privacy",
+    "size": 512,
+    "summary": "High-performance DNS and network ad blocker and tracker shield",
+    "file": "adblock.dpkg"
+  }
+]

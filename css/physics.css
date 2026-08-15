@@ -1,0 +1,78 @@
+/* ==========================================================================
+   PhotonOS - Antigravity & Special Effects
+   ========================================================================== */
+
+/* Antigravity Floating State */
+.antigravity-active .desktop-icon,
+.antigravity-active .os-window {
+    transition: none !important;
+}
+
+.antigravity-active #desktop-pet-overlay {
+    animation: floatGently 3s ease-in-out infinite alternate;
+}
+
+@keyframes floatGently {
+    from { transform: translateY(0px) rotate(0deg); }
+    to { transform: translateY(-30px) rotate(5deg); }
+}
+
+/* Glitch Text & Screen Shake Effects */
+.glitch-text {
+    position: relative;
+    color: #fff;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.glitch-text::before {
+    left: 2px;
+    text-shadow: -2px 0 #ff0055;
+    clip: rect(24px, 550px, 90px, 0);
+    animation: glitchAnim 2s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+    left: -2px;
+    text-shadow: -2px 0 #00f0ff;
+    clip: rect(85px, 550px, 140px, 0);
+    animation: glitchAnim2 2.5s infinite linear alternate-reverse;
+}
+
+@keyframes glitchAnim {
+    0% { clip: rect(10px, 9999px, 30px, 0); }
+    20% { clip: rect(40px, 9999px, 60px, 0); }
+    40% { clip: rect(20px, 9999px, 80px, 0); }
+    60% { clip: rect(70px, 9999px, 10px, 0); }
+    80% { clip: rect(30px, 9999px, 50px, 0); }
+    100% { clip: rect(60px, 9999px, 90px, 0); }
+}
+
+@keyframes glitchAnim2 {
+    0% { clip: rect(80px, 9999px, 10px, 0); }
+    20% { clip: rect(10px, 9999px, 40px, 0); }
+    40% { clip: rect(50px, 9999px, 20px, 0); }
+    60% { clip: rect(30px, 9999px, 70px, 0); }
+    80% { clip: rect(90px, 9999px, 30px, 0); }
+    100% { clip: rect(20px, 9999px, 60px, 0); }
+}
+
+/* Shake Effect for Spooky / Antigravity Activation */
+.screen-shake {
+    animation: shakeScreen 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shakeScreen {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}

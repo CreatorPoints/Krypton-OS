@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krypton-OS</title>
+    <meta name="description" content="An old computer with a live USB found in your basement. Discover the desktop, or experiment with it, your choice!">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=VT323&display=swap" rel="stylesheet">
+    <!-- CSS Stylesheets -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/desktop.css">
+    <link rel="stylesheet" href="css/window.css">
+    <link rel="stylesheet" href="css/apps.css">
+    <link rel="stylesheet" href="css/boot.css">
+    <link rel="stylesheet" href="css/installer.css">
+    <link rel="stylesheet" href="css/physics.css">
+</head>
+<body class="theme-cyberpunk">
+
+    <!-- Boot Screen Container (Master Boot & Aptio BIOS State Machine) -->
+    <div id="boot-screen"></div>
+
+    <!-- OS Desktop Environment -->
+    <div id="desktop-environment" class="hidden">
+        
+        <!-- Wallpaper Canvas / Particle Effects -->
+        <canvas id="wallpaper-canvas"></canvas>
+
+        <!-- Low-res Retro Pixel Background (for Live CD mode) -->
+        <div class="retro-wallpaper"></div>
+        
+        <!-- Desktop Shortcuts Grid -->
+        <div id="desktop-grid" class="desktop-grid">
+            <!-- Rendered dynamically by js/main.js based on Live vs Installed state -->
+        </div>
+
+        <!-- Floating Pet Overlay (when pet breaks out of window) -->
+        <div id="desktop-pet-overlay" class="pet-overlay hidden">
+            <canvas id="pet-overlay-canvas" width="120" height="120"></canvas>
+            <div id="pet-speech-bubble" class="speech-bubble hidden">
+                <span id="pet-speech-text">Hello!</span>
+            </div>
+        </div>
+
+        <!-- Window Container -->
+        <div id="window-layer"></div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container"></div>
+
+        <!-- Start Menu -->
+        <div id="start-menu" class="start-menu hidden">
+            <div class="start-menu-header">
+                <div class="user-avatar">☢️</div>
+                <div class="user-info">
+                    <div class="user-name">Krypton User</div>
+                    <div class="user-status"><span class="status-dot"></span> Krypton-OS 1.0</div>
+                </div>
+            </div>
+            <div class="start-menu-search">
+                <input type="text" id="start-search-input" placeholder="Search apps, files, commands...">
+            </div>
+            <div class="start-menu-body">
+                <div class="start-section-title">Applications</div>
+                <div class="start-app-grid" id="start-app-grid">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+            <div class="start-menu-footer">
+                <button class="start-btn-action" id="start-btn-settings">⚙️ Settings</button>
+                <button class="start-btn-action" id="start-btn-terminal">💻 Terminal</button>
+                <button class="start-btn-action danger" id="start-btn-restart">🔄 Reboot OS</button>
+            </div>
+        </div>
+
+        <!-- Taskbar -->
+        <div id="taskbar" class="taskbar">
+            <button id="start-button" class="start-button">
+                <div class="logo-icon">☢️</div>
+                <span>Krypton</span>
+            </button>
+
+            <div class="taskbar-divider"></div>
+
+            <div class="taskbar-windows" id="taskbar-windows">
+                <!-- Active open window tabs -->
+            </div>
+
+            <!-- System Tray -->
+            <div class="system-tray">
+                <div class="tray-item" id="tray-adblock-status" title="KryptonOS AdBlocker Status">
+                    🛡️ <span id="tray-adblock-text" class="adblock-badge off">OFF</span>
+                </div>
+                <div class="tray-item" id="tray-sound-toggle" title="Sound Effects">🔊</div>
+                <div class="tray-item" id="tray-battery" title="Battery Level: 98% (Discharging)">🔋 98%</div>
+                <div class="tray-item tray-clock" id="tray-clock">
+                    <span id="clock-time">00:00:00</span>
+                    <span id="clock-date">2026-08-14</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linux TTY Console (tty1) for pure CLI / headless / systemctl stop krypton-desktop mode -->
+    <div id="tty-screen" class="tty-screen hidden">
+        <div class="tty-header" style="margin-bottom: 16px; color: #00ffaa; line-height: 1.4;">
+            <div>KryptonOS 1.0 LTS (beryllium) tty1</div>
+            <div style="color: #888;">Type 'startx' or 'systemctl start krypton-desktop' to launch Wayland GUI desktop.</div>
+        </div>
+        <div id="tty-history"></div>
+        <div class="tty-prompt-line" style="display: flex; align-items: center;">
+            <span id="tty-prompt" style="color: #00ffaa; font-family: monospace; white-space: pre;">guest@krypton-station:~$ </span>
+            <input type="text" id="tty-input" style="flex: 1; background: transparent; border: none; outline: none; color: #ffffff; font-family: monospace; font-size: 15px;" autofocus autocomplete="off" spellcheck="false">
+        </div>
+    </div>
+
+    <!-- JS Boot Controller & Main Desktop Bootstrap -->
+    <script type="module" src="js/boot.js"></script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

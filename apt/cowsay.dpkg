@@ -1,0 +1,11 @@
+Package: cowsay
+Version: 3.03+dfsg2-8
+Architecture: all
+Section: games/toys
+Priority: optional
+Maintainer: Debian QA Group <packages@debian.org>
+Installed-Size: 96
+Depends: perl:any
+Homepage: https://github.com/tnalpgge/rank-amateur-cowsay
+Description: Configurable talking and thinking ASCII cow
+ Generates ASCII pictures of a cow (or other animals) saying or thinking custom messages.

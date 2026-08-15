@@ -1,0 +1,208 @@
+/* ==========================================================================
+   PhotonOS - Main Design System & Base Variables
+   ========================================================================== */
+
+:root {
+    /* Color Palette - Cyber Neon Dark Mode */
+    --bg-dark: #0b0d19;
+    --bg-surface: rgba(18, 22, 40, 0.75);
+    --bg-surface-solid: #121628;
+    --bg-glass: rgba(22, 28, 52, 0.65);
+    --bg-glass-hover: rgba(35, 45, 80, 0.75);
+    --bg-active: rgba(45, 60, 110, 0.85);
+
+    --border-color: rgba(255, 255, 255, 0.12);
+    --border-glow: rgba(0, 229, 255, 0.4);
+
+    --accent-primary: #00e5ff;
+    --accent-primary-hover: #33ebff;
+    --accent-secondary: #ff007f;
+    --accent-tertiary: #a855f7;
+    --accent-success: #10b981;
+    --accent-warning: #f59e0b;
+    --accent-danger: #ef4444;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-glow: 0 0 10px rgba(0, 229, 255, 0.5);
+
+    /* UI Dimensions & Spacing */
+    --taskbar-height: 48px;
+    --window-border-radius: 12px;
+    --glass-backdrop-blur: blur(16px);
+    --shadow-window: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 229, 255, 0.15);
+    --shadow-dropdown: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+    /* Fonts */
+    --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Fira Code', monospace;
+    --font-retro: 'VT323', monospace;
+
+    /* Transitions */
+    --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Theme Options */
+body.theme-cyberpunk {
+    --bg-dark: #0a0b16;
+    --accent-primary: #00f0ff;
+    --accent-secondary: #ff0055;
+}
+
+body.theme-synthwave {
+    --bg-dark: #1a0b2e;
+    --accent-primary: #ff71ce;
+    --accent-secondary: #01cdfe;
+}
+
+body.theme-matrix {
+    --bg-dark: #051409;
+    --accent-primary: #00ff66;
+    --accent-secondary: #008833;
+}
+
+/* CSS Reset & Base */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+html, body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color: var(--bg-dark);
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
+}
+
+/* General Input / Button overrides */
+input, textarea, button, select {
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+}
+
+/* Toast Notifications */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    min-width: 280px;
+    max-width: 380px;
+    padding: 14px 18px;
+    background: var(--bg-surface-solid);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent-primary);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    backdrop-filter: var(--glass-backdrop-blur);
+    color: var(--text-primary);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast.toast-warning { border-left-color: var(--accent-warning); }
+.toast.toast-danger { border-left-color: var(--accent-danger); }
+.toast.toast-success { border-left-color: var(--accent-success); }
+.toast.toast-glitch { border-left-color: var(--accent-secondary); animation: glitchToast 0.2s infinite; }
+
+.toast-icon {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.toast-content {
+    flex: 1;
+}
+
+.toast-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.toast-message {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.toast-close {
+    color: var(--text-muted);
+    font-size: 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.toast-close:hover {
+    color: var(--text-primary);
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+/* Glass Utility Classes */
+.glass-panel {
+    background: var(--bg-glass);
+    backdrop-filter: var(--glass-backdrop-blur);
+    border: 1px solid var(--border-color);
+    border-radius: var(--window-border-radius);
+}
+
+.hidden {
+    display: none !important;
+}

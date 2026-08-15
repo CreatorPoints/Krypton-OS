@@ -1,0 +1,592 @@
+/* ==========================================================================
+   PhotonOS - Applications Styling
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Fake Browser (Photon Browser)
+   -------------------------------------------------------------------------- */
+.browser-app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #0f1322;
+}
+
+.browser-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.browser-nav-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.browser-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+}
+
+.browser-address-bar {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0 10px;
+    height: 32px;
+}
+
+.browser-address-bar input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-mono);
+}
+
+.browser-adblock-indicator {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border-color);
+}
+
+.browser-viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #0c0e18;
+    color: var(--text-primary);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.browser-inner-content {
+    padding: 20px;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.browser-iframe {
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    border: none;
+    background: #ffffff;
+}
+
+/* Fake Websites */
+.fake-website {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* AdBlock Hater Warning Banner */
+.adblock-warning-banner {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+/* 17 Download Buttons Pet Site */
+.pet-download-page {
+    text-align: center;
+    padding: 20px;
+}
+
+.pet-download-header {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent-primary);
+    margin-bottom: 10px;
+    text-shadow: 0 0 15px var(--accent-primary);
+    animation: glowText 2s infinite alternate;
+}
+
+@keyframes glowText {
+    from { text-shadow: 0 0 5px var(--accent-primary); }
+    to { text-shadow: 0 0 20px var(--accent-primary), 0 0 30px var(--accent-secondary); }
+}
+
+.download-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 25px 0;
+}
+
+.fake-download-btn {
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    border: 2px solid rgba(255,255,255,0.2);
+}
+
+.fake-download-btn:hover {
+    transform: scale(1.05);
+}
+
+.fake-download-btn.style-1 { background: #22c55e; color: #000; }
+.fake-download-btn.style-2 { background: #3b82f6; color: #fff; }
+.fake-download-btn.style-3 { background: #eab308; color: #000; }
+.fake-download-btn.style-4 { background: #ec4899; color: #fff; }
+.fake-download-btn.style-real { background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; box-shadow: 0 0 20px var(--accent-primary); }
+
+/* Simulated Ads Popups inside Browser */
+.browser-ad-popup {
+    position: absolute;
+    width: 240px;
+    padding: 12px;
+    background: #1e1b4b;
+    border: 2px dashed #f43f5e;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    z-index: 50;
+    animation: bounceIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes bounceIn {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.browser-ad-popup .ad-close {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    background: #ef4444;
+    color: #fff;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 10px;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   2. Terminal
+   -------------------------------------------------------------------------- */
+.terminal-app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #080a0f;
+    font-family: var(--font-mono);
+    color: #00ffaa;
+    padding: 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-y: auto;
+    box-shadow: inset 0 0 30px rgba(0, 255, 170, 0.05);
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: text;
+}
+
+.terminal-line {
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-bottom: 4px;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+.terminal-line::selection, .terminal-app::selection, .terminal-prompt-text::selection, .terminal-input::selection {
+    background: #00e5ff !important;
+    color: #080a0f !important;
+}
+
+.terminal-prompt-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+.terminal-prompt-text {
+    color: var(--accent-primary);
+    font-weight: 700;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+.terminal-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    caret-color: #00ffaa;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+.terminal-output-error { color: #ef4444; }
+.terminal-output-success { color: #10b981; }
+.terminal-output-warning { color: #f59e0b; }
+.terminal-output-info { color: #38bdf8; }
+.terminal-output-muted { color: #64748b; }
+.terminal-output-cyan { color: #00e5ff; }
+.terminal-output-magenta { color: #ec4899; }
+.terminal-output-yellow { color: #eab308; }
+.terminal-prompt-root { color: #ef4444 !important; }
+
+/* --------------------------------------------------------------------------
+   3. Virtual Pet App ("Byte")
+   -------------------------------------------------------------------------- */
+.pet-app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #111428;
+    padding: 16px;
+    gap: 12px;
+}
+
+.pet-display-area {
+    flex: 1;
+    position: relative;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#pet-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.pet-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.stat-box {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.stat-track {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.stat-fill {
+    height: 100%;
+    background: var(--accent-primary);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.pet-action-toolbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.pet-action-btn {
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: all var(--transition-fast);
+}
+
+.pet-action-btn:hover {
+    background: rgba(0, 229, 255, 0.2);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+}
+
+/* --------------------------------------------------------------------------
+   4. Task Manager
+   -------------------------------------------------------------------------- */
+.taskmgr-app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 16px;
+    gap: 16px;
+    background: #0f1224;
+}
+
+.taskmgr-gauges {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.gauge-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gauge-title {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.gauge-val {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent-primary);
+}
+
+.process-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.process-table th {
+    text-align: left;
+    padding: 8px 12px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.process-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.process-table tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.process-table tr.highlight-suspicious {
+    color: var(--accent-secondary);
+    font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   5. File Manager & Notes & Messages & Settings & Calculator
+   -------------------------------------------------------------------------- */
+.filemgr-app, .notes-app, .messages-app, .settings-app, .calc-app {
+    display: flex;
+    height: 100%;
+    background: #0f1224;
+}
+
+/* File Explorer */
+.filemgr-sidebar {
+    width: 160px;
+    background: rgba(0, 0, 0, 0.3);
+    border-right: 1px solid var(--border-color);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filemgr-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filemgr-item:hover, .filemgr-item.active {
+    background: rgba(0, 229, 255, 0.15);
+    color: var(--text-primary);
+}
+
+.filemgr-content {
+    flex: 1;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 12px;
+    align-content: flex-start;
+    overflow-y: auto;
+}
+
+.file-icon-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.file-icon-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.file-icon-card .f-icon {
+    font-size: 32px;
+}
+
+.file-icon-card .f-name {
+    font-size: 11px;
+    text-align: center;
+    word-break: break-all;
+}
+
+/* Notes Editor */
+.notes-app {
+    flex-direction: column;
+    padding: 12px;
+    gap: 8px;
+}
+
+.notes-editor {
+    flex: 1;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    resize: none;
+}
+
+/* Calculator Grid */
+.calc-app {
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+}
+
+.calc-display {
+    background: #000;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: 24px;
+    text-align: right;
+    color: var(--accent-primary);
+}
+
+.calc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    flex: 1;
+}
+
+.calc-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+}
+
+.calc-btn:hover {
+    background: rgba(0, 229, 255, 0.2);
+}
+
+.calc-btn.op {
+    background: rgba(255, 0, 127, 0.2);
+    color: var(--accent-secondary);
+}
+
+/* Settings Layout */
+.settings-app {
+    flex-direction: column;
+    padding: 20px;
+    gap: 16px;
+    overflow-y: auto;
+}
+
+.settings-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.settings-card h4 {
+    font-size: 14px;
+    color: var(--accent-primary);
+}

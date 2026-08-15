@@ -1,0 +1,11 @@
+Package: krypton-notes
+Version: 1.1.0-release
+Architecture: amd64
+Section: editors/text
+Priority: optional
+Maintainer: Krypton Applications <apps@krypton-os.org>
+Installed-Size: 1800
+Depends: krypton-desktop
+Homepage: https://krypton-os.org
+Description: Fast lightweight text and code editor
+ GUI notepad supporting file reading, writing, and direct filesystem persistence in KryptonOS VFS.

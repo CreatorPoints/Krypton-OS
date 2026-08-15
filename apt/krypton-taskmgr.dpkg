@@ -1,0 +1,11 @@
+Package: krypton-taskmgr
+Version: 1.2.0-release
+Architecture: amd64
+Section: admin/monitoring
+Priority: standard
+Maintainer: Krypton System Team <sysadmin@krypton-os.org>
+Installed-Size: 3200
+Depends: krypton-desktop
+Homepage: https://krypton-os.org
+Description: GUI System Task Manager and Performance Monitor
+ Live CPU, RAM, and disk utilization charts with process inspection and task killer.

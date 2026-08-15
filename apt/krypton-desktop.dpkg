@@ -1,0 +1,11 @@
+Package: krypton-desktop
+Version: 1.0.4-release
+Architecture: amd64
+Section: x11/desktop
+Priority: required
+Maintainer: KryptonOS Desktop Team <desktop@krypton-os.org>
+Installed-Size: 84200
+Depends: krypton-wm, libwayland-client0, libegl1
+Homepage: https://krypton-os.org
+Description: Next-generation cyberpunk Wayland desktop environment
+ Full window manager, animated particle background, glassmorphism compositor, system tray, and start menu.

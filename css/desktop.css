@@ -1,0 +1,210 @@
+/* ==========================================================================
+   Krypton-OS - Minimalist Retro Live USB Desktop (No Animations)
+   ========================================================================== */
+
+#desktop-environment {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #008080; /* Classic Teal Live-CD Wallpaper */
+    font-family: 'Fira Code', 'Courier New', monospace;
+    user-select: none;
+}
+
+/* Low-res Retro Pixel Background Effect */
+.retro-wallpaper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: calc(100% - 36px);
+    background: #008080;
+    background-image: radial-gradient(rgba(0, 0, 0, 0.15) 1px, transparent 0);
+    background-size: 4px 4px; /* CRT scanline pixel pattern */
+}
+
+/* Minimal Desktop Grid */
+.desktop-grid {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.desktop-icon {
+    width: 90px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.desktop-icon:hover, .desktop-icon.selected {
+    background-color: rgba(0, 0, 128, 0.4);
+    border: 1px dotted #ffffff;
+}
+
+.icon-image {
+    font-size: 42px;
+    line-height: 1;
+}
+
+.icon-label {
+    font-size: 12px;
+    color: #ffffff;
+    text-align: center;
+    background: #000000;
+    padding: 2px 6px;
+    font-family: 'Fira Code', monospace;
+    white-space: nowrap;
+}
+
+/* Retro Live USB Taskbar */
+.taskbar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 36px;
+    z-index: 9999;
+    background: #c0c0c0; /* Classic Win95 / LiveCD Gray */
+    border-top: 2px solid #ffffff;
+    display: flex;
+    align-items: center;
+    padding: 2px 6px;
+    gap: 6px;
+    box-sizing: border-box;
+}
+
+.start-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #c0c0c0;
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-right: 2px solid #000000;
+    border-bottom: 2px solid #000000;
+    color: #000000;
+    font-weight: bold;
+    font-size: 13px;
+    font-family: 'Fira Code', monospace;
+    cursor: pointer;
+}
+
+.start-button:active {
+    border-top: 2px solid #000000;
+    border-left: 2px solid #000000;
+    border-right: 2px solid #ffffff;
+    border-bottom: 2px solid #ffffff;
+}
+
+.taskbar-divider {
+    width: 2px;
+    height: 22px;
+    background: #808080;
+    border-right: 1px solid #ffffff;
+}
+
+.system-tray {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #c0c0c0;
+    border-top: 2px solid #808080;
+    border-left: 2px solid #808080;
+    border-right: 2px solid #ffffff;
+    border-bottom: 2px solid #ffffff;
+    padding: 2px 8px;
+    font-size: 12px;
+    color: #000000;
+    font-family: 'Fira Code', monospace;
+}
+
+/* Retro Window Override (No smooth glassmorphism, pure 90s/Linux LiveCD 3D borders) */
+.os-window {
+    background: #c0c0c0 !important;
+    border-top: 2px solid #ffffff !important;
+    border-left: 2px solid #ffffff !important;
+    border-right: 2px solid #000000 !important;
+    border-bottom: 2px solid #000000 !important;
+    border-radius: 0 !important;
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.5) !important;
+    backdrop-filter: none !important;
+}
+
+.window-titlebar {
+    height: 28px !important;
+    background: #000080 !important; /* Classic Dark Blue Titlebar */
+    color: #ffffff !important;
+    padding: 0 6px !important;
+    font-family: 'Fira Code', monospace !important;
+    font-size: 12px !important;
+    border-bottom: 1px solid #000000 !important;
+}
+
+.window-control-btn {
+    width: 18px !important;
+    height: 18px !important;
+    border-radius: 0 !important;
+    background: #c0c0c0 !important;
+    color: #000000 !important;
+    border-top: 1px solid #ffffff !important;
+    border-left: 1px solid #ffffff !important;
+    border-right: 1px solid #000000 !important;
+    border-bottom: 1px solid #000000 !important;
+    font-size: 10px !important;
+}
+
+.window-body {
+    background: #c0c0c0 !important;
+    color: #000000 !important;
+    font-family: 'Fira Code', monospace !important;
+    padding: 16px !important;
+}
+
+/* Linux TTY1 Fullscreen Console Mode */
+.tty-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000000;
+    color: #00ffaa;
+    font-family: 'Fira Code', 'VT323', monospace;
+    font-size: 16px;
+    padding: 28px;
+    box-sizing: border-box;
+    z-index: 999999;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.tty-screen.hidden {
+    display: none !important;
+}
+
+.tty-output-line {
+    margin-bottom: 4px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.35;
+}
+
+.tty-output-error { color: #ff5555; }
+.tty-output-success { color: #55ff55; }
+.tty-output-warning { color: #ffff55; }
+.tty-output-cyan { color: #00e5ff; }
+.tty-output-muted { color: #888888; }
+

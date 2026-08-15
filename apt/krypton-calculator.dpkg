@@ -1,0 +1,11 @@
+Package: krypton-calculator
+Version: 1.0.2-release
+Architecture: amd64
+Section: math/calculators
+Priority: optional
+Maintainer: Krypton Applications <apps@krypton-os.org>
+Installed-Size: 950
+Depends: krypton-desktop
+Homepage: https://krypton-os.org
+Description: Scientific and standard desktop calculator
+ Floating-point math evaluator with history tape and memory functions.

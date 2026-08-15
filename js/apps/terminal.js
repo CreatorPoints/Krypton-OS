@@ -11,7 +11,6 @@ import { openNotes } from './notes.js';
 
 export const REPO_DPKG_PACKAGES = [
     { id: 'krypton-desktop-core', file: 'krypton-desktop-core_0.1.0.2_amd64.deb', name: 'krypton-desktop-core', version: '0.1.0.2', arch: 'amd64', section: 'x11/desktop', size: 4820, maintainer: 'KryptonOS Core Team <core@krypton-os.org>', summary: 'KryptonOS Desktop Shell, Wayland Compositor, and System Utilities' },
-    { id: 'antigravity', file: 'antigravity.dpkg', name: 'antigravity', version: '4.2.0-beryllium', arch: 'amd64', section: 'science/physics', size: 1024, maintainer: 'Google Deepmind Antigravity Team <antigravity@krypton-os.org>', summary: 'Zero-G Quantum Physics Simulator and Floating Window Engine' },
     { id: 'cmatrix', file: 'cmatrix.dpkg', name: 'cmatrix', version: '2.0-3', arch: 'amd64', section: 'utils/console', size: 128, maintainer: 'KryptonOS Maintainers <packages@krypton-os.org>', summary: 'Matrix Digital Rain Terminal Screensaver' },
     { id: 'cowsay', file: 'cowsay.dpkg', name: 'cowsay', version: '3.03+dfsg2-8', arch: 'all', section: 'games/toys', size: 96, maintainer: 'Debian QA Group <packages@debian.org>', summary: 'Configurable talking and thinking ASCII cow' },
     { id: 'neofetch', file: 'neofetch.dpkg', name: 'neofetch', version: '7.1.0-2', arch: 'all', section: 'utils/system', size: 340, maintainer: 'Dylan Araps <dylan.araps@gmail.com>', summary: 'Fast, highly customizable CLI system info tool' },
@@ -21,8 +20,7 @@ export const REPO_DPKG_PACKAGES = [
     { id: 'krypton-taskmgr', file: 'krypton-taskmgr.dpkg', name: 'krypton-taskmgr', version: '1.2.0-release', arch: 'amd64', section: 'admin/monitoring', size: 3200, maintainer: 'Krypton System Team <sysadmin@krypton-os.org>', summary: 'GUI System Task Manager and Performance Monitor' },
     { id: 'krypton-filemgr', file: 'krypton-filemgr.dpkg', name: 'krypton-filemgr', version: '1.3.0-release', arch: 'amd64', section: 'utils/files', size: 5600, maintainer: 'Krypton System Team <sysadmin@krypton-os.org>', summary: 'Graphical File Explorer and Storage Navigator' },
     { id: 'krypton-notes', file: 'krypton-notes.dpkg', name: 'krypton-notes', version: '1.1.0-release', arch: 'amd64', section: 'editors/text', size: 1800, maintainer: 'Krypton Applications <apps@krypton-os.org>', summary: 'Fast lightweight text and code editor' },
-    { id: 'krypton-calculator', file: 'krypton-calculator.dpkg', name: 'krypton-calculator', version: '1.0.2-release', arch: 'amd64', section: 'math/calculators', size: 950, maintainer: 'Krypton Applications <apps@krypton-os.org>', summary: 'Scientific and standard desktop calculator' },
-    { id: 'adblock', file: 'adblock.dpkg', name: 'krypton-adblock', version: '2.4.0-beryllium', arch: 'all', section: 'net/privacy', size: 512, maintainer: 'Krypton Security Team <security@krypton-os.org>', summary: 'High-performance DNS and network ad blocker and tracker shield', binary: '/usr/bin/adblock', config: '/etc/adblock.conf' }
+    { id: 'krypton-calculator', file: 'krypton-calculator.dpkg', name: 'krypton-calculator', version: '1.0.2-release', arch: 'amd64', section: 'math/calculators', size: 950, maintainer: 'Krypton Applications <apps@krypton-os.org>', summary: 'Scientific and standard desktop calculator' }
 ];
 
 export const PARROT_FRAMES = [
@@ -2464,9 +2462,40 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 }
 
 /* --------------------------------------------------------------------------
-   APT Package Manager Helper
+   APT Package Manager Helper (Real Dynamic Repository Engine)
    -------------------------------------------------------------------------- */
-function executeAptCommand(args, isRoot, callback) {
+async function fetchAptRepoCatalog() {
+    try {
+        const res = await fetch('./apt/packages.json');
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+                vfs.writeFile('/var/lib/apt/lists/deb.krypton-os.org_krypton_Packages.json', JSON.stringify(data, null, 2));
+                return data;
+            }
+        }
+    } catch (e) {
+        // Attempt secondary raw GitHub mirror
+        try {
+            const gitRes = await fetch('https://raw.githubusercontent.com/CreatorPoints/Krypton-OS/main/apt/packages.json');
+            if (gitRes.ok) {
+                const gitData = await gitRes.json();
+                if (Array.isArray(gitData) && gitData.length > 0) {
+                    vfs.writeFile('/var/lib/apt/lists/deb.krypton-os.org_krypton_Packages.json', JSON.stringify(gitData, null, 2));
+                    return gitData;
+                }
+            }
+        } catch (err) {}
+    }
+
+    const cached = vfs.readFile('/var/lib/apt/lists/deb.krypton-os.org_krypton_Packages.json');
+    if (cached) {
+        try { return JSON.parse(cached); } catch (e) {}
+    }
+    return REPO_DPKG_PACKAGES;
+}
+
+async function executeAptCommand(args, isRoot, callback) {
     const subCmd = (args[0] || '').toLowerCase();
     const pkg = (args[1] || '').toLowerCase();
 
@@ -2481,8 +2510,10 @@ function executeAptCommand(args, isRoot, callback) {
     const getOsVersion = () => {
         const osRel = vfs.readFile('/etc/os-release') || '';
         const match = osRel.match(/VERSION="([^"]+)"/);
-        return match ? match[1] : (localStorage.getItem('krypton_os_version') || '0.1.0.1');
+        return match ? match[1] : (localStorage.getItem('krypton_os_version') || '1.0.0.0');
     };
+
+    const packages = await fetchAptRepoCatalog();
 
     if (subCmd === 'update') {
         const curVer = getOsVersion();
@@ -2490,8 +2521,8 @@ function executeAptCommand(args, isRoot, callback) {
 
         const lines = [
             { text: "Hit:1 https://deb.krypton-os.org/krypton beryllium InRelease", type: 'normal' },
-            { text: "Get:2 https://deb.krypton-os.org/krypton/pool/main Packages [14.2 kB]", type: 'normal' },
-            { text: `Fetched 14.2 kB in 0s (210 kB/s)`, type: 'muted' },
+            { text: `Get:2 https://deb.krypton-os.org/krypton/pool/main Packages [${packages.length * 1.8} kB]`, type: 'normal' },
+            { text: `Fetched ${(packages.length * 1.8).toFixed(1)} kB in 0s (340 kB/s) - Synchronized ${packages.length} packages from repo`, type: 'muted' },
             { text: "Reading package lists... Done", type: 'success' },
             { text: "Building dependency tree... Done", type: 'success' },
             { text: "Reading state information... Done", type: 'success' }
@@ -2559,6 +2590,33 @@ function executeAptCommand(args, isRoot, callback) {
         return;
     }
 
+    if (subCmd === 'show' || subCmd === 'info') {
+        if (!pkg) {
+            callback({ lines: [{ text: "apt: missing package name to show", type: 'error' }], exitCode: 1 });
+            return;
+        }
+        const found = packages.find(p => p.id === pkg || p.name === pkg);
+        if (found) {
+            callback({
+                lines: [
+                    { text: `Package: ${found.name}`, type: 'cyan' },
+                    { text: `Version: ${found.version}`, type: 'normal' },
+                    { text: `Priority: optional`, type: 'normal' },
+                    { text: `Section: ${found.section || 'universe'}`, type: 'normal' },
+                    { text: `Maintainer: ${found.maintainer || 'Krypton Maintainers <pkg@krypton-os.org>'}`, type: 'normal' },
+                    { text: `Installed-Size: ${found.size || 512} kB`, type: 'normal' },
+                    { text: `Architecture: ${found.architecture || found.arch || 'amd64'}`, type: 'normal' },
+                    { text: `Archive-File: /apt/${found.file || (found.id + '.dpkg')}`, type: 'muted' },
+                    { text: `Description: ${found.summary || found.description}`, type: 'normal' }
+                ],
+                exitCode: 0
+            });
+        } else {
+            callback({ lines: [{ text: `E: Unable to locate package ${pkg}`, type: 'error' }], exitCode: 100 });
+        }
+        return;
+    }
+
     if (subCmd === 'list') {
         const curVer = getOsVersion();
         const isUpgradableFlag = args.includes('--upgradable') || args.includes('-u');
@@ -2582,11 +2640,11 @@ function executeAptCommand(args, isRoot, callback) {
         }
 
         const lines = [
-            { text: `Listing... Done (/apt repository - ${REPO_DPKG_PACKAGES.length} available)`, type: 'muted' }
+            { text: `Listing... Done (/apt repository - ${packages.length} available)`, type: 'muted' }
         ];
-        REPO_DPKG_PACKAGES.forEach(p => {
+        packages.forEach(p => {
             lines.push({
-                text: `${p.name}/${p.section} ${p.version} ${p.arch} [installed: ${p.file}]`,
+                text: `${p.name}/${p.section || 'universe'} ${p.version} ${p.architecture || p.arch || 'amd64'} [installed: ${p.file || p.id + '.dpkg'}]`,
                 type: p.id === 'antigravity' ? 'cyan' : 'normal'
             });
         });
@@ -2599,10 +2657,11 @@ function executeAptCommand(args, isRoot, callback) {
             callback({ lines: [{ text: "apt: missing search query", type: 'error' }], exitCode: 1 });
             return;
         }
-        const results = REPO_DPKG_PACKAGES.filter(p => 
+        const results = packages.filter(p => 
             p.name.toLowerCase().includes(pkg) || 
-            p.summary.toLowerCase().includes(pkg) ||
-            p.section.toLowerCase().includes(pkg)
+            (p.summary && p.summary.toLowerCase().includes(pkg)) ||
+            (p.description && p.description.toLowerCase().includes(pkg)) ||
+            (p.section && p.section.toLowerCase().includes(pkg))
         );
         if (results.length === 0) {
             callback({ lines: [{ text: `No packages matching '${pkg}' in /apt`, type: 'warning' }], exitCode: 0 });
@@ -2610,8 +2669,8 @@ function executeAptCommand(args, isRoot, callback) {
         }
         const lines = [{ text: `Sorting... Done\nFull Text Search... Done`, type: 'muted' }];
         results.forEach(p => {
-            lines.push({ text: `${p.name}/${p.section} ${p.version} ${p.arch}`, type: 'cyan' });
-            lines.push({ text: `  ${p.summary} (from /apt/${p.file})`, type: 'normal' });
+            lines.push({ text: `${p.name}/${p.section || 'universe'} ${p.version} ${p.architecture || p.arch || 'amd64'}`, type: 'cyan' });
+            lines.push({ text: `  ${p.summary || p.description} (from /apt/${p.file || p.id + '.dpkg'})`, type: 'normal' });
         });
         callback({ lines, exitCode: 0 });
         return;
@@ -2623,7 +2682,7 @@ function executeAptCommand(args, isRoot, callback) {
             return;
         }
 
-        const found = REPO_DPKG_PACKAGES.find(p => p.id === pkg || p.name === pkg);
+        const found = packages.find(p => p.id === pkg || p.name === pkg);
 
         if (pkg === 'antigravity' || (found && found.id === 'antigravity')) {
             story.setAntigravity(true);
@@ -2679,10 +2738,10 @@ function executeAptCommand(args, isRoot, callback) {
                 lines: [
                     { text: `Reading package lists... Done`, type: 'normal' },
                     { text: `Building dependency tree... Done`, type: 'normal' },
-                    { text: `Get:1 https://deb.krypton-os.org/apt/ ${found.file} [${found.size} kB]`, type: 'normal' },
-                    { text: `Unpacking ${found.name} from /apt/${found.file} ...`, type: 'normal' },
+                    { text: `Get:1 https://deb.krypton-os.org/apt/ ${found.file || (found.id + '.dpkg')} [${found.size || 512} kB]`, type: 'normal' },
+                    { text: `Unpacking ${found.name} from /apt/${found.file || (found.id + '.dpkg')} ...`, type: 'normal' },
                     { text: `Setting up ${found.name} (${found.version}) ...`, type: 'success' },
-                    { text: `Package '${found.name}' installed successfully from /apt/${found.file}.`, type: 'info' }
+                    { text: `Package '${found.name}' installed successfully from /apt/${found.file || (found.id + '.dpkg')}.`, type: 'info' }
                 ],
                 exitCode: 0
             });

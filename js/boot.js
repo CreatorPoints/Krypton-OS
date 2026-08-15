@@ -164,8 +164,20 @@ export class MasterBootEngine {
             return;
         }
 
-        // 1. USB PenDrive is the active boot medium -> live session / installer
+        // 1. USB PenDrive is the active boot medium
         if (candidate.includes('SanDisk') || candidate.includes('USB') || candidate.includes('PenDrive')) {
+            const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+            const isDeleted = localStorage.getItem('krypton_os_deleted') === 'true';
+            const vmlinuz = vfs.getNode('/boot/vmlinuz-6.10.0-krypton-generic');
+            const grubCfg = vfs.getNode('/boot/grub/grub.cfg');
+            const osRelease = vfs.getNode('/etc/os-release');
+
+            // If the OS has been installed to the SSD, but the Live USB is taking 1st priority:
+            if (isInstalled && !isDeleted && vmlinuz && grubCfg && osRelease) {
+                this.showPostInstallBootOrderNotice();
+                return;
+            }
+
             this.bootIntoLiveUSB();
             return;
         }
@@ -637,75 +649,142 @@ export class MasterBootEngine {
         this.clearTimers();
 
         this.container.innerHTML = `
-            <div class="bios-error-viewport" id="kernel-log-viewport" style="padding: 24px; color: #00ffaa; font-family: monospace; font-size: 15px; line-height: 1.4;">
+            <div class="krypton-boot-loader">
+                <div class="krypton-loader-logo">
+                    <div class="krypton-atom-icon">⚛️</div>
+                    <div class="krypton-loader-title">KRYPTON<span style="color: #00e5ff;">OS</span></div>
+                    <div class="krypton-loader-sub">Live USB & Installer Session</div>
+                </div>
+                <div class="krypton-progress-bar-container">
+                    <div class="krypton-progress-bar-fill" id="krypton-boot-fill"></div>
+                </div>
+                <div class="krypton-loader-status" id="krypton-boot-status">Loading installer image into memory...</div>
             </div>
         `;
 
-        const viewport = document.getElementById('kernel-log-viewport');
+        const fill = document.getElementById('krypton-boot-fill');
+        const status = document.getElementById('krypton-boot-status');
 
-        const kernelLogs = [
-            { delay: 0, text: '[  0.000000] Linux version 6.10.0-krypton-generic (root@krypton-build) (gcc 13.2.0) #1 SMP PREEMPT_DYNAMIC' },
-            { delay: 200, text: '[  0.081240] DMI: ASUSTeK COMPUTER INC. ROG STRIX Z490-E GAMING/ROG STRIX Z490-E GAMING, BIOS 2403' },
-            { delay: 450, text: '[  0.214050] usb 1-1: new high-speed USB device number 2 using xhci_hcd (SanDisk Ultra 32GB)' },
-            { delay: 750, text: '[  0.491200] [  OK  ] Mounted Live USB squashfs overlay on /run/live/medium' },
-            { delay: 1100, text: '[  0.890124] [  OK  ] Started D-Bus System Message Bus' },
-            { delay: 1400, text: '[  1.200451] [  OK  ] Reached target Graphical Interface' },
-            { delay: 1750, text: 'Starting Krypton Live Desktop & Installation Environment...' }
-        ];
-
-        kernelLogs.forEach(item => {
-            setTimeout(() => {
-                if (viewport) {
-                    const line = document.createElement('div');
-                    line.textContent = item.text;
-                    viewport.appendChild(line);
-                }
-            }, item.delay);
-        });
+        setTimeout(() => { if (fill) fill.style.width = '35%'; if (status) status.textContent = 'Mounting squashfs root...'; }, 300);
+        setTimeout(() => { if (fill) fill.style.width = '70%'; if (status) status.textContent = 'Starting Wayland display server...'; }, 900);
+        setTimeout(() => { if (fill) fill.style.width = '100%'; if (status) status.textContent = 'Starting Live desktop session...'; }, 1500);
 
         setTimeout(() => {
             this.container.style.display = 'none';
             checkEnvironmentState();
             document.getElementById('desktop-environment').classList.remove('hidden');
-        }, 2200);
+        }, 1900);
     }
 
     bootIntoInstalledMainOS() {
         this.phase = 'KERNEL_BOOT';
         this.clearTimers();
 
+        const osRel = vfs.readFile('/etc/os-release') || '';
+        const prettyMatch = osRel.match(/PRETTY_NAME="([^"]+)"/);
+        const osTitle = prettyMatch ? prettyMatch[1] : 'Krypton 1.0 LTS';
+
         this.container.innerHTML = `
-            <div class="bios-error-viewport" id="kernel-log-viewport" style="padding: 24px; color: #00ffaa; font-family: monospace; font-size: 15px; line-height: 1.4;">
+            <div class="krypton-boot-loader">
+                <div class="krypton-loader-logo">
+                    <div class="krypton-atom-icon">⚛️</div>
+                    <div class="krypton-loader-title">KRYPTON<span style="color: #00e5ff;">OS</span></div>
+                    <div class="krypton-loader-sub">${osTitle}</div>
+                </div>
+                <div class="krypton-progress-bar-container">
+                    <div class="krypton-progress-bar-fill" id="krypton-boot-fill"></div>
+                </div>
+                <div class="krypton-loader-status" id="krypton-boot-status">Starting system services...</div>
             </div>
         `;
 
-        const viewport = document.getElementById('kernel-log-viewport');
+        const fill = document.getElementById('krypton-boot-fill');
+        const status = document.getElementById('krypton-boot-status');
 
-        const kernelLogs = [
-            { delay: 0, text: '[  0.000000] Linux version 6.10.0-krypton-generic (root@krypton-build) (gcc 13.2.0) #1 SMP PREEMPT_DYNAMIC' },
-            { delay: 180, text: '[  0.098410] nvme nvme0: pci function 0000:01:00.0 (Samsung SSD 980 PRO 1TB)' },
-            { delay: 400, text: '[  0.351290] [  OK  ] Mounted /dev/nvme0n1p2 (ext4 root filesystem)' },
-            { delay: 750, text: '[  0.781920] [  OK  ] Started systemd-journald.service' },
-            { delay: 1050, text: '[  1.050300] [  OK  ] Started D-Bus System Message Bus' },
-            { delay: 1350, text: '[  1.320100] [  OK  ] Reached target Graphical Interface' },
-            { delay: 1650, text: 'Welcome to KryptonOS 1.0 LTS!' }
-        ];
-
-        kernelLogs.forEach(item => {
-            setTimeout(() => {
-                if (viewport) {
-                    const line = document.createElement('div');
-                    line.textContent = item.text;
-                    viewport.appendChild(line);
-                }
-            }, item.delay);
-        });
+        setTimeout(() => { if (fill) fill.style.width = '40%'; if (status) status.textContent = 'Loading kernel modules...'; }, 250);
+        setTimeout(() => { if (fill) fill.style.width = '80%'; if (status) status.textContent = 'Starting Wayland session...'; }, 800);
+        setTimeout(() => { if (fill) fill.style.width = '100%'; if (status) status.textContent = 'Welcome!'; }, 1400);
 
         setTimeout(() => {
             this.container.style.display = 'none';
             checkEnvironmentState();
             document.getElementById('desktop-environment').classList.remove('hidden');
-        }, 2000);
+        }, 1800);
+    }
+
+    showPostInstallBootOrderNotice() {
+        this.phase = 'BOOT_ORDER_NOTICE';
+        this.clearTimers();
+
+        const osRel = vfs.readFile('/etc/os-release') || '';
+        const prettyMatch = osRel.match(/PRETTY_NAME="([^"]+)"/);
+        const osTitle = prettyMatch ? prettyMatch[1] : 'Krypton 1.0 LTS';
+        const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
+        const hostname = localStorage.getItem('krypton_hostname') || 'krypton-station';
+
+        this.container.innerHTML = `
+            <div class="krypton-boot-loader">
+                <div class="krypton-loader-logo">
+                    <div class="krypton-atom-icon">⚛️</div>
+                    <div class="krypton-loader-title">KRYPTON<span style="color: #00e5ff;">OS</span></div>
+                    <div class="krypton-loader-sub">${osTitle} (Installed on Samsung SSD 980 PRO)</div>
+                </div>
+
+                <div class="krypton-progress-bar-container" style="max-width: 480px;">
+                    <div class="krypton-progress-bar-fill" style="width: 100%; background: linear-gradient(90deg, #f59e0b, #eab308);"></div>
+                </div>
+
+                <div style="margin-top: 24px; background: rgba(15, 23, 42, 0.96); border: 1px solid #f59e0b; border-radius: 12px; padding: 22px 28px; max-width: 620px; text-align: center; box-shadow: 0 16px 36px rgba(0,0,0,0.6); backdrop-filter: blur(20px);">
+                    <div style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>⚠️</span> Reboot to change boot order to continue
+                    </div>
+                    <div style="font-size: 13px; color: #e2e8f0; line-height: 1.6; margin-bottom: 18px;">
+                        KryptonOS is installed on <strong>Samsung SSD 980 PRO NVMe</strong> for user <strong>${primaryUser}@${hostname}</strong>.<br>
+                        Because the <strong>Live USB</strong> is currently configured as 1st boot device, please enter BIOS Setup to set <strong>Samsung SSD 980 PRO</strong> as the 1st Boot Priority.
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                        <button id="postinst-btn-bios" style="padding: 9px 18px; background: #0284c7; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+                            ⚙️ Enter BIOS Setup (ESC)
+                        </button>
+                        <button id="postinst-btn-boot-ssd" style="padding: 9px 18px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+                            💽 Boot from NVMe SSD Directly
+                        </button>
+                        <button id="postinst-btn-live-session" style="padding: 9px 16px; background: rgba(255,255,255,0.08); color: #cbd5e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            💿 Continue in Live USB Session
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('postinst-btn-bios')?.addEventListener('click', () => {
+            this.activeTab = 3; // Jump directly to Boot tab in BIOS Setup
+            this.openAptioBIOSSetup();
+        });
+
+        document.getElementById('postinst-btn-boot-ssd')?.addEventListener('click', () => {
+            this.bootPriority = [
+                'NVMe: Samsung SSD 980 PRO 1TB',
+                'Disabled'
+            ];
+            localStorage.setItem('krypton_boot_priority', JSON.stringify(this.bootPriority));
+            this.bootIntoInstalledMainOS();
+        });
+
+        document.getElementById('postinst-btn-live-session')?.addEventListener('click', () => {
+            this.bootIntoLiveUSB();
+        });
+
+        // Key listeners for ESC
+        this.keyListener = (e) => {
+            if (this.phase !== 'BOOT_ORDER_NOTICE') return;
+            if (e.key === 'Escape' || e.code === 'Escape') {
+                e.preventDefault();
+                this.activeTab = 3;
+                this.openAptioBIOSSetup();
+            }
+        };
+        document.addEventListener('keydown', this.keyListener);
     }
 
     /* --------------------------------------------------------------------------

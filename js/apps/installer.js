@@ -1,5 +1,5 @@
 /* ==========================================================================
-   KryptonOS - Calamares / Ubiquity Style Installer Wizard Engine
+   KryptonOS - Calamares / Ubiquity Style Live Network Installer Wizard Engine
    ========================================================================== */
 
 import { wm } from '../wm.js';
@@ -16,20 +16,34 @@ export function openInstallerWizard() {
     let currentStep = 0;
     let selectedLang = 'English (US)';
     let selectedTz = 'UTC+05:30 - Kolkata (India)';
-    let connectedWifi = null;
-    let userName = 'Krypton User';
+    let connectedWifi = 'pass-1234ABC';
+    let userName = 'Shrestangsu Dutta';
     let userHostname = 'krypton-station';
-    let userLogin = 'guest';
+    let userLogin = 'shrestangsu';
     let userPassword = '';
     let confirmPassword = '';
     let autoLogin = true;
     let installInProgress = false;
+    let installTimerInterval = null;
+
+    // Google Account Identity (Mandatory for Cloud-Backed Storage Buckets & Persistent VFS)
+    let savedGoogleJson = localStorage.getItem('krypton_google_account');
+    let googleAccount = null;
+    try {
+        if (savedGoogleJson) googleAccount = JSON.parse(savedGoogleJson);
+    } catch (e) {}
+
+    if (googleAccount) {
+        userName = googleAccount.name || userName;
+        userLogin = (googleAccount.email ? googleAccount.email.split('@')[0] : 'guest').toLowerCase().replace(/[^a-z0-9_]/g, '');
+        userHostname = `${userLogin}-station`;
+    }
 
     const steps = [
         { id: 'lang', name: 'Language' },
         { id: 'timezone', name: 'Timezone' },
         { id: 'network', name: 'Network' },
-        { id: 'user', name: 'User' },
+        { id: 'user', name: 'User & Google Auth' },
         { id: 'disk', name: 'Destination Disk' },
         { id: 'install', name: 'Install' }
     ];
@@ -49,7 +63,7 @@ export function openInstallerWizard() {
             </div>
 
             <div class="installer-content-area">
-                <div id="step-body-container" style="flex: 1;">
+                <div id="step-body-container" style="flex: 1; display: flex; flex-direction: column;">
                     ${renderStepBody(currentStep)}
                 </div>
 
@@ -111,7 +125,7 @@ export function openInstallerWizard() {
 
             return `
                 <div class="step-title">Connect to Network</div>
-                <div class="step-subtitle">Connect to a wireless or wired network to fetch system packages.</div>
+                <div class="step-subtitle">Connect to a wireless or wired network to fetch system packages from GitHub upstream.</div>
                 <div class="wifi-network-list">
                     ${wifis.map(w => {
                         const isConn = connectedWifi === w.ssid;
@@ -129,36 +143,67 @@ export function openInstallerWizard() {
             `;
         } else if (stepIdx === 3) {
             return `
-                <div class="step-title">Who are you?</div>
-                <div class="step-subtitle">Configure your primary user identity and workstation hostname.</div>
+                <div class="step-title">Who are you? (Google Account Required)</div>
+                <div class="step-subtitle">Authenticate with Google to enable cloud-backed persistent storage buckets and user identity.</div>
+
+                <div style="margin-bottom: 12px;">
+                    ${googleAccount ? `
+                        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0, 229, 255, 0.08); border: 1px solid #00e5ff; border-radius: 8px; padding: 12px 16px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #4285F4, #34A853); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                                    ${googleAccount.picture ? `<img src="${googleAccount.picture}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : (googleAccount.name ? googleAccount.name[0].toUpperCase() : 'G')}
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; color: #fff; font-size: 14px;">${googleAccount.name || userName}</div>
+                                    <div style="font-size: 12px; color: #00e5ff;">${googleAccount.email}</div>
+                                    <div style="font-size: 11px; color: #a0aec0; margin-top: 2px;">✓ Google Identity Linked • Persistent Storage Bucket Ready</div>
+                                </div>
+                            </div>
+                            <button id="wiz-google-unlink-btn" style="padding: 6px 12px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.2); color: #cbd5e0; border-radius: 4px; cursor: pointer;">Change Account</button>
+                        </div>
+                    ` : `
+                        <div style="background: rgba(66, 133, 244, 0.08); border: 1px dashed #4285F4; border-radius: 8px; padding: 16px; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 6px;">🔒</div>
+                            <div style="font-weight: 600; color: #fff; font-size: 13px; margin-bottom: 4px;">Google Account Required for Cloud-Backed Storage</div>
+                            <div style="font-size: 11px; color: #a0aec0; max-width: 440px; margin: 0 auto 12px auto;">
+                                Linking your Google account enables automatic file synchronization across sessions using secure cloud storage buckets.
+                            </div>
+                            <button id="wiz-google-signin-btn" style="display: inline-flex; align-items: center; gap: 10px; background: #ffffff; color: #3c4043; font-weight: 600; font-size: 13px; padding: 8px 18px; border-radius: 6px; border: 1px solid #dadce0; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: all 0.2s;">
+                                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                                Sign in with Google
+                            </button>
+                        </div>
+                    `}
+                </div>
+
                 <div class="user-form-card">
                     <div class="user-form-row">
-                        <label class="user-form-label">Your name:</label>
-                        <input type="text" class="user-form-input" id="wiz-realname-input" value="${userName}" placeholder="e.g. John Doe" autocomplete="off" spellcheck="false">
+                        <label class="user-form-label">Full Name:</label>
+                        <input type="text" class="user-form-input" id="wiz-realname-input" value="${userName}" placeholder="e.g. Shrestangsu Dutta" autocomplete="off" spellcheck="false">
                     </div>
                     <div class="user-form-row">
-                        <label class="user-form-label">Your computer's name (hostname):</label>
+                        <label class="user-form-label">Workstation Hostname:</label>
                         <input type="text" class="user-form-input" id="wiz-hostname-input" value="${userHostname}" placeholder="e.g. krypton-station" autocomplete="off" spellcheck="false">
-                        <span class="user-form-hint">The name it uses when identifying itself on local networks and terminal prompts.</span>
+                        <span class="user-form-hint">Machine identifier used for terminal prompts (<code>${userLogin}@${userHostname}</code>).</span>
                     </div>
                     <div class="user-form-row">
-                        <label class="user-form-label">Pick a username:</label>
+                        <label class="user-form-label">Linux Username:</label>
                         <input type="text" class="user-form-input" id="wiz-username-input" value="${userLogin}" placeholder="e.g. guest" autocomplete="off" spellcheck="false">
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                         <div class="user-form-row">
-                            <label class="user-form-label">Choose a password <span style="font-weight: normal; color: #888;">(optional)</span>:</label>
+                            <label class="user-form-label">Password <span style="font-weight: normal; color: #888;">(optional)</span>:</label>
                             <input type="password" class="user-form-input" id="wiz-password-input" value="${userPassword}" placeholder="Password..." autocomplete="off">
                         </div>
                         <div class="user-form-row">
-                            <label class="user-form-label">Confirm password <span style="font-weight: normal; color: #888;">(optional)</span>:</label>
+                            <label class="user-form-label">Confirm Password:</label>
                             <input type="password" class="user-form-input" id="wiz-confirm-pass-input" value="${confirmPassword}" placeholder="Confirm password..." autocomplete="off">
                         </div>
                     </div>
                     <div style="margin-top: 6px;">
                         <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #e0e0e0; cursor: pointer;">
                             <input type="checkbox" id="wiz-autologin-toggle" ${autoLogin ? 'checked' : ''}>
-                            Log in automatically without asking for password
+                            Log in automatically on system startup
                         </label>
                     </div>
                 </div>
@@ -166,7 +211,7 @@ export function openInstallerWizard() {
         } else if (stepIdx === 4) {
             return `
                 <div class="step-title">Select Destination Storage Disk</div>
-                <div class="step-subtitle">Choose the target hard drive where KryptonOS will be installed.</div>
+                <div class="step-subtitle">Choose the target NVMe / SSD drive where KryptonOS will be installed.</div>
 
                 <div class="drive-card selected">
                     <div class="drive-icon">💽</div>
@@ -185,13 +230,13 @@ export function openInstallerWizard() {
                 </div>
 
                 <div style="background: rgba(239,68,68,0.15); border: 1px solid #ef4444; border-radius: 6px; padding: 12px; font-size: 12px; color: #fca5a5;">
-                    ⚠️ <strong>Warning:</strong> Installation will partition and format target drive <code>/dev/nvme0n1</code>.
+                    ⚠️ <strong>Warning:</strong> Installation will format target partition <code>/dev/nvme0n1p2</code> and install genuine upstream KryptonOS 1.0 LTS.
                 </div>
             `;
         } else if (stepIdx === 5) {
             return `
-                <div class="step-title">Installing KryptonOS 1.0 LTS</div>
-                <div class="step-subtitle" id="installer-status-label">Initializing package download and disk installation...</div>
+                <div class="step-title">Installing KryptonOS 1.0 LTS (Real Stream from Repo)</div>
+                <div class="step-subtitle" id="installer-status-label">Connecting to upstream https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo...</div>
 
                 <div class="installer-progress-container">
                     <div class="progress-track">
@@ -208,21 +253,80 @@ export function openInstallerWizard() {
                             <span class="metric-value speed-badge" id="inst-speed-text">⚡ 0.0 MB/s</span>
                         </div>
                         <div class="metric-item">
-                            <span class="metric-label">Data Transferred</span>
-                            <span class="metric-value" id="inst-downloaded-text">0 MB / 3,840 MB</span>
+                            <span class="metric-label">Estimated Time Left</span>
+                            <span class="metric-value" id="inst-eta-text">Calculating...</span>
                         </div>
                         <div class="metric-item">
                             <span class="metric-label">Elapsed Time</span>
-                            <span class="metric-value" id="inst-timer-text">0.0s / 25.0s max</span>
+                            <span class="metric-value" id="inst-timer-text">0.0s</span>
                         </div>
                     </div>
 
                     <div class="installer-terminal-logs" id="inst-term-logs">
-                        <div class="log-line">[  0.00s ] Starting KryptonOS Ubiquity Live Installer...</div>
+                        <div class="log-line">[  0.00s ] Initializing KryptonOS Real Stream Installer Engine...</div>
                     </div>
                 </div>
             `;
         }
+    };
+
+    const showGoogleAuthModal = () => {
+        const dialog = document.createElement('div');
+        dialog.style.cssText = 'display: flex; flex-direction: column; gap: 14px; color: #000; font-family: "Outfit", sans-serif;';
+
+        dialog.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+                <svg width="24" height="24" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                <div style="font-weight: 700; font-size: 15px; color: #1a202c;">Sign in with Google Account</div>
+            </div>
+            <div style="font-size: 12px; color: #4a5568;">
+                Enter your Google Account email to authenticate and initialize your cloud persistent storage bucket:
+            </div>
+            <input type="email" id="google-email-input" value="shrestangsu.dutta@gmail.com" placeholder="name@gmail.com" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
+            <input type="text" id="google-name-input" value="Shrestangsu Dutta" placeholder="Display Name" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+                <button id="google-btn-cancel" style="padding: 6px 14px; background: #edf2f7; border: 1px solid #cbd5e0; border-radius: 6px; cursor: pointer; font-size: 12px;">Cancel</button>
+                <button id="google-btn-auth" style="padding: 6px 16px; background: #4285F4; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">Connect Google ID</button>
+            </div>
+        `;
+
+        wm.createWindow({
+            id: 'google-auth-dialog',
+            title: 'Google Account Authentication',
+            icon: '🔒',
+            width: 390,
+            height: 260,
+            content: dialog
+        });
+
+        dialog.querySelector('#google-btn-cancel').addEventListener('click', () => wm.closeWindow('google-auth-dialog'));
+        dialog.querySelector('#google-btn-auth').addEventListener('click', () => {
+            const email = dialog.querySelector('#google-email-input').value.trim();
+            const name = dialog.querySelector('#google-name-input').value.trim() || 'Google User';
+
+            if (!email || !email.includes('@')) {
+                story.showToast('Validation Error', 'Please enter a valid Google Account email address.', 'error');
+                return;
+            }
+
+            googleAccount = {
+                email: email,
+                name: name,
+                uid: `google_oauth2_${Math.random().toString(36).substring(2, 12)}`,
+                linked_at: new Date().toISOString()
+            };
+
+            userName = name;
+            userLogin = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+            userHostname = `${userLogin}-station`;
+
+            localStorage.setItem('krypton_google_account', JSON.stringify(googleAccount));
+            localStorage.setItem('krypton_google_email', email);
+
+            wm.closeWindow('google-auth-dialog');
+            story.showToast('✓ Google Account Connected', `Authenticated as ${email}. Cloud storage bucket configured!`, 'success');
+            render();
+        });
     };
 
     const attachStepListeners = () => {
@@ -240,13 +344,11 @@ export function openInstallerWizard() {
         if (tzSelect && clockPreview) {
             tzSelect.addEventListener('change', (e) => {
                 selectedTz = e.target.value;
+                updateClock();
             });
-
             const updateClock = () => {
                 const now = new Date();
-                if (clockPreview) {
-                    clockPreview.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ` (${selectedTz.split(' - ')[0]})`;
-                }
+                clockPreview.textContent = now.toTimeString().split(' ')[0] + ' ' + selectedTz.split(' - ')[0];
             };
             updateClock();
         }
@@ -261,15 +363,28 @@ export function openInstallerWizard() {
                     showWifiPasswordWindow(ssid);
                 } else if (!locked) {
                     connectedWifi = ssid;
-                    showOSNoticeWindow('Wi-Fi Connected', `Connected to open network "${ssid}".`);
+                    story.showToast('Wi-Fi Connected', `Connected to open network "${ssid}".`, 'success');
                     render();
                 } else {
-                    showOSNoticeWindow('Security Error', `Incorrect network security settings for "${ssid}".`);
+                    story.showToast('Security Error', `Incorrect network security settings for "${ssid}".`, 'error');
                 }
             });
         });
 
-        // Step 3: User Inputs
+        // Step 3: Google Auth & User Inputs
+        const googleBtn = content.querySelector('#wiz-google-signin-btn');
+        if (googleBtn) googleBtn.addEventListener('click', showGoogleAuthModal);
+
+        const unlinkBtn = content.querySelector('#wiz-google-unlink-btn');
+        if (unlinkBtn) {
+            unlinkBtn.addEventListener('click', () => {
+                googleAccount = null;
+                localStorage.removeItem('krypton_google_account');
+                localStorage.removeItem('krypton_google_email');
+                render();
+            });
+        }
+
         const realnameInput = content.querySelector('#wiz-realname-input');
         const hostnameInput = content.querySelector('#wiz-hostname-input');
         const usernameInput = content.querySelector('#wiz-username-input');
@@ -277,51 +392,12 @@ export function openInstallerWizard() {
         const confirmPassInput = content.querySelector('#wiz-confirm-pass-input');
         const autologinToggle = content.querySelector('#wiz-autologin-toggle');
 
-        if (realnameInput) {
-            realnameInput.addEventListener('input', (e) => {
-                userName = e.target.value;
-                // Auto-suggest username if default
-                if (userLogin === 'guest' || userLogin === '') {
-                    const clean = userName.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    if (clean && usernameInput) {
-                        userLogin = clean;
-                        usernameInput.value = userLogin;
-                    }
-                }
-            });
-        }
-
-        if (hostnameInput) {
-            hostnameInput.addEventListener('input', (e) => {
-                userHostname = e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '');
-                e.target.value = userHostname;
-            });
-        }
-
-        if (usernameInput) {
-            usernameInput.addEventListener('input', (e) => {
-                userLogin = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
-                e.target.value = userLogin;
-            });
-        }
-
-        if (passwordInput) {
-            passwordInput.addEventListener('input', (e) => {
-                userPassword = e.target.value;
-            });
-        }
-
-        if (confirmPassInput) {
-            confirmPassInput.addEventListener('input', (e) => {
-                confirmPassword = e.target.value;
-            });
-        }
-
-        if (autologinToggle) {
-            autologinToggle.addEventListener('change', (e) => {
-                autoLogin = e.target.checked;
-            });
-        }
+        if (realnameInput) realnameInput.addEventListener('input', (e) => { userName = e.target.value; });
+        if (hostnameInput) hostnameInput.addEventListener('input', (e) => { userHostname = e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''); e.target.value = userHostname; });
+        if (usernameInput) usernameInput.addEventListener('input', (e) => { userLogin = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''); e.target.value = userLogin; });
+        if (passwordInput) passwordInput.addEventListener('input', (e) => { userPassword = e.target.value; });
+        if (confirmPassInput) confirmPassInput.addEventListener('input', (e) => { confirmPassword = e.target.value; });
+        if (autologinToggle) autologinToggle.addEventListener('change', (e) => { autoLogin = e.target.checked; });
 
         // Navigation Buttons
         const prevBtn = content.querySelector('#wiz-prev-btn');
@@ -339,14 +415,18 @@ export function openInstallerWizard() {
 
         if (nextBtn) {
             nextBtn.addEventListener('click', () => {
-                // Validation for User step
+                // Validation for User step: MANDATORY Google Account
                 if (currentStep === 3) {
+                    if (!googleAccount) {
+                        showOSNoticeWindow('🔒 Google Account Required', 'A connected Google Account is strictly mandatory to initialize persistent cloud storage buckets and user keychains. Please sign in with Google to continue.');
+                        return;
+                    }
                     if (!userLogin.trim()) {
-                        showOSNoticeWindow('Configuration Required', 'Please pick a username for your account.');
+                        showOSNoticeWindow('Configuration Required', 'Please pick a valid Linux username.');
                         return;
                     }
                     if (!userHostname.trim()) {
-                        showOSNoticeWindow('Configuration Required', 'Please provide a computer name (hostname).');
+                        showOSNoticeWindow('Configuration Required', 'Please provide a workstation hostname.');
                         return;
                     }
                     if (userPassword && userPassword !== confirmPassword) {
@@ -410,7 +490,7 @@ export function openInstallerWizard() {
             if (pass === 'pass-1234ABC') {
                 connectedWifi = ssid;
                 wm.closeWindow('wifi-pass-dialog');
-                showOSNoticeWindow('Wi-Fi Connected', `✓ Connected to "${ssid}" successfully!`);
+                story.showToast('Wi-Fi Connected', `✓ Connected to "${ssid}" successfully!`, 'success');
                 render();
             } else {
                 errMsg.style.display = 'block';
@@ -430,16 +510,16 @@ export function openInstallerWizard() {
 
         dialogContent.innerHTML = `
             <div style="font-weight: bold; font-size: 14px; color: #cc0000; border-bottom: 1px solid #808080; padding-bottom: 6px;">
-                ⚠️ Confirm Disk Formatting & Installation
+                ⚠️ Confirm Disk Formatting & Upstream Installation
             </div>
             <div style="font-size: 13px; color: #222;">
-                Are you sure you want to write changes to <strong>/dev/nvme0n1</strong>?<br>
+                Write upstream KryptonOS rootfs image to <strong>/dev/nvme0n1</strong>?<br>
                 Target drive: <em>Samsung SSD 980 PRO 1TB</em>.<br>
-                User: <strong>${userLogin}</strong> (${userName}) • Hostname: <strong>${userHostname}</strong>
+                User: <strong>${userLogin}</strong> (${userName}) • Google: <strong>${googleAccount ? googleAccount.email : 'None'}</strong>
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
                 <button id="disk-btn-cancel" style="padding: 6px 14px; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; cursor: pointer; font-size: 12px;">Cancel</button>
-                <button id="disk-btn-confirm" style="padding: 6px 14px; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; color: #cc0000; cursor: pointer; font-size: 12px;">▶ Erase & Install Now</button>
+                <button id="disk-btn-confirm" style="padding: 6px 14px; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; color: #cc0000; cursor: pointer; font-size: 12px;">▶ Erase & Install</button>
             </div>
         `;
 
@@ -448,7 +528,7 @@ export function openInstallerWizard() {
             title: 'Confirm Installation Target',
             icon: '⚠️',
             width: 440,
-            height: 250,
+            height: 230,
             content: dialogContent
         });
 
@@ -461,244 +541,200 @@ export function openInstallerWizard() {
         });
     };
 
-    const showOSNoticeWindow = (title, message) => {
-        const dialogContent = document.createElement('div');
-        dialogContent.style.cssText = 'display: flex; flex-direction: column; gap: 14px; color: #000; font-family: "Fira Code", monospace;';
-
-        dialogContent.innerHTML = `
-            <div style="font-size: 13px; color: #111;">${message}</div>
-            <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
-                <button id="notice-btn-ok" style="padding: 6px 16px; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; cursor: pointer; font-size: 12px;">OK</button>
+    const showOSNoticeWindow = (title, msg) => {
+        const d = document.createElement('div');
+        d.style.cssText = 'padding: 16px; color: #000; font-family: "Outfit", sans-serif; font-size: 13px; line-height: 1.5;';
+        d.innerHTML = `
+            <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px; color: #1a202c;">${title}</div>
+            <div style="color: #4a5568; margin-bottom: 16px;">${msg}</div>
+            <div style="display: flex; justify-content: flex-end;">
+                <button id="notice-ok-btn" style="padding: 6px 16px; background: #00e5ff; color: #000; font-weight: 700; border: none; border-radius: 4px; cursor: pointer;">OK</button>
             </div>
         `;
-
-        const winId = `notice-${Date.now()}`;
         wm.createWindow({
-            id: winId,
+            id: 'installer-notice',
             title: title,
             icon: 'ℹ️',
             width: 360,
             height: 180,
-            content: dialogContent
+            content: d
         });
-
-        dialogContent.querySelector('#notice-btn-ok').addEventListener('click', () => wm.closeWindow(winId));
+        d.querySelector('#notice-ok-btn').addEventListener('click', () => wm.closeWindow('installer-notice'));
     };
 
-    let installTimerInterval = null;
-
-    /* Dynamic, Fluctuating OS Download & Installation Engine (Strictly <= 25s) */
-    const startDynamicOSInstallation = () => {
+    // =========================================================================
+    // REAL STREAMING INSTALLATION ENGINE (FETCHES ROOTFS FROM KRYPTON-REPO)
+    // =========================================================================
+    const startDynamicOSInstallation = async () => {
         if (installInProgress) return;
         installInProgress = true;
-
-        const maxAllowedDuration = 25.0; // Hard ceiling: NEVER exceeds 25s
-        const targetDuration = Math.min(23.5, 18.0 + Math.random() * 5.0);
-        const totalBytesMB = 3840;
-
-        let elapsed = 0;
-        let progress = 0;
-        let currentSpeedMBs = 95.0;
-        let nextSpeedChange = 0;
-        let currentMode = 'NORMAL';
 
         const fillEl = content.querySelector('#inst-progress-fill');
         const percentEl = content.querySelector('#inst-percent-text');
         const speedEl = content.querySelector('#inst-speed-text');
-        const downloadedEl = content.querySelector('#inst-downloaded-text');
+        const etaEl = content.querySelector('#inst-eta-text');
         const timerEl = content.querySelector('#inst-timer-text');
         const statusLabel = content.querySelector('#installer-status-label');
         const logBox = content.querySelector('#inst-term-logs');
 
-        const milestoneLogs = [
-            { pct: 0.5, text: 'Formatting target disk /dev/nvme0n1p2 as ext4 journaled filesystem...' },
-            { pct: 4.0, text: 'Creating swap partition on /dev/nvme0n1p3 (2048 MB)...' },
-            { pct: 9.0, text: 'Connecting to package mirror: https://archive.krypton-os.org/pool/main...' },
-            { pct: 15.0, text: 'Speed burst detected: downloading core base-files & glibc (680 MB)...' },
-            { pct: 26.0, text: 'Downloading linux-image-6.10.0-krypton-generic & kernel headers (450 MB)...' },
-            { pct: 36.0, text: 'Mirror latency variation detected: downloading desktop runtime libraries...' },
-            { pct: 47.0, text: `Creating primary user account '${userLogin}' (${userName})...` },
-            { pct: 58.0, text: 'Extracting Wayland compositor, X11 libraries, and Krypton Desktop UI...' },
-            { pct: 69.0, text: `Generating system locales and configuring timezone (${selectedTz.split(' - ')[0]})...` },
-            { pct: 78.0, text: 'Building initial ramdisk: update-initramfs -c -k 6.10.0-krypton...' },
-            { pct: 88.0, text: 'Installing GRUB2 EFI bootloader into /boot/efi (/dev/nvme0n1p1)...' },
-            { pct: 95.0, text: `Configuring system hostname: ${userHostname}...` },
-            { pct: 100.0, text: 'Installation and user configuration completed successfully!' }
-        ];
+        const startTime = Date.now();
 
-        let loggedMilestones = new Set();
-        const dt = 0.1;
-
-        const pickNewSpeedMode = (currentPct) => {
-            const rand = Math.random();
-            if (currentPct > 75 && currentPct < 85) {
-                return rand < 0.6 ? 'UNPACK_STALL' : 'SLOW_DIP';
-            }
-            if (currentPct > 88 && currentPct < 98) {
-                return rand < 0.5 ? 'NORMAL' : 'BURST';
-            }
-            if (currentPct >= 98) {
-                return 'FINAL_SYNC';
-            }
-
-            if (rand < 0.35) return 'BURST';
-            if (rand < 0.65) return 'NORMAL';
-            if (rand < 0.85) return 'SLOW_DIP';
-            return 'UNPACK_STALL';
+        const appendLog = (msg, color = '#e2e8f0', isBold = false) => {
+            if (!logBox) return;
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.style.color = color;
+            if (isBold) line.style.fontWeight = 'bold';
+            const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2).padStart(5, ' ');
+            line.textContent = `[ ${elapsedSec}s ] ${msg}`;
+            logBox.appendChild(line);
+            logBox.scrollTop = logBox.scrollHeight;
         };
 
-        installTimerInterval = setInterval(() => {
-            elapsed += dt;
+        appendLog('Establishing TLS 1.3 socket to https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo...', '#00e5ff');
 
-            if (elapsed >= nextSpeedChange) {
-                currentMode = pickNewSpeedMode(progress);
-                nextSpeedChange = elapsed + 0.8 + Math.random() * 1.8;
+        // Fetch genuine OS RootFS payload
+        let rootfsPayload = null;
+        try {
+            const res = await fetch('https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/rootfs.json');
+            if (res.ok) {
+                rootfsPayload = await res.json();
+                appendLog('HTTP/2 200 OK: Synchronized rootfs.json image header from upstream GitHub repository.', '#48bb78');
             }
+        } catch (err) {
+            appendLog('Warning: Upstream GitHub mirror offline/unreachable, failing over to local repository cache...', '#ecc94b');
+        }
 
-            let baseSpeed = 120;
-            let speedBadgeClass = '';
-            let speedLabelPrefix = '⚡';
+        if (!rootfsPayload) {
+            try {
+                const localRes = await fetch('./apt/rootfs.json');
+                if (localRes.ok) {
+                    rootfsPayload = await localRes.json();
+                    appendLog('Local archive verified: /apt/rootfs.json (KryptonOS 1.0 LTS image loaded).', '#48bb78');
+                }
+            } catch (e) {}
+        }
 
-            switch (currentMode) {
-                case 'BURST':
-                    baseSpeed = 220 + Math.random() * 120;
-                    speedBadgeClass = 'burst';
-                    speedLabelPrefix = '🚀';
-                    break;
-                case 'NORMAL':
-                    baseSpeed = 120 + Math.random() * 60;
-                    speedBadgeClass = '';
-                    speedLabelPrefix = '⚡';
-                    break;
-                case 'SLOW_DIP':
-                    baseSpeed = 50 + Math.random() * 40;
-                    speedBadgeClass = 'slow';
-                    speedLabelPrefix = '🐢';
-                    break;
-                case 'UNPACK_STALL':
-                    baseSpeed = 20 + Math.random() * 25;
-                    speedBadgeClass = 'stall';
-                    speedLabelPrefix = '📦';
-                    break;
-                case 'FINAL_SYNC':
-                    baseSpeed = 190 + Math.random() * 90;
-                    speedBadgeClass = 'burst';
-                    speedLabelPrefix = '💽';
-                    break;
+        const filesToExtract = (rootfsPayload && rootfsPayload.files) ? Object.entries(rootfsPayload.files) : [
+            ['/boot/grub/grub.cfg', '# GRUB 2.06\nset default=0\nmenuentry "KryptonOS GNU/Linux" { linux /boot/vmlinuz-6.10.0-krypton-generic root=UUID=7f8a-99b2-krypton ro quiet splash\ninitrd /boot/initrd.img-6.10.0-krypton-generic\n}\n'],
+            ['/boot/vmlinuz-6.10.0-krypton-generic', 'ELF 64-bit LSB executable, x86-64, Linux 6.10.0-krypton-generic'],
+            ['/boot/initrd.img-6.10.0-krypton-generic', 'ASCII cpio archive (SVR4 with CRC), initial ramdisk rootfs image'],
+            ['/etc/os-release', 'NAME="KryptonOS"\nVERSION="1.0.0.0"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="Krypton 1.0.0.0 LTS"\nVERSION_ID="1.0.0.0"\nVERSION_CODENAME=beryllium\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n'],
+            ['/etc/fstab', 'UUID=7f8a-99b2-krypton / ext4 errors=remount-ro 0 1\n'],
+            ['/etc/apt/sources.list', 'deb https://deb.krypton-os.org/krypton beryllium main contrib non-free\n']
+        ];
+
+        const totalSteps = filesToExtract.length + 10;
+        let currentStepNum = 0;
+        let totalBytesCalculated = filesToExtract.reduce((acc, [, val]) => acc + (val ? val.length : 100), 0) + (1024 * 1024 * 38);
+        let transferredBytes = 0;
+
+        const updateMetrics = () => {
+            const elapsed = Math.max(0.1, (Date.now() - startTime) / 1000);
+            const pct = Math.min(100, (currentStepNum / totalSteps) * 100);
+            const speedBytesPerSec = transferredBytes / elapsed;
+            const speedMBs = speedBytesPerSec / (1024 * 1024);
+            const remainingBytes = Math.max(0, totalBytesCalculated - transferredBytes);
+            const etaSec = speedBytesPerSec > 0 ? (remainingBytes / speedBytesPerSec) : 0;
+
+            if (fillEl) fillEl.style.width = `${pct.toFixed(1)}%`;
+            if (percentEl) percentEl.textContent = `${pct.toFixed(1)}% Completed`;
+            if (timerEl) timerEl.textContent = `${elapsed.toFixed(1)}s`;
+            if (speedEl) speedEl.textContent = `⚡ ${(speedMBs + 85.0).toFixed(1)} MB/s`;
+            if (etaEl) etaEl.textContent = pct >= 100 ? '✓ Completed' : `${etaSec.toFixed(1)}s remaining`;
+        };
+
+        const executeStep = async (desc, action, byteCost = 500000) => {
+            currentStepNum++;
+            transferredBytes += byteCost;
+            if (statusLabel) statusLabel.textContent = desc;
+            appendLog(desc, '#cbd5e0');
+            updateMetrics();
+            if (action) await action();
+            await new Promise(r => setTimeout(r, 90 + Math.random() * 80));
+        };
+
+        // 1. Partition & Mount
+        await executeStep('Partitioning /dev/nvme0n1 with GPT partition table (EFI, Root, Swap)...', () => {
+            vfs.createDirectory('/boot');
+            vfs.createDirectory('/boot/grub');
+            vfs.createDirectory('/etc');
+            vfs.createDirectory('/etc/apt');
+            vfs.createDirectory('/var');
+            vfs.createDirectory('/var/log');
+            vfs.createDirectory('/var/lib');
+            vfs.createDirectory('/var/lib/dpkg');
+            vfs.createDirectory('/var/lib/apt');
+            vfs.createDirectory('/var/lib/apt/lists');
+            vfs.createDirectory('/usr');
+            vfs.createDirectory('/usr/bin');
+            vfs.createDirectory('/usr/share');
+            vfs.createDirectory('/usr/share/applications');
+        }, 1000000);
+
+        await executeStep('Formatting /dev/nvme0n1p2 as ext4 (UUID=7f8a-99b2-krypton, blocksize=4096)...', null, 2000000);
+        await executeStep('Mounting target filesystem to /mnt/krypton-target...', null, 500000);
+
+        // 2. Stream Extract each real file
+        for (const [path, content] of filesToExtract) {
+            await executeStep(`GET upstream:${path} -> unpack to /dev/nvme0n1p2`, () => {
+                vfs.writeFile(path, content);
+            }, (content ? content.length * 150 : 200000));
+        }
+
+        // 3. User & Google Cloud Persistent Storage Account Provisioning
+        const effUser = userLogin.trim() || 'guest';
+        const effHost = userHostname.trim() || 'krypton-station';
+
+        await executeStep(`Provisioning Google persistent identity (${googleAccount ? googleAccount.email : 'guest'})...`, () => {
+            vfs.writeFile('/etc/hostname', `${effHost}\n`);
+            vfs.writeFile('/etc/hosts', `127.0.0.1\tlocalhost\n127.0.1.1\t${effHost}\n\n::1     ip6-localhost ip6-loopback\n`);
+            vfs.writeFile('/etc/passwd', `root:x:0:0:root:/root:/bin/bash\n${effUser}:x:1000:1000:${userName},,,:/home/${effUser}:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin\nsys:x:3:3:sys:/dev:/usr/sbin/nologin\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n`);
+            vfs.writeFile('/etc/group', `root:x:0:\nadm:x:4:${effUser}\nsudo:x:27:${effUser}\naudio:x:29:${effUser}\nvideo:x:44:${effUser}\nplugdev:x:46:${effUser}\n${effUser}:x:1000:\n`);
+
+            vfs.createDirectory(`/home/${effUser}`);
+            vfs.createDirectory(`/home/${effUser}/Desktop`);
+            vfs.createDirectory(`/home/${effUser}/Documents`);
+            vfs.createDirectory(`/home/${effUser}/Downloads`);
+            vfs.createDirectory(`/home/${effUser}/Pictures`);
+
+            vfs.writeFile(`/home/${effUser}/.bashrc`, `export PATH=$PATH:/usr/local/bin\nalias ll='ls -la'\nalias la='ls -A'\nalias cls='clear'\n`);
+            vfs.writeFile(`/home/${effUser}/.profile`, `if [ -f ~/.bashrc ]; then . ~/.bashrc; fi\n`);
+            vfs.writeFile(`/home/${effUser}/Desktop/welcome_to_krypton.txt`, `=== Welcome to KryptonOS 1.0 LTS ===\n\nUser: ${userName} (${effUser})\nGoogle Account: ${googleAccount ? googleAccount.email : 'N/A'}\nWorkstation: ${effHost}\nStorage Target: Samsung SSD 980 PRO 1TB NVMe\n`);
+            vfs.writeFile(`/home/${effUser}/Documents/system_specs.txt`, `OS: KryptonOS 1.0.0.0 LTS x86_64\nKernel: Linux 6.10.0-krypton-generic\nGoogle Account: ${googleAccount ? googleAccount.email : 'None'}\nHost: ROG STRIX Z490-E GAMING\n`);
+        }, 1500000);
+
+        await executeStep('Generating initramfs: update-initramfs -c -k 6.10.0-krypton-generic...', null, 3000000);
+        await executeStep('Installing GNU GRUB 2.06 EFI bootloader into /boot/efi...', null, 1200000);
+        await executeStep('Flushing VFS dirty cache and synchronizing block devices...', () => {
+            vfs.writeFile('/etc/os-release', `NAME="KryptonOS"\nVERSION="1.0.0.0"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="Krypton 1.0.0.0 LTS"\nVERSION_ID="1.0.0.0"\nVERSION_CODENAME=beryllium\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n`);
+            vfs.writeFile('/etc/issue', `Krypton 1.0.0.0 LTS \\n \\l\n`);
+            vfs.writeFile('/etc/motd', `\n=======================================================\n  Welcome to Krypton 1.0.0.0 LTS (Linux 6.10.0-generic)\n  * Documentation:  https://krypton-os.org/docs\n  * Support:        https://krypton-os.org/support\n=======================================================\n`);
+            vfs.saveFileSystem();
+
+            localStorage.setItem('krypton_primary_user', effUser);
+            localStorage.setItem('krypton_hostname', effHost);
+            localStorage.setItem('krypton_os_version', '1.0.0.0');
+            localStorage.setItem('krypton_os_installed', 'true');
+            if (googleAccount) {
+                localStorage.setItem('krypton_google_account', JSON.stringify(googleAccount));
+                localStorage.setItem('krypton_google_email', googleAccount.email);
             }
+        }, 800000);
 
-            currentSpeedMBs = baseSpeed;
+        // Completion
+        currentStepNum = totalSteps;
+        updateMetrics();
+        if (fillEl) fillEl.style.width = '100%';
+        if (percentEl) percentEl.textContent = '100.0% Completed';
+        if (speedEl) speedEl.textContent = '✓ 0.0 MB/s (Done)';
+        if (etaEl) etaEl.textContent = '0.0s (Finished)';
+        if (statusLabel) statusLabel.textContent = `🎉 KryptonOS 1.0 LTS Installed successfully for ${effUser}!`;
 
-            const nominalIncrement = (100 / targetDuration) * dt;
-            const speedMultiplier = currentSpeedMBs / 130.0;
-            let deltaProgress = nominalIncrement * speedMultiplier;
+        appendLog(`[ SUCCESS ] KryptonOS 1.0 LTS rootfs deployed! Persistent storage bucket linked to ${googleAccount ? googleAccount.email : effUser}. Type "sudo reboot" in Terminal to boot.`, '#ffff55', true);
 
-            if (elapsed > 21.0 && progress < 88) {
-                const remainingTime = Math.max(0.4, maxAllowedDuration - elapsed);
-                deltaProgress = Math.max(deltaProgress, (100 - progress) / (remainingTime / dt));
-                currentSpeedMBs = 240 + Math.random() * 60;
-                speedBadgeClass = 'burst';
-                speedLabelPrefix = '🚀';
-            }
-
-            progress = Math.min(100, progress + deltaProgress);
-
-            if (progress >= 100 || elapsed >= maxAllowedDuration || (elapsed >= targetDuration && progress >= 99)) {
-                progress = 100;
-            }
-
-            const downloadedMB = Math.min(totalBytesMB, Math.round((progress / 100) * totalBytesMB));
-
-            if (fillEl) fillEl.style.width = `${progress.toFixed(1)}%`;
-            if (percentEl) percentEl.textContent = `${progress.toFixed(1)}% Completed`;
-            if (downloadedEl) downloadedEl.textContent = `${downloadedMB.toLocaleString()} MB / ${totalBytesMB.toLocaleString()} MB`;
-            if (timerEl) timerEl.textContent = `${elapsed.toFixed(1)}s / ${maxAllowedDuration.toFixed(1)}s max`;
-
-            if (speedEl) {
-                speedEl.className = `metric-value speed-badge ${speedBadgeClass}`;
-                if (progress >= 100) {
-                    speedEl.textContent = `✓ 0.0 MB/s (Done)`;
-                } else {
-                    speedEl.textContent = `${speedLabelPrefix} ${currentSpeedMBs.toFixed(1)} MB/s`;
-                }
-            }
-
-            milestoneLogs.forEach((milestone, idx) => {
-                if (progress >= milestone.pct && !loggedMilestones.has(idx)) {
-                    loggedMilestones.add(idx);
-                    if (logBox) {
-                        const line = document.createElement('div');
-                        line.className = 'log-line';
-                        const timeTag = `[ ${elapsed.toFixed(2).padStart(5, ' ')}s ]`;
-                        line.textContent = `${timeTag} ${milestone.text}`;
-                        logBox.appendChild(line);
-                        logBox.scrollTop = logBox.scrollHeight;
-                    }
-                    if (statusLabel) {
-                        statusLabel.textContent = milestone.text;
-                    }
-                }
-            });
-
-            // Completion Handler
-            if (progress >= 100) {
-                clearInterval(installTimerInterval);
-                installTimerInterval = null;
-
-                // Provision customized user account and hostname into VFS
-                const effUser = userLogin.trim() || 'guest';
-                const effHost = userHostname.trim() || 'krypton-station';
-
-                vfs.writeFile('/etc/hostname', `${effHost}\n`);
-                vfs.writeFile('/etc/hosts', `127.0.0.1\tlocalhost\n127.0.1.1\t${effHost}\n\n::1     ip6-localhost ip6-loopback\nfe00::0 ip6-localnet\nff00::0 ip6-mcastprefix\nff02::1 ip6-allnodes\nff02::2 ip6-allrouters\n`);
-                
-                const passwdNode = vfs.getNode('/etc/passwd');
-                if (passwdNode) {
-                    passwdNode.content = `root:x:0:0:root:/root:/bin/bash\n${effUser}:x:1000:1000:${userName},,,:/home/${effUser}:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin\nsys:x:3:3:sys:/dev:/usr/sbin/nologin\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n`;
-                }
-
-                const groupNode = vfs.getNode('/etc/group');
-                if (groupNode) {
-                    groupNode.content = `root:x:0:\nadm:x:4:${effUser}\nsudo:x:27:${effUser}\naudio:x:29:${effUser}\ndip:x:30:${effUser}\nvideo:x:44:${effUser}\nplugdev:x:46:${effUser}\n${effUser}:x:1000:\n`;
-                }
-
-                vfs.createDirectory(`/home/${effUser}`);
-                vfs.createDirectory(`/home/${effUser}/Desktop`);
-                vfs.createDirectory(`/home/${effUser}/Documents`);
-                vfs.createDirectory(`/home/${effUser}/Downloads`);
-                vfs.createDirectory(`/home/${effUser}/Pictures`);
-                vfs.createDirectory(`/home/${effUser}/Music`);
-                vfs.createDirectory(`/home/${effUser}/Videos`);
-
-                vfs.writeFile(`/home/${effUser}/.bashrc`, `export PATH=$PATH:/usr/local/bin\nalias ll='ls -la'\nalias la='ls -A'\nalias l='ls -CF'\nalias cls='clear'\n`);
-                vfs.writeFile(`/home/${effUser}/.profile`, `# ~/.profile for ${effUser}\nif [ -f ~/.bashrc ]; then\n  . ~/.bashrc\nfi\n`);
-                vfs.writeFile(`/home/${effUser}/.bash_history`, `uname -a\nneofetch\nls -la\n`);
-                vfs.writeFile(`/home/${effUser}/Desktop/welcome_to_krypton.txt`, `=== Welcome to KryptonOS 1.0 LTS ===\n\nWelcome, ${userName} (${effUser})!\nYour workstation '${effHost}' has been provisioned on Samsung SSD 980 PRO NVMe storage.\n\nEnjoy your authentic Linux sandbox!`);
-                vfs.writeFile(`/home/${effUser}/Documents/system_specs.txt`, `OS: KryptonOS 1.0 LTS x86_64\nHost: ASUSTeK COMPUTER INC. ROG STRIX Z490-E GAMING\nUser: ${userName} (${effUser})\nHostname: ${effHost}\nKernel: Linux 6.10.0-krypton-generic\nCPU: Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz (8C/16T)\nGPU: NVIDIA GeForce RTX 3080 10GB\nRAM: 16384 MB DDR4-3200 (Dual-Channel)\nStorage: Samsung SSD 980 PRO 1TB NVMe (/dev/nvme0n1p2)\n`);
-
-                vfs.saveFileSystem();
-
-                localStorage.setItem('krypton_primary_user', effUser);
-                localStorage.setItem('krypton_hostname', effHost);
-                localStorage.setItem('krypton_os_installed', 'true');
-
-                sound.playSuccess();
-                story.showToast('🎉 Installation Complete!', `KryptonOS installed successfully for user '${effUser}'. Reboot to launch full OS.`, 'success');
-
-                if (statusLabel) {
-                    statusLabel.textContent = `🎉 KryptonOS 1.0 Installed for user '${effUser}'!`;
-                }
-                if (logBox) {
-                    const finishLine = document.createElement('div');
-                    finishLine.className = 'log-line';
-                    finishLine.style.color = '#ffff55';
-                    finishLine.style.fontWeight = 'bold';
-                    finishLine.textContent = `[ SUCCESS ] System installed in ${elapsed.toFixed(1)}s! Type "sudo reboot" in Terminal to boot into installed OS as ${effUser}@${effHost}.`;
-                    logBox.appendChild(finishLine);
-                    logBox.scrollTop = logBox.scrollHeight;
-                }
-            }
-        }, dt * 1000);
+        sound.playSuccess();
+        story.showToast('🎉 Installation Complete!', `KryptonOS 1.0 LTS installed successfully for user '${effUser}'. Reboot to launch full OS.`, 'success');
     };
 
     render();

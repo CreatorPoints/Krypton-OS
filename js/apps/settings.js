@@ -565,16 +565,20 @@ function renderAboutTab(container) {
     const hostnameNode = vfs.getNode('/etc/hostname');
     const curHostname = hostnameNode ? hostnameNode.content.trim() : 'krypton-station';
 
+    const osRel = vfs.readFile('/etc/os-release') || '';
+    const prettyMatch = osRel.match(/PRETTY_NAME="([^"]+)"/);
+    const osTitle = prettyMatch ? prettyMatch[1] : 'Krypton 0.1.0.2';
+
     container.innerHTML = `
         <div class="settings-header">
-            <h3>ℹ️ About KryptonOS</h3>
+            <h3>ℹ️ About ${escapeHtml(osTitle)}</h3>
             <p class="settings-subtext">System architecture, kernel specs, and hardware environment.</p>
         </div>
 
         <div class="settings-section-box" style="display: flex; gap: 18px; align-items: center;">
-            <div style="font-size: 42px;">☢️</div>
+            <div style="font-size: 42px;">⚛️</div>
             <div>
-                <h4 style="margin: 0; font-size: 20px; color: #fff;">KryptonOS GNU/Linux 1.0 LTS</h4>
+                <h4 style="margin: 0; font-size: 20px; color: #fff;">${escapeHtml(osTitle)}</h4>
                 <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
                     Production-Grade Linux Sandbox & Virtualized Desktop Simulator
                 </div>

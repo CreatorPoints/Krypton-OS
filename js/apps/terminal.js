@@ -10,14 +10,14 @@ import { boot } from '../boot.js';
 import { openNotes } from './notes.js';
 
 export const REPO_DPKG_PACKAGES = [
+    { id: 'krypton-desktop-core', file: 'krypton-desktop-core_0.1.0.2_amd64.deb', name: 'krypton-desktop-core', version: '0.1.0.2', arch: 'amd64', section: 'x11/desktop', size: 4820, maintainer: 'KryptonOS Core Team <core@krypton-os.org>', summary: 'KryptonOS Desktop Shell, Wayland Compositor, and System Utilities' },
     { id: 'antigravity', file: 'antigravity.dpkg', name: 'antigravity', version: '4.2.0-beryllium', arch: 'amd64', section: 'science/physics', size: 1024, maintainer: 'Google Deepmind Antigravity Team <antigravity@krypton-os.org>', summary: 'Zero-G Quantum Physics Simulator and Floating Window Engine' },
     { id: 'cmatrix', file: 'cmatrix.dpkg', name: 'cmatrix', version: '2.0-3', arch: 'amd64', section: 'utils/console', size: 128, maintainer: 'KryptonOS Maintainers <packages@krypton-os.org>', summary: 'Matrix Digital Rain Terminal Screensaver' },
     { id: 'cowsay', file: 'cowsay.dpkg', name: 'cowsay', version: '3.03+dfsg2-8', arch: 'all', section: 'games/toys', size: 96, maintainer: 'Debian QA Group <packages@debian.org>', summary: 'Configurable talking and thinking ASCII cow' },
     { id: 'neofetch', file: 'neofetch.dpkg', name: 'neofetch', version: '7.1.0-2', arch: 'all', section: 'utils/system', size: 340, maintainer: 'Dylan Araps <dylan.araps@gmail.com>', summary: 'Fast, highly customizable CLI system info tool' },
     { id: 'sl', file: 'sl.dpkg', name: 'sl', version: '5.02-1', arch: 'amd64', section: 'games/toys', size: 48, maintainer: 'Toyoda Masashi <toyoda@dandelion.org>', summary: 'Steam Locomotive animator for typo prevention' },
-    { id: 'krypton-desktop', file: 'krypton-desktop.dpkg', name: 'krypton-desktop', version: '1.0.4-release', arch: 'amd64', section: 'x11/desktop', size: 84200, maintainer: 'KryptonOS Desktop Team <desktop@krypton-os.org>', summary: 'Next-generation cyberpunk Wayland desktop environment' },
+    { id: 'krypton-desktop', file: 'krypton-desktop.dpkg', name: 'krypton-desktop', version: '0.1.0.2', arch: 'amd64', section: 'x11/desktop', size: 84200, maintainer: 'KryptonOS Desktop Team <desktop@krypton-os.org>', summary: 'Next-generation modern Wayland desktop environment' },
     { id: 'krypton-browser', file: 'krypton-browser.dpkg', name: 'krypton-browser', version: '1.4.2-release', arch: 'amd64', section: 'web/browsers', size: 42100, maintainer: 'Krypton Web Team <browser@krypton-os.org>', summary: 'Quantum Sandboxed Web Browser' },
-    { id: 'krypton-pet', file: 'krypton-pet.dpkg', name: 'krypton-pet', version: '2.1.0-release', arch: 'amd64', section: 'games/virtual-pet', size: 8120, maintainer: 'Byte Pet Studios <byte@krypton-os.org>', summary: 'Interactive Virtual Pet ("Byte")' },
     { id: 'krypton-taskmgr', file: 'krypton-taskmgr.dpkg', name: 'krypton-taskmgr', version: '1.2.0-release', arch: 'amd64', section: 'admin/monitoring', size: 3200, maintainer: 'Krypton System Team <sysadmin@krypton-os.org>', summary: 'GUI System Task Manager and Performance Monitor' },
     { id: 'krypton-filemgr', file: 'krypton-filemgr.dpkg', name: 'krypton-filemgr', version: '1.3.0-release', arch: 'amd64', section: 'utils/files', size: 5600, maintainer: 'Krypton System Team <sysadmin@krypton-os.org>', summary: 'Graphical File Explorer and Storage Navigator' },
     { id: 'krypton-notes', file: 'krypton-notes.dpkg', name: 'krypton-notes', version: '1.1.0-release', arch: 'amd64', section: 'editors/text', size: 1800, maintainer: 'Krypton Applications <apps@krypton-os.org>', summary: 'Fast lightweight text and code editor' },
@@ -1754,21 +1754,24 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     if (cmd === 'neofetch' || cmd === 'screenfetch' || cmd === 'fastfetch') {
         const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+        const osReleaseStr = vfs.readFile('/etc/os-release') || '';
+        const prettyMatch = osReleaseStr.match(/PRETTY_NAME="([^"]+)"/);
+        const osName = prettyMatch ? prettyMatch[1] : 'Krypton 0.1.0.2';
 
         callback({
             lines: [
                 { text: `${currentUser}@krypton-station`, type: 'cyan' },
                 { text: `-----------------------`, type: 'muted' },
-                { text: `OS: KryptonOS 1.0 LTS x86_64 (${isInstalled ? 'Installed on /dev/nvme0n1p2' : 'Live USB ISO'})`, type: 'normal' },
+                { text: `OS: ${osName} x86_64 (${isInstalled ? 'Installed on /dev/nvme0n1p2' : 'Live USB ISO'})`, type: 'normal' },
                 { text: `Host: ASUSTeK COMPUTER INC. ROG STRIX Z490-E GAMING`, type: 'normal' },
                 { text: `Kernel: 6.10.0-krypton-generic`, type: 'normal' },
                 { text: `Uptime: 3 hours, 58 mins`, type: 'normal' },
-                { text: `Packages: 1420 (dpkg)`, type: 'normal' },
+                { text: `Packages: 1422 (dpkg)`, type: 'normal' },
                 { text: `Shell: bash 5.2.21`, type: 'normal' },
                 { text: `Resolution: 2560x1440 @ 165Hz (DisplayPort-1)`, type: 'normal' },
                 { text: `DE: Krypton Desktop (Wayland)`, type: 'normal' },
                 { text: `WM: krypton-wm`, type: 'normal' },
-                { text: `Theme: Adwaita-Dark [GTK2/3]`, type: 'normal' },
+                { text: `Theme: Obsidian-Dark [GTK3/4]`, type: 'normal' },
                 { text: `Terminal: krypton-terminal`, type: 'normal' },
                 { text: `CPU: Intel(R) Core(TM) i7-10700K (16) @ 3.80GHz`, type: 'normal' },
                 { text: `GPU: NVIDIA GeForce RTX 3080 10GB`, type: 'normal' },
@@ -2467,7 +2470,7 @@ function executeAptCommand(args, isRoot, callback) {
     const subCmd = (args[0] || '').toLowerCase();
     const pkg = (args[1] || '').toLowerCase();
 
-    if (!isRoot && (subCmd === 'install' || subCmd === 'remove' || subCmd === 'upgrade' || subCmd === 'update' || subCmd === 'purge')) {
+    if (!isRoot && (subCmd === 'install' || subCmd === 'remove' || subCmd === 'upgrade' || subCmd === 'update' || subCmd === 'purge' || subCmd === 'dist-upgrade' || subCmd === 'full-upgrade')) {
         callback({
             lines: [{ text: "E: Could not open lock file /var/lib/dpkg/lock-frontend - open (13: Permission denied)\nE: Unable to acquire the dpkg frontend lock, are you root?", type: 'error' }],
             exitCode: 100
@@ -2475,49 +2478,109 @@ function executeAptCommand(args, isRoot, callback) {
         return;
     }
 
+    const getOsVersion = () => {
+        const osRel = vfs.readFile('/etc/os-release') || '';
+        const match = osRel.match(/VERSION="([^"]+)"/);
+        return match ? match[1] : (localStorage.getItem('krypton_os_version') || '0.1.0.1');
+    };
+
     if (subCmd === 'update') {
+        const curVer = getOsVersion();
+        const isUpgradable = curVer !== '0.1.0.2';
+
+        const lines = [
+            { text: "Hit:1 https://deb.krypton-os.org/krypton beryllium InRelease", type: 'normal' },
+            { text: "Get:2 https://deb.krypton-os.org/krypton/pool/main Packages [14.2 kB]", type: 'normal' },
+            { text: `Fetched 14.2 kB in 0s (210 kB/s)`, type: 'muted' },
+            { text: "Reading package lists... Done", type: 'success' },
+            { text: "Building dependency tree... Done", type: 'success' },
+            { text: "Reading state information... Done", type: 'success' }
+        ];
+
+        if (isUpgradable) {
+            lines.push({ text: "1 package can be upgraded. Run 'apt list --upgradable' to see it.", type: 'warning' });
+        } else {
+            lines.push({ text: "All packages are up to date.", type: 'success' });
+        }
+
+        callback({ lines, exitCode: 0 });
+        return;
+    }
+
+    if (subCmd === 'upgrade' || subCmd === 'dist-upgrade' || subCmd === 'full-upgrade') {
+        const curVer = getOsVersion();
+        if (curVer === '0.1.0.2') {
+            callback({
+                lines: [
+                    { text: "Reading package lists... Done", type: 'normal' },
+                    { text: "Building dependency tree... Done", type: 'normal' },
+                    { text: "Calculating upgrade... Done", type: 'normal' },
+                    { text: "0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.", type: 'success' }
+                ],
+                exitCode: 0
+            });
+            return;
+        }
+
+        // Perform System Upgrade to Krypton 0.1.0.2
+        const newVersion = "0.1.0.2";
+        const newPrettyName = "Krypton 0.1.0.2";
+
+        vfs.writeFile('/etc/os-release', `NAME="KryptonOS"\nVERSION="${newVersion}"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="${newPrettyName}"\nVERSION_ID="${newVersion}"\nVERSION_CODENAME=beryllium\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n`);
+        vfs.writeFile('/etc/issue', `${newPrettyName} \\n \\l\n`);
+        vfs.writeFile('/etc/motd', `\n=======================================================\n  Welcome to ${newPrettyName} (Linux 6.10.0-generic)\n  * Documentation:  https://krypton-os.org/docs\n  * Management:     https://krypton-os.org/manage\n  * Support:        https://krypton-os.org/support\n=======================================================\n`);
+        vfs.saveFileSystem();
+
+        localStorage.setItem('krypton_os_version', newVersion);
+        window.dispatchEvent(new CustomEvent('krypton_system_upgraded', { detail: { version: newVersion } }));
+        story.showToast('🚀 System Upgraded', `Successfully upgraded to ${newPrettyName}!`, 'success');
+
         callback({
             lines: [
-                { text: "Hit:1 https://deb.krypton-os.org/krypton beryllium InRelease", type: 'normal' },
-                { text: "Get:2 https://deb.krypton-os.org/apt/Packages [12.4 kB]", type: 'normal' },
-                { text: `Fetched 12.4 kB in 0s (184 kB/s) - Synced ${REPO_DPKG_PACKAGES.length} .dpkg packages from /apt repository`, type: 'info' },
-                { text: "Reading package lists... Done", type: 'success' },
-                { text: "Building dependency tree... Done", type: 'success' },
-                { text: "All packages are up to date.", type: 'success' }
+                { text: "Reading package lists... Done", type: 'normal' },
+                { text: "Building dependency tree... Done", type: 'normal' },
+                { text: "Calculating upgrade... Done", type: 'normal' },
+                { text: `The following packages will be upgraded:\n  krypton-desktop-core (${curVer} => ${newVersion})`, type: 'info' },
+                { text: "1 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.", type: 'normal' },
+                { text: "Need to get 4,820 kB of archives.", type: 'normal' },
+                { text: "After this operation, 120 kB of additional disk space will be used.", type: 'muted' },
+                { text: `Get:1 https://deb.krypton-os.org/krypton/pool/main krypton-desktop-core ${newVersion} [4,820 kB]`, type: 'normal' },
+                { text: "Fetched 4,820 kB in 0s (14.6 MB/s)", type: 'muted' },
+                { text: "(Reading database ... 42194 files and directories currently installed.)", type: 'muted' },
+                { text: "Preparing to unpack .../krypton-desktop-core_0.1.0.2_amd64.deb ...", type: 'normal' },
+                { text: `Unpacking krypton-desktop-core (${newVersion}) over (${curVer}) ...`, type: 'normal' },
+                { text: `Setting up krypton-desktop-core (${newVersion}) ...`, type: 'success' },
+                { text: "Processing triggers for desktop-file-utils (0.26-1) ...", type: 'normal' },
+                { text: "Processing triggers for initramfs-tools (0.142) ...", type: 'normal' },
+                { text: `[ OK ] System upgrade completed: ${newPrettyName} is now active.`, type: 'success' }
             ],
             exitCode: 0
         });
         return;
     }
 
-    if (subCmd === 'show' || subCmd === 'info') {
-        if (!pkg) {
-            callback({ lines: [{ text: "apt: missing package name to show", type: 'error' }], exitCode: 1 });
+    if (subCmd === 'list') {
+        const curVer = getOsVersion();
+        const isUpgradableFlag = args.includes('--upgradable') || args.includes('-u');
+
+        if (isUpgradableFlag) {
+            if (curVer !== '0.1.0.2') {
+                callback({
+                    lines: [
+                        { text: "Listing... Done", type: 'muted' },
+                        { text: `krypton-desktop-core/stable 0.1.0.2 amd64 [upgradable from: ${curVer}]`, type: 'cyan' }
+                    ],
+                    exitCode: 0
+                });
+            } else {
+                callback({
+                    lines: [{ text: "Listing... Done", type: 'muted' }],
+                    exitCode: 0
+                });
+            }
             return;
         }
-        const found = REPO_DPKG_PACKAGES.find(p => p.id === pkg || p.name === pkg);
-        if (found) {
-            callback({
-                lines: [
-                    { text: `Package: ${found.name}`, type: 'cyan' },
-                    { text: `Version: ${found.version}`, type: 'normal' },
-                    { text: `Priority: optional`, type: 'normal' },
-                    { text: `Section: ${found.section}`, type: 'normal' },
-                    { text: `Maintainer: ${found.maintainer}`, type: 'normal' },
-                    { text: `Installed-Size: ${found.size} kB`, type: 'normal' },
-                    { text: `Architecture: ${found.arch}`, type: 'normal' },
-                    { text: `Archive-File: /apt/${found.file}`, type: 'muted' },
-                    { text: `Description: ${found.summary}`, type: 'normal' }
-                ],
-                exitCode: 0
-            });
-        } else {
-            callback({ lines: [{ text: `E: Unable to locate package ${pkg}`, type: 'error' }], exitCode: 100 });
-        }
-        return;
-    }
 
-    if (subCmd === 'list') {
         const lines = [
             { text: `Listing... Done (/apt repository - ${REPO_DPKG_PACKAGES.length} available)`, type: 'muted' }
         ];

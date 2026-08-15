@@ -213,7 +213,7 @@ export function openInstallerWizard() {
                         </div>
                         <div class="metric-item">
                             <span class="metric-label">Elapsed Time</span>
-                            <span class="metric-value" id="inst-timer-text">0.0s / 45.0s max</span>
+                            <span class="metric-value" id="inst-timer-text">0.0s / 25.0s max</span>
                         </div>
                     </div>
 
@@ -487,18 +487,18 @@ export function openInstallerWizard() {
 
     let installTimerInterval = null;
 
-    /* Dynamic, Fluctuating OS Download & Installation Engine (Strictly <= 45s) */
+    /* Dynamic, Fluctuating OS Download & Installation Engine (Strictly <= 25s) */
     const startDynamicOSInstallation = () => {
         if (installInProgress) return;
         installInProgress = true;
 
-        const maxAllowedDuration = 45.0; // Hard ceiling: NEVER exceeds 45s
-        const targetDuration = Math.min(41.0, 22.0 + Math.random() * 16.0);
+        const maxAllowedDuration = 25.0; // Hard ceiling: NEVER exceeds 25s
+        const targetDuration = Math.min(23.5, 18.0 + Math.random() * 5.0);
         const totalBytesMB = 3840;
 
         let elapsed = 0;
         let progress = 0;
-        let currentSpeedMBs = 48.0;
+        let currentSpeedMBs = 95.0;
         let nextSpeedChange = 0;
         let currentMode = 'NORMAL';
 
@@ -552,36 +552,36 @@ export function openInstallerWizard() {
 
             if (elapsed >= nextSpeedChange) {
                 currentMode = pickNewSpeedMode(progress);
-                nextSpeedChange = elapsed + 1.2 + Math.random() * 2.8;
+                nextSpeedChange = elapsed + 0.8 + Math.random() * 1.8;
             }
 
-            let baseSpeed = 50;
+            let baseSpeed = 120;
             let speedBadgeClass = '';
             let speedLabelPrefix = '⚡';
 
             switch (currentMode) {
                 case 'BURST':
-                    baseSpeed = 110 + Math.random() * 75;
+                    baseSpeed = 220 + Math.random() * 120;
                     speedBadgeClass = 'burst';
                     speedLabelPrefix = '🚀';
                     break;
                 case 'NORMAL':
-                    baseSpeed = 40 + Math.random() * 45;
+                    baseSpeed = 120 + Math.random() * 60;
                     speedBadgeClass = '';
                     speedLabelPrefix = '⚡';
                     break;
                 case 'SLOW_DIP':
-                    baseSpeed = 12 + Math.random() * 20;
+                    baseSpeed = 50 + Math.random() * 40;
                     speedBadgeClass = 'slow';
                     speedLabelPrefix = '🐢';
                     break;
                 case 'UNPACK_STALL':
-                    baseSpeed = 2 + Math.random() * 9;
+                    baseSpeed = 20 + Math.random() * 25;
                     speedBadgeClass = 'stall';
                     speedLabelPrefix = '📦';
                     break;
                 case 'FINAL_SYNC':
-                    baseSpeed = 85 + Math.random() * 65;
+                    baseSpeed = 190 + Math.random() * 90;
                     speedBadgeClass = 'burst';
                     speedLabelPrefix = '💽';
                     break;
@@ -590,13 +590,13 @@ export function openInstallerWizard() {
             currentSpeedMBs = baseSpeed;
 
             const nominalIncrement = (100 / targetDuration) * dt;
-            const speedMultiplier = currentSpeedMBs / 65.0;
+            const speedMultiplier = currentSpeedMBs / 130.0;
             let deltaProgress = nominalIncrement * speedMultiplier;
 
-            if (elapsed > 39.0 && progress < 88) {
-                const remainingTime = Math.max(0.5, maxAllowedDuration - elapsed);
+            if (elapsed > 21.0 && progress < 88) {
+                const remainingTime = Math.max(0.4, maxAllowedDuration - elapsed);
                 deltaProgress = Math.max(deltaProgress, (100 - progress) / (remainingTime / dt));
-                currentSpeedMBs = 140 + Math.random() * 40;
+                currentSpeedMBs = 240 + Math.random() * 60;
                 speedBadgeClass = 'burst';
                 speedLabelPrefix = '🚀';
             }

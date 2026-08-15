@@ -99,7 +99,7 @@ export class MasterBootEngine {
                     </svg>
                 </div>
                 <div class="vivid-splash-hint" id="vivid-hint-btn">
-                    [ Press DEL / F2 for BIOS Setup • F11 for Boot Menu ]
+                    [ Press ESC for BIOS Setup ]
                 </div>
             </div>
         `;
@@ -111,14 +111,13 @@ export class MasterBootEngine {
             this.openAptioBIOSSetup();
         });
 
-        // Key listeners for DEL / F2 / F11 / F12 during 2.4s splash
+        // Key listener: strictly ESC for BIOS during 2.4s splash
         this.keyListener = (e) => {
             if (!this.keyInterruptActive) return;
 
-            const isBios = !e.ctrlKey && !e.altKey && (e.key === 'F2' || e.code === 'F2' || e.key === 'Delete' || e.code === 'Delete');
-            const isBootMenu = !e.ctrlKey && !e.altKey && (e.key === 'F11' || e.code === 'F11' || e.key === 'F12' || e.code === 'F12');
+            const isBios = (e.key === 'Escape' || e.code === 'Escape');
 
-            if (isBios || isBootMenu) {
+            if (isBios) {
                 e.preventDefault();
                 this.clearTimers();
                 this.openAptioBIOSSetup();
@@ -594,7 +593,7 @@ export class MasterBootEngine {
                 return;
             }
 
-            const isBios = !e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === 'Delete' || e.key === 'F2' || e.code === 'Delete' || e.code === 'F2');
+            const isBios = (e.key === 'Escape' || e.code === 'Escape');
 
             if (isBios) {
                 e.preventDefault();
@@ -759,7 +758,7 @@ export class MasterBootEngine {
                         this.start();
                     } else if (cmd === 'help') {
                         const res = document.createElement('div');
-                        res.innerHTML = `Available commands: ls, set, insmod, reboot<br>System files on NVMe SSD (/dev/nvme0n1p2) are missing or damaged.<br>Reboot (type 'reboot') and press DEL/F2 to boot Live USB and repair/reinstall.`;
+                        res.innerHTML = `Available commands: ls, set, insmod, reboot<br>System files on NVMe SSD (/dev/nvme0n1p2) are missing or damaged.<br>Reboot (type 'reboot') and press ESC to boot Live USB and repair/reinstall.`;
                         res.style.color = '#ffff55';
                         grubHistory.appendChild(res);
                     } else if (cmd) {
@@ -791,7 +790,7 @@ export class MasterBootEngine {
                     <div>[    0.351370]  prepare_namespace+0x13c/0x170</div>
                     <div>[    0.351380]  kernel_init+0x18/0x130</div>
                     <div style="color: #fff;">[    0.351390] ---[ end Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(259,2) ]---</div>
-                    <div style="color: #00ffaa; margin-top: 20px;">Press [DEL / F2] to enter BIOS Setup, or [ENTER / R] to Reboot.</div>
+                    <div style="color: #00ffaa; margin-top: 20px;">Press [ESC] to enter BIOS Setup, or [ENTER / R] to Reboot.</div>
                 </div>
             `;
 
@@ -805,7 +804,7 @@ export class MasterBootEngine {
                     return;
                 }
 
-                const isBios = !e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === 'Delete' || e.key === 'F2');
+                const isBios = (e.key === 'Escape' || e.code === 'Escape');
                 if (isBios) {
                     e.preventDefault();
                     document.removeEventListener('keydown', this.keyListener);

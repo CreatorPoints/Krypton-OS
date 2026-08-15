@@ -12,7 +12,7 @@ import { openTaskManager } from './apps/taskmgr.js';
 import { openFileManager } from './apps/filemgr.js';
 import { openNotes } from './apps/notes.js';
 import { openCalculator } from './apps/calculator.js';
-import { openSettings } from './apps/settings.js';
+import { openSettings, applyWallpaper } from './apps/settings.js';
 import { openMessages } from './apps/messages.js';
 import { openInstallerWizard } from './apps/installer.js';
 import { boot } from './boot.js';
@@ -199,6 +199,13 @@ function initStartMenu() {
    4. Animated Wallpaper Canvas & Clock
    -------------------------------------------------------------------------- */
 function initWallpaper() {
+    const savedWall = localStorage.getItem('krypton_wallpaper') || 'nebula';
+    const savedCustom = localStorage.getItem('krypton_custom_wallpaper_url') || '';
+    applyWallpaper(savedWall, savedCustom);
+
+    const savedTheme = localStorage.getItem('krypton_theme') || 'theme-cyberpunk';
+    document.body.className = savedTheme;
+
     const canvas = document.getElementById('wallpaper-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -265,9 +272,39 @@ function initClock() {
 
     const updateClock = () => {
         const now = new Date();
-        timeEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-        if (dateEl) dateEl.textContent = now.toISOString().split('T')[0];
+        const savedTz = localStorage.getItem('krypton_tz') || vfs.readFile('/etc/timezone')?.trim() || 'UTC';
+        const is24Hour = localStorage.getItem('krypton_24h') !== 'false';
+        const showSeconds = localStorage.getItem('krypton_show_sec') !== 'false';
+        const showDate = localStorage.getItem('krypton_show_date') !== 'false';
+
+        try {
+            timeEl.textContent = now.toLocaleTimeString('en-US', {
+                timeZone: savedTz,
+                hour12: !is24Hour,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: showSeconds ? '2-digit' : undefined
+            });
+
+            if (dateEl) {
+                if (showDate) {
+                    dateEl.style.display = 'block';
+                    dateEl.textContent = now.toLocaleDateString('en-US', {
+                        timeZone: savedTz,
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                } else {
+                    dateEl.style.display = 'none';
+                }
+            }
+        } catch (e) {
+            timeEl.textContent = now.toLocaleTimeString([], { hour12: false });
+        }
     };
+
     updateClock();
     setInterval(updateClock, 1000);
+    window.addEventListener('krypton_clock_updated', updateClock);
 }

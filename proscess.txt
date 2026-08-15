@@ -1,0 +1,24 @@
+Show ONLY "VividDisplay" for  1.2 secs
+no hdmi, no 144hz nothing just the name. it should be stylyzed, and svg would b better.
+after 1.2 secs, chek if in boot priority san disk pendrive is in 1st priority or not. supported priority:-
+1: pendrive
+2:samsung
+or
+1: pendrive
+2: disabled
+or
+1: disabled
+2: pendrive
+if pendrive foundin first, then take to installer right away (live sessionP)
+if the nvme ssd is found in first , like:-
+1:ssd
+2:disabled
+1:ssd
+2:prendrive
+1:disabled
+2:ssd
+hen chek if the os is there or not.
+if there, take to it, if not then check
+if its not there because sudo rm -rf /* 
+then show the error grub memnu
+if its aa blank drand new ssd then say "reboot or select propper boot device" menu

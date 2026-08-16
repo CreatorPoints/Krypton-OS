@@ -728,10 +728,12 @@ export class MasterBootEngine {
         sessionStorage.setItem('krypton_current_boot_medium', 'ssd');
 
         // Check if staged upgrade reboot is pending
-        if (vfs.exists('/var/run/reboot-required') || vfs.exists('/boot/vmlinuz-6.10.0-krypton-generic')) {
+        if (vfs.exists('/var/run/reboot-required') || vfs.exists('/boot/vmlinuz-6.10.0-krypton-generic') || localStorage.getItem('krypton_upgraded_lts') === 'true') {
             localStorage.setItem('krypton_upgraded_lts', 'true');
             localStorage.setItem('krypton_os_version', '1.0.0.0');
             vfs.remove('/var/run/reboot-required');
+            vfs.remove('/boot/vmlinuz-2.0.0.14-generic-krypton');
+            vfs.writeFile('/boot/vmlinuz-6.10.0-krypton-generic', 'KRYPTON-LINUX-6.10.0-GENERIC-ELF-BINARY');
             vfs.writeFile('/proc/version', 'Linux version 6.10.0-krypton-generic (gcc 13.2.0) #1 SMP PREEMPT_DYNAMIC\n');
             vfs.writeFile('/etc/os-release', 'NAME="KryptonOS"\nVERSION="1.0.0.0"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="Krypton 1.0.0.0 LTS"\nVERSION_ID="1.0.0.0"\nVERSION_CODENAME=beryllium\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n');
             vfs.writeFile('/etc/issue', 'Krypton 1.0.0.0 LTS \\n \\l\n');

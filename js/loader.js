@@ -155,7 +155,12 @@ class DynamicAppLoader {
 
         // 4. Dynamic Blob Module Execution with Runtime Injection
         try {
-            const blob = new Blob([scriptContent], { type: 'application/javascript' });
+            // Strip out relative ESM imports (import { wm } from '../wm.js'; etc) because Blob URLs cannot resolve relative paths
+            let cleanScript = scriptContent
+                .replace(/import\s*\{[^}]*\}\s*from\s*['"][^'"]*['"];?/g, '')
+                .replace(/import\s+[\w*\s{},]+\s+from\s+['"][^'"]*['"];?/g, '');
+
+            const blob = new Blob([cleanScript], { type: 'application/javascript' });
             const blobUrl = URL.createObjectURL(blob);
 
             const mod = await import(blobUrl);
@@ -163,8 +168,11 @@ class DynamicAppLoader {
 
             this.moduleCache.set(normId, mod);
 
-            const launchFn = mod.launch || mod.openApp || mod.default || mod.open;
+            const launchFn = mod.launch || mod.openNotes || mod.openTextEditor || mod.openCalculator || mod.openFileMgr || mod.openFileManager || mod.openTaskMgr || mod.openTaskManager || mod.openSettings || mod.openMessages || mod.openApp || mod.default || mod.open;
             if (typeof launchFn === 'function') {
+                if (Array.isArray(args) && (mod.openNotes || mod.openTextEditor || mod.openCalculator || mod.openFileMgr || mod.openTaskMgr || mod.openSettings)) {
+                    return launchFn(...args);
+                }
                 return launchFn({ wm, vfs, sound, story, boot, args });
             } else {
                 throw new Error(`Module '${normId}' does not export a launch() or default function.`);

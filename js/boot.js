@@ -386,6 +386,10 @@ export class MasterBootEngine {
                     <span class="aptio-label">Restore Optimized Defaults</span>
                     <span class="aptio-val"></span>
                 </div>
+                <div class="aptio-row ${this.selectedRow === 3 ? 'selected' : ''}" data-action="factory-reset">
+                    <span class="aptio-label" style="color: #ff5555;">Factory Reset (Wipe VFS & Revert to Base Alpha)</span>
+                    <span class="aptio-val"></span>
+                </div>
             `;
         }
         return '';
@@ -398,6 +402,7 @@ export class MasterBootEngine {
             return 'Enables or disables boot optimizations.';
         }
         if (this.activeTab === 4) {
+            if (this.selectedRow === 3) return 'Wipes the client Virtual Filesystem overlay and resets the operating system cleanly to the baseline Alpha state.';
             return 'Exit system setup with or without saving your changes.';
         }
         return 'Standard system parameter. Use arrow keys to select, [Enter] to view details.';
@@ -451,7 +456,7 @@ export class MasterBootEngine {
         if (this.activeTab === 1) return 4;
         if (this.activeTab === 2) return 3;
         if (this.activeTab === 3) return 4;
-        if (this.activeTab === 4) return 3;
+        if (this.activeTab === 4) return 4;
         return 1;
     }
 
@@ -473,6 +478,15 @@ export class MasterBootEngine {
                 ];
                 localStorage.setItem('krypton_boot_priority', JSON.stringify(this.bootPriority));
                 this.renderAptioScreen();
+            } else if (this.selectedRow === 3) {
+                // Factory Reset Virtual Disk
+                if (confirm('Factory Reset: Wipe VFS package overlay and return system to baseline Alpha?')) {
+                    vfs.resetToDefault();
+                    vfs.saveFileSystem();
+                    localStorage.removeItem('krypton_upgraded_lts');
+                    if (this.keyListener) document.removeEventListener('keydown', this.keyListener);
+                    this.start();
+                }
             }
         }
     }
@@ -998,9 +1012,21 @@ export class MasterBootEngine {
                     } else if (cmd === 'reboot' || cmd === 'exit') {
                         document.removeEventListener('keydown', this.keyListener);
                         this.start();
+                    } else if (cmd === 'factory-reset' || cmd === 'reset') {
+                        const res = document.createElement('div');
+                        res.textContent = 'Resetting VFS package overlay and restoring baseline Alpha...';
+                        res.style.color = '#55ff55';
+                        grubHistory.appendChild(res);
+                        vfs.resetToDefault();
+                        vfs.saveFileSystem();
+                        localStorage.removeItem('krypton_upgraded_lts');
+                        setTimeout(() => {
+                            document.removeEventListener('keydown', this.keyListener);
+                            this.start();
+                        }, 1200);
                     } else if (cmd === 'help') {
                         const res = document.createElement('div');
-                        res.innerHTML = `Available commands: ls, set, insmod, reboot<br>System files on NVMe SSD (/dev/nvme0n1p2) are missing or damaged.<br>Reboot (type 'reboot') and press ESC to boot Live USB and repair/reinstall.`;
+                        res.innerHTML = `Available commands: ls, set, insmod, reboot, factory-reset<br>System files on NVMe SSD (/dev/nvme0n1p2) are missing or damaged.<br>Type 'factory-reset' to revert to baseline Alpha, or type 'reboot' and press ESC to boot Live USB.`;
                         res.style.color = '#ffff55';
                         grubHistory.appendChild(res);
                     } else if (cmd) {

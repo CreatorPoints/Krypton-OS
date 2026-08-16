@@ -266,6 +266,17 @@ export class VirtualFileSystem {
         }
     }
 
+    resetToDefault() {
+        try {
+            localStorage.removeItem(this.storageKey);
+            localStorage.removeItem(this.sdaStorageKey);
+            localStorage.removeItem('krypton_upgraded_lts');
+        } catch (e) {}
+        this.root = this.createDefaultRootFS();
+        this.mountTable = [];
+        this.saveFileSystem();
+    }
+
     loadFileSystem() {
         try {
             const data = localStorage.getItem(this.storageKey);

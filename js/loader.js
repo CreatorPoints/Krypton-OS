@@ -153,9 +153,19 @@ class DynamicAppLoader {
             return null;
         }
 
-        // 4. Dynamic Blob Module Execution with Runtime Injection
+        // 4. Permission & Security Capability Validation
+        const permFilePath = `/var/lib/dpkg/info/krypton-${normId}.permissions`;
+        let allowedPermissions = ['vfs:read', 'vfs:write', 'wm:window', 'audio:play', 'network:fetch'];
+        if (vfs.exists(permFilePath)) {
+            try {
+                const parsed = JSON.parse(vfs.readFile(permFilePath));
+                if (Array.isArray(parsed)) allowedPermissions = parsed;
+            } catch (e) {}
+        }
+
+        // 5. Dynamic Blob Module Execution with Runtime Injection & Scoped Context
         try {
-            // Strip out relative ESM imports (import { wm } from '../wm.js'; etc) because Blob URLs cannot resolve relative paths
+            // Strip out relative ESM imports because Blob URLs cannot resolve relative paths
             let cleanScript = scriptContent
                 .replace(/import\s*\{[^}]*\}\s*from\s*['"][^'"]*['"];?/g, '')
                 .replace(/import\s+[\w*\s{},]+\s+from\s+['"][^'"]*['"];?/g, '');
@@ -172,7 +182,7 @@ class DynamicAppLoader {
             this.moduleCache.set(normId, mod);
 
             // Prioritize specific application entry functions, then fallback to generic launch/open/default
-            const specificAppFn = mod.openNotes || mod.openTextEditor || mod.openBrowser || mod.openWebBrowser || mod.openKryptonBrowser || mod.openCalculator || mod.openFileMgr || mod.openFileManager || mod.openFileExplorer || mod.openTaskMgr || mod.openTaskManager || mod.openSystemMonitor || mod.openSettings || mod.openMessages || mod.openSystemLogs;
+            const specificAppFn = mod.openNotes || mod.openTextEditor || mod.openBrowser || mod.openWebBrowser || mod.openKryptonBrowser || mod.openCalculator || mod.openClockWindow || mod.openClock || mod.openFileMgr || mod.openFileManager || mod.openFileExplorer || mod.openTaskMgr || mod.openTaskManager || mod.openSystemMonitor || mod.openSettings || mod.openMessages || mod.openSystemLogs;
             
             if (typeof specificAppFn === 'function') {
                 if (Array.isArray(args)) {

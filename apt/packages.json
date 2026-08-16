@@ -13,14 +13,14 @@
     "maintainer": "Krypton Core Maintainers <packages@krypton-os.org>"
   },
   {
-    "id": "linux-image-6.10.0-krypton-generic",
-    "name": "linux-image-6.10.0-krypton-generic",
+    "id": "linux-image-krypton-generic",
+    "name": "linux-image-krypton-generic",
     "version": "6.10.0-1",
     "architecture": "amd64",
     "section": "kernel",
-    "size": 1064,
+    "size": 1057,
     "installed_size": 597,
-    "sha256": "86d073585bd5b717676edd5da0e01721b4b84f8d592fbb988b3e7f53f61e1aa2",
+    "sha256": "dfe95a7f732126d988c608fad5bce3fc37c0b808b7c94f9d63c0a0331183c9bc",
     "file": "linux-image-6.10.0-krypton-generic.deb",
     "summary": "Linux Kernel Image 6.10.0 with Wayland, NVMe, and POSIX subsystems",
     "maintainer": "Krypton Core Maintainers <packages@krypton-os.org>"

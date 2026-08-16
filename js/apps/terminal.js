@@ -2811,7 +2811,13 @@ function getUpgradablePackages(catalog) {
     const upgradables = [];
 
     for (const inst of installed) {
-        const avail = catalog.find(p => p.id === inst.id || p.name === inst.id || p.id === `krypton-${inst.id}` || inst.id === `krypton-${p.id}`);
+        const avail = catalog.find(p => 
+            p.id === inst.id || 
+            p.name === inst.id || 
+            p.id === `krypton-${inst.id}` || 
+            inst.id === `krypton-${p.id}` ||
+            (inst.id.startsWith('linux-image') && p.id.startsWith('linux-image'))
+        );
         if (avail) {
             if (compareSemver(avail.version, inst.version) > 0) {
                 upgradables.push({

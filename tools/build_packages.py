@@ -58,8 +58,8 @@ def build_all_packages():
             }
         },
         {
-            "id": "linux-image-6.10.0-krypton-generic",
-            "name": "linux-image-6.10.0-krypton-generic",
+            "id": "linux-image-krypton-generic",
+            "name": "linux-image-krypton-generic",
             "file": "linux-image-6.10.0-krypton-generic.deb",
             "version": "6.10.0-1",
             "arch": "amd64",

@@ -8,6 +8,8 @@ import { vfs } from '../fs.js';
 import { sound } from '../sound.js';
 import { story } from '../story.js';
 
+let settingsActiveTimer = null;
+
 export function openSettings(initialTab = 'appearance') {
     const content = document.createElement('div');
     content.className = 'settings-app-container';
@@ -15,6 +17,11 @@ export function openSettings(initialTab = 'appearance') {
     let activeTab = initialTab;
 
     const render = () => {
+        if (settingsActiveTimer) {
+            clearInterval(settingsActiveTimer);
+            settingsActiveTimer = null;
+        }
+
         content.innerHTML = `
             <div class="settings-sidebar">
                 <div class="settings-sidebar-header">
@@ -87,7 +94,13 @@ export function openSettings(initialTab = 'appearance') {
         icon: '⚙️',
         width: 760,
         height: 520,
-        content: content
+        content: content,
+        onClose: () => {
+            if (settingsActiveTimer) {
+                clearInterval(settingsActiveTimer);
+                settingsActiveTimer = null;
+            }
+        }
     });
 }
 
@@ -489,15 +502,16 @@ function renderDateTimeTab(container) {
                 month: 'short',
                 day: 'numeric'
             });
-            if (clockEl) clockEl.textContent = timeStr;
-            if (dateEl) dateEl.textContent = dateStr;
+            if (clockEl && clockEl.textContent !== timeStr) clockEl.textContent = timeStr;
+            if (dateEl && dateEl.textContent !== dateStr) dateEl.textContent = dateStr;
         } catch (e) {
             if (clockEl) clockEl.textContent = now.toTimeString();
         }
     };
 
     updateClock();
-    const liveTimer = setInterval(updateClock, 1000);
+    if (settingsActiveTimer) clearInterval(settingsActiveTimer);
+    settingsActiveTimer = setInterval(updateClock, 1000);
 
     // Save changes listener
     const syncTimeSettings = () => {

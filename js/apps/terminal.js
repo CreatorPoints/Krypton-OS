@@ -440,7 +440,13 @@ export function openTerminal() {
         icon: '💻',
         width: 680,
         height: 460,
-        content: content
+        content: content,
+        onClose: () => {
+            if (activeStreamInterval) {
+                clearInterval(activeStreamInterval);
+                activeStreamInterval = null;
+            }
+        }
     });
 
     updatePrompt();

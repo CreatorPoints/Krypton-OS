@@ -126,9 +126,11 @@ export class WindowManager {
         // Titlebar double click maximize
         titlebar.addEventListener('dblclick', () => this.toggleMaximize(id));
 
-        // Dragging Logic
+        // Dragging Logic (Optimized with RAF coalescing & passive listeners)
         let isDragging = false;
         let startX, startY, startLeft, startTop;
+        let dragRaf = null;
+        let targetLeft = 0, targetTop = 0;
 
         titlebar.addEventListener('mousedown', (e) => {
             if (e.target.classList.contains('window-control-btn')) return;
@@ -138,25 +140,34 @@ export class WindowManager {
             startY = e.clientY;
             startLeft = el.offsetLeft;
             startTop = el.offsetTop;
-            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mousemove', onMouseMove, { passive: true });
             document.addEventListener('mouseup', onMouseUp);
         });
 
         const onMouseMove = (e) => {
             if (!isDragging) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            el.style.left = `${Math.max(0, startLeft + dx)}px`;
-            el.style.top = `${Math.max(0, startTop + dy)}px`;
+            targetLeft = Math.max(0, startLeft + (e.clientX - startX));
+            targetTop = Math.max(0, startTop + (e.clientY - startY));
+            if (!dragRaf) {
+                dragRaf = requestAnimationFrame(() => {
+                    el.style.left = `${targetLeft}px`;
+                    el.style.top = `${targetTop}px`;
+                    dragRaf = null;
+                });
+            }
         };
 
         const onMouseUp = () => {
             isDragging = false;
+            if (dragRaf) {
+                cancelAnimationFrame(dragRaf);
+                dragRaf = null;
+            }
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
         };
 
-        // Resizing Logic
+        // Resizing Logic (Optimized with RAF coalescing)
         const resizerBR = el.querySelector('.r-bottom-right');
         const resizerR = el.querySelector('.r-right');
         const resizerB = el.querySelector('.r-bottom');
@@ -168,24 +179,35 @@ export class WindowManager {
             let rStartY = e.clientY;
             let rStartW = el.offsetWidth;
             let rStartH = el.offsetHeight;
+            let resizeRaf = null;
+            let targetW = rStartW, targetH = rStartH;
 
             const onResizing = (eMove) => {
                 if (resizeX) {
-                    const newW = Math.max(260, rStartW + (eMove.clientX - rStartX));
-                    el.style.width = `${newW}px`;
+                    targetW = Math.max(260, rStartW + (eMove.clientX - rStartX));
                 }
                 if (resizeY) {
-                    const newH = Math.max(180, rStartH + (eMove.clientY - rStartY));
-                    el.style.height = `${newH}px`;
+                    targetH = Math.max(180, rStartH + (eMove.clientY - rStartY));
+                }
+                if (!resizeRaf) {
+                    resizeRaf = requestAnimationFrame(() => {
+                        if (resizeX) el.style.width = `${targetW}px`;
+                        if (resizeY) el.style.height = `${targetH}px`;
+                        resizeRaf = null;
+                    });
                 }
             };
 
             const stopResizing = () => {
+                if (resizeRaf) {
+                    cancelAnimationFrame(resizeRaf);
+                    resizeRaf = null;
+                }
                 document.removeEventListener('mousemove', onResizing);
                 document.removeEventListener('mouseup', stopResizing);
             };
 
-            document.addEventListener('mousemove', onResizing);
+            document.addEventListener('mousemove', onResizing, { passive: true });
             document.addEventListener('mouseup', stopResizing);
         };
 

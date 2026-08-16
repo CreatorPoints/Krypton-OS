@@ -198,8 +198,11 @@ function initStartMenu() {
 }
 
 /* --------------------------------------------------------------------------
-   4. Animated Wallpaper Canvas & Clock
+   4. Animated Wallpaper Canvas (CPU-Efficient & Visibility-Aware) & Clock
    -------------------------------------------------------------------------- */
+let wallpaperAnimId = null;
+let isWallpaperRunning = false;
+
 function initWallpaper() {
     const savedWall = localStorage.getItem('krypton_wallpaper') || 'aurora';
     const savedCustom = localStorage.getItem('krypton_custom_wallpaper_url') || '';
@@ -209,46 +212,95 @@ function initWallpaper() {
     document.body.className = savedTheme;
 
     const canvas = document.getElementById('wallpaper-canvas');
+    const desktopEnv = document.getElementById('desktop-environment');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
 
+    let resizeDebounce = null;
     const resize = () => {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight - 46;
     };
     resize();
-    window.addEventListener('resize', resize);
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeDebounce);
+        resizeDebounce = setTimeout(resize, 150);
+    });
 
-    const particles = Array.from({ length: 30 }, () => ({
+    const particles = Array.from({ length: 24 }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
         r: Math.random() * 2 + 1,
         vx: (Math.random() - 0.5) * 0.25,
         vy: (Math.random() - 0.5) * 0.25,
-        alpha: Math.random() * 0.35 + 0.15
+        alpha: Math.random() * 0.3 + 0.15
     }));
 
-    function draw() {
+    let lastDraw = 0;
+    const TARGET_FPS_INTERVAL = 1000 / 25; // Smooth 25 FPS saves >60% CPU vs 60/120Hz unthrottled loop
+
+    function draw(timestamp) {
+        if (!isWallpaperRunning) return;
+
+        // Skip render if tab is hidden, canvas is hidden, or desktop is not active
+        if (document.hidden || canvas.style.display === 'none' || (desktopEnv && desktopEnv.classList.contains('hidden'))) {
+            isWallpaperRunning = false;
+            return;
+        }
+
+        wallpaperAnimId = requestAnimationFrame(draw);
+
+        if (timestamp - lastDraw < TARGET_FPS_INTERVAL) {
+            return;
+        }
+        lastDraw = timestamp;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        particles.forEach(p => {
+        const len = particles.length;
+        for (let i = 0; i < len; i++) {
+            const p = particles[i];
             p.x += p.vx;
             p.y += p.vy;
 
             if (p.x < 0) p.x = canvas.width;
-            if (p.x > canvas.width) p.x = 0;
+            else if (p.x > canvas.width) p.x = 0;
             if (p.y < 0) p.y = canvas.height;
-            if (p.y > canvas.height) p.y = 0;
+            else if (p.y > canvas.height) p.y = 0;
 
             ctx.fillStyle = `rgba(0, 229, 255, ${p.alpha})`;
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
             ctx.fill();
-        });
-
-        requestAnimationFrame(draw);
+        }
     }
-    draw();
+
+    function startLoop() {
+        if (isWallpaperRunning) return;
+        if (document.hidden || canvas.style.display === 'none') return;
+        isWallpaperRunning = true;
+        lastDraw = performance.now();
+        wallpaperAnimId = requestAnimationFrame(draw);
+    }
+
+    function stopLoop() {
+        isWallpaperRunning = false;
+        if (wallpaperAnimId) {
+            cancelAnimationFrame(wallpaperAnimId);
+            wallpaperAnimId = null;
+        }
+    }
+
+    // Pause canvas completely when browser tab is inactive
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopLoop();
+        } else {
+            startLoop();
+        }
+    });
+
+    startLoop();
 }
 
 function initDragAndDropWallpaper() {
@@ -327,41 +379,65 @@ function initClock() {
     const dateEl = document.getElementById('clock-date');
     if (!timeEl) return;
 
-    const updateClock = () => {
-        const now = new Date();
-        const savedTz = localStorage.getItem('krypton_tz') || vfs.readFile('/etc/timezone')?.trim() || 'UTC';
-        const is24Hour = localStorage.getItem('krypton_24h') !== 'false';
-        const showSeconds = localStorage.getItem('krypton_show_sec') !== 'false';
-        const showDate = localStorage.getItem('krypton_show_date') !== 'false';
+    // Cache settings in memory to eliminate repeated localStorage reads every second
+    let cachedTz = 'UTC';
+    let cached24Hour = true;
+    let cachedShowSeconds = true;
+    let cachedShowDate = true;
 
+    const reloadConfig = () => {
+        cachedTz = localStorage.getItem('krypton_tz') || vfs.readFile('/etc/timezone')?.trim() || 'UTC';
+        cached24Hour = localStorage.getItem('krypton_24h') !== 'false';
+        cachedShowSeconds = localStorage.getItem('krypton_show_sec') !== 'false';
+        cachedShowDate = localStorage.getItem('krypton_show_date') !== 'false';
+    };
+
+    reloadConfig();
+
+    const updateClock = () => {
+        // Skip clock DOM calculation when tab is hidden
+        if (document.hidden) return;
+
+        const now = new Date();
         try {
-            timeEl.textContent = now.toLocaleTimeString('en-US', {
-                timeZone: savedTz,
-                hour12: !is24Hour,
+            const timeStr = now.toLocaleTimeString('en-US', {
+                timeZone: cachedTz,
+                hour12: !cached24Hour,
                 hour: '2-digit',
                 minute: '2-digit',
-                second: showSeconds ? '2-digit' : undefined
+                second: cachedShowSeconds ? '2-digit' : undefined
             });
 
+            if (timeEl.textContent !== timeStr) {
+                timeEl.textContent = timeStr;
+            }
+
             if (dateEl) {
-                if (showDate) {
-                    dateEl.style.display = 'block';
-                    dateEl.textContent = now.toLocaleDateString('en-US', {
-                        timeZone: savedTz,
+                if (cachedShowDate) {
+                    if (dateEl.style.display !== 'block') dateEl.style.display = 'block';
+                    const dateStr = now.toLocaleDateString('en-US', {
+                        timeZone: cachedTz,
                         year: 'numeric',
                         month: '2-digit',
                         day: '2-digit'
                     });
+                    if (dateEl.textContent !== dateStr) {
+                        dateEl.textContent = dateStr;
+                    }
                 } else {
-                    dateEl.style.display = 'none';
+                    if (dateEl.style.display !== 'none') dateEl.style.display = 'none';
                 }
             }
         } catch (e) {
-            timeEl.textContent = now.toLocaleTimeString([], { hour12: false });
+            const fallbackStr = now.toLocaleTimeString([], { hour12: false });
+            if (timeEl.textContent !== fallbackStr) timeEl.textContent = fallbackStr;
         }
     };
 
     updateClock();
     setInterval(updateClock, 1000);
-    window.addEventListener('krypton_clock_updated', updateClock);
+    window.addEventListener('krypton_clock_updated', () => {
+        reloadConfig();
+        updateClock();
+    });
 }

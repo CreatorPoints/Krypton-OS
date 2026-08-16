@@ -22,6 +22,8 @@
     height: calc(100% - 46px);
     z-index: 1;
     pointer-events: none;
+    transform: translateZ(0);
+    contain: strict;
 }
 
 /* Drag and Drop Wallpaper Overlay Indicator */

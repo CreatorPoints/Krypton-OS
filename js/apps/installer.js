@@ -582,25 +582,6 @@ export function openInstallerWizard() {
         btnCancel.addEventListener('click', () => wm.closeWindow('wifi-pass-dialog'));
     };
 
-        const tryConnect = () => {
-            const pass = passInput.value.trim();
-            if (pass === 'pass-1234ABC') {
-                connectedWifi = ssid;
-                wm.closeWindow('wifi-pass-dialog');
-                story.showToast('Wi-Fi Connected', `✓ Connected to "${ssid}" successfully!`, 'success');
-                render();
-            } else {
-                errMsg.style.display = 'block';
-            }
-        };
-
-        btnConnect.addEventListener('click', tryConnect);
-        passInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') tryConnect();
-        });
-        btnCancel.addEventListener('click', () => wm.closeWindow('wifi-pass-dialog'));
-    };
-
     const showDiskConfirmWindow = (onConfirm) => {
         const dialogContent = document.createElement('div');
         dialogContent.style.cssText = 'display: flex; flex-direction: column; gap: 12px; color: #000; font-family: "Fira Code", monospace;';

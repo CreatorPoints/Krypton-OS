@@ -74,12 +74,11 @@ export function openBrowser(initialUrl = 'google://home') {
         if (currentGoogleUser) {
             const initial = (currentGoogleUser.name || currentGoogleUser.email || 'G')[0].toUpperCase();
             googleBadge.innerHTML = `
-                <div title="Google Account: ${currentGoogleUser.email} (15 GB Storage Active)" style="display: flex; align-items: center; gap: 6px; background: rgba(66, 133, 244, 0.12); border: 1px solid #4285F4; border-radius: 20px; padding: 3px 10px; font-size: 11px; color: #fff;">
+                <div title="Google Account: ${currentGoogleUser.email}" style="display: flex; align-items: center; gap: 6px; background: rgba(66, 133, 244, 0.12); border: 1px solid #4285F4; border-radius: 20px; padding: 3px 10px; font-size: 11px; color: #fff;">
                     <div style="width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #4285F4, #34A853); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px;">
                         ${initial}
                     </div>
                     <span style="font-weight: 600; color: #e2e8f0;">${currentGoogleUser.name ? currentGoogleUser.name.split(' ')[0] : 'Google'}</span>
-                    <span style="background: #34A853; color: #fff; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: bold;">15 GB</span>
                 </div>
             `;
         } else {
@@ -286,7 +285,7 @@ function renderGoogleHomepage(viewport, navigateTo, updateBadgeCallback) {
                         </div>
                         <div style="display: flex; flex-direction: column; text-align: left;">
                             <span style="font-size: 12px; font-weight: 600; color: #fff;">${user.name || 'Google User'}</span>
-                            <span style="font-size: 10px; color: #34A853; font-weight: bold;">15 GB Storage Active</span>
+                            <span style="font-size: 10px; color: #8ab4f8;">Google Account Linked</span>
                         </div>
                     </div>
                 ` : `
@@ -547,8 +546,8 @@ echo "================================"</pre>
         <strong>Gemini Insights for:</strong> <em>"${escapeHtml(prompt)}"</em><br><br>
         KryptonOS 1.0 LTS provides a 1:1 sandbox POSIX virtual kernel environment running Linux 6.10.0 on an emulated Samsung SSD 980 PRO NVMe with APT repository integration.<br><br>
         • <strong>Real Repository Stream:</strong> APT packages and rootfs are fetched from upstream GitHub repositories.<br>
-        • <strong>Google Cloud Identity:</strong> User credentials unlock 15 GB of persistent storage.<br>
-        • <strong>Full Web Engine:</strong> Connect to any website or API via the sandboxed proxy engine.
+        • <strong>Google Account Integration:</strong> User identity linked across system sessions.<br>
+        • <strong>Full Web Engine:</strong> Connect to any website or API via the sandboxed engine.
     `;
 }
 
@@ -974,7 +973,7 @@ function promptGoogleBrowserAuth(onSuccess) {
             <div style="font-weight: 700; font-size: 15px; color: #1a202c;">Sign in to Google</div>
         </div>
         <div style="font-size: 12px; color: #4a5568;">
-            Connect your Google account to unlock 15 GB of persistent cloud storage across KryptonOS:
+            Connect your Google account for user identity across KryptonOS:
         </div>
         <input type="email" id="g-browser-email" value="shrestangsu.dutta@gmail.com" placeholder="name@gmail.com" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
         <input type="text" id="g-browser-name" value="Shrestangsu Dutta" placeholder="Display Name" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
@@ -1014,7 +1013,7 @@ function promptGoogleBrowserAuth(onSuccess) {
         localStorage.setItem('krypton_google_email', email);
 
         wm.closeWindow('browser-google-auth-dialog');
-        story.showToast('✓ Google Account Connected', `Signed in as ${email} (15 GB Cloud Storage Active).`, 'success');
+        story.showToast('✓ Google Account Connected', `Signed in as ${email}.`, 'success');
         if (onSuccess) onSuccess();
     });
 }
@@ -1037,9 +1036,9 @@ function showGoogleAccountManagerDialog(onChange) {
             </div>
         </div>
 
-        <div style="background: rgba(52, 168, 83, 0.08); border: 1px solid #34A853; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #2d3748;">
-            <div style="font-weight: 700; color: #2f855a; margin-bottom: 2px;">✓ 15 GB Cloud Storage Bucket Linked</div>
-            <div>Your files are automatically backed up to secure persistent cloud storage.</div>
+        <div style="background: rgba(66, 133, 244, 0.08); border: 1px solid #4285F4; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #2d3748;">
+            <div style="font-weight: 700; color: #1a73e8; margin-bottom: 2px;">✓ Google Account Connected</div>
+            <div>Your account is active and synchronized in KryptonOS.</div>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">

@@ -143,8 +143,8 @@ export function openInstallerWizard() {
             `;
         } else if (stepIdx === 3) {
             return `
-                <div class="step-title">Who are you? (User & Cloud Identity)</div>
-                <div class="step-subtitle">Configure your workstation account. Connect Google Account to unlock 15 GB free cloud persistent storage.</div>
+                <div class="step-title">Who are you? (User & Account Setup)</div>
+                <div class="step-subtitle">Configure your workstation account. You can optionally link a Google Account.</div>
 
                 <div style="margin-bottom: 14px;">
                     ${googleAccount ? `
@@ -156,7 +156,7 @@ export function openInstallerWizard() {
                                 <div>
                                     <div style="font-weight: 700; color: #fff; font-size: 14px;">${googleAccount.name || userName}</div>
                                     <div style="font-size: 12px; color: #00e5ff;">${googleAccount.email}</div>
-                                    <div style="font-size: 11px; color: #a0aec0; margin-top: 2px;">✓ Google Identity Linked • <strong>15 GB Cloud Storage Active</strong></div>
+                                    <div style="font-size: 11px; color: #a0aec0; margin-top: 2px;">✓ Google Identity Linked</div>
                                 </div>
                             </div>
                             <button id="wiz-google-unlink-btn" style="padding: 6px 12px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.2); color: #cbd5e0; border-radius: 4px; cursor: pointer;">Change Account</button>
@@ -165,10 +165,10 @@ export function openInstallerWizard() {
                         <div style="background: rgba(66, 133, 244, 0.08); border: 1px dashed #4285F4; border-radius: 8px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 260px;">
                                 <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #fff; font-size: 13px; margin-bottom: 2px;">
-                                    <span>🎁</span> <strong>Optional: Connect Google Account</strong> <span style="font-size: 10px; background: #34A853; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 700;">15 GB FREE</span>
+                                    <span>🔗</span> <strong>Optional: Connect Google Account</strong>
                                 </div>
                                 <div style="font-size: 11px; color: #a0aec0; line-height: 1.4;">
-                                    Connect your Google account to unlock <strong>15 GB of Free Cloud-Backed Persistent Storage</strong> and automatic workspace synchronization across sessions.
+                                    Connect your Google account for user identity integration across sessions.
                                 </div>
                             </div>
                             <button id="wiz-google-signin-btn" style="display: inline-flex; align-items: center; gap: 8px; background: #ffffff; color: #3c4043; font-weight: 600; font-size: 12px; padding: 7px 14px; border-radius: 6px; border: 1px solid #dadce0; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: all 0.2s; white-space: nowrap;">

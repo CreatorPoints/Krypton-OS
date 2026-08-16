@@ -160,6 +160,9 @@ class DynamicAppLoader {
                 .replace(/import\s*\{[^}]*\}\s*from\s*['"][^'"]*['"];?/g, '')
                 .replace(/import\s+[\w*\s{},]+\s+from\s+['"][^'"]*['"];?/g, '');
 
+            // Ensure exports / global environment safety
+            cleanScript = `var exports = typeof exports !== "undefined" ? exports : {};\n` + cleanScript;
+
             const blob = new Blob([cleanScript], { type: 'application/javascript' });
             const blobUrl = URL.createObjectURL(blob);
 
@@ -168,14 +171,21 @@ class DynamicAppLoader {
 
             this.moduleCache.set(normId, mod);
 
-            const launchFn = mod.launch || mod.openNotes || mod.openTextEditor || mod.openCalculator || mod.openFileMgr || mod.openFileManager || mod.openTaskMgr || mod.openTaskManager || mod.openSettings || mod.openMessages || mod.openApp || mod.default || mod.open;
+            // Prioritize specific application entry functions, then fallback to generic launch/open/default
+            let launchFn = mod.openNotes || mod.openTextEditor || mod.openBrowser || mod.openWebBrowser || mod.openKryptonBrowser || mod.openCalculator || mod.openFileMgr || mod.openFileManager || mod.openFileExplorer || mod.openTaskMgr || mod.openTaskManager || mod.openSystemMonitor || mod.openSettings || mod.openMessages || mod.openSystemLogs;
+            if (!launchFn) {
+                launchFn = mod.launch || mod.openApp || mod.default || mod.open;
+            }
+
             if (typeof launchFn === 'function') {
-                if (Array.isArray(args) && (mod.openNotes || mod.openTextEditor || mod.openCalculator || mod.openFileMgr || mod.openTaskMgr || mod.openSettings)) {
+                if (Array.isArray(args)) {
                     return launchFn(...args);
+                } else if (args !== null && args !== undefined) {
+                    return launchFn(args);
                 }
                 return launchFn({ wm, vfs, sound, story, boot, args });
             } else {
-                throw new Error(`Module '${normId}' does not export a launch() or default function.`);
+                throw new Error(`Module '${normId}' does not export a recognized launch function.`);
             }
         } catch (err) {
             console.error(`[AppLoader] Dynamic import failed for '${normId}':`, err);

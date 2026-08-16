@@ -2166,14 +2166,20 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
             callback({ lines: [], exitCode: 1 });
             return;
         }
-        const binTarget = `/bin/${args[0]}`;
-        const usrBinTarget = `/usr/bin/${args[0]}`;
-        if (vfs.exists(binTarget)) {
-            callback({ lines: [{ text: binTarget, type: 'normal' }], exitCode: 0 });
-        } else if (vfs.exists(usrBinTarget)) {
-            callback({ lines: [{ text: usrBinTarget, type: 'normal' }], exitCode: 0 });
+        const target = args[0];
+        const searchPaths = [
+            `/bin/${target}`,
+            `/usr/bin/${target}`,
+            `/usr/games/${target}`,
+            `/sbin/${target}`,
+            `/usr/sbin/${target}`,
+            `/usr/local/bin/${target}`
+        ];
+        const found = searchPaths.find(p => vfs.exists(p));
+        if (found) {
+            callback({ lines: [{ text: found, type: 'normal' }], exitCode: 0 });
         } else {
-            callback({ lines: [{ text: `${args[0]} not found in $PATH`, type: 'error' }], exitCode: 1 });
+            callback({ lines: [{ text: `which: no ${target} in (/usr/local/bin:/usr/bin:/bin:/usr/games:/usr/sbin:/sbin)`, type: 'error' }], exitCode: 1 });
         }
         return;
     }
@@ -2501,6 +2507,16 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'cmatrix') {
+        if (!vfs.exists('/usr/bin/cmatrix')) {
+            callback({
+                lines: [
+                    { text: `Command 'cmatrix' not found, but can be installed with:`, type: 'normal' },
+                    { text: `sudo apt install cmatrix`, type: 'cyan' }
+                ],
+                exitCode: 127
+            });
+            return;
+        }
         callback({
             lines: [
                 { text: "01010100 01101000 01100101 00100000 01001101 01100001 01110100 01110010 01101001 01111000", type: 'success' },
@@ -2515,6 +2531,16 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'cowsay') {
+        if (!vfs.exists('/usr/games/cowsay') && !vfs.exists('/usr/bin/cowsay')) {
+            callback({
+                lines: [
+                    { text: `Command 'cowsay' not found, but can be installed with:`, type: 'normal' },
+                    { text: `sudo apt install cowsay`, type: 'cyan' }
+                ],
+                exitCode: 127
+            });
+            return;
+        }
         const msg = args.join(' ') || "Moo! Welcome to KryptonOS Linux.";
         const border = "-".repeat(msg.length + 2);
         callback({
@@ -2550,6 +2576,16 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'sl') {
+        if (!vfs.exists('/usr/games/sl') && !vfs.exists('/usr/bin/sl')) {
+            callback({
+                lines: [
+                    { text: `Command 'sl' not found, but can be installed with:`, type: 'normal' },
+                    { text: `sudo apt install sl`, type: 'cyan' }
+                ],
+                exitCode: 127
+            });
+            return;
+        }
         callback({
             lines: [
                 { text: `      ====        ________                ___________ `, type: 'yellow' },
@@ -2933,9 +2969,40 @@ async function executeAptCommand(args, isRoot, callback) {
                 const hashStr = pkgMeta ? pkgMeta.sha256.substring(0, 16) + '...' : 'verified';
                 const sizeKb = found.size || (pkgMeta ? Math.round(pkgMeta.size / 1024) : 512);
 
-                // Write binary executable mock to VFS
+                // Write binary executable and desktop entries into VFS
                 vfs.writeFile(`/usr/bin/${found.id}`, `#!/bin/bash\n# ${found.name} binary\n`);
+                if (found.id === 'cowsay') {
+                    vfs.createDirectory('/usr/games');
+                    vfs.writeFile('/usr/games/cowsay', '#!/bin/bash\n# cowsay\n');
+                } else if (found.id === 'sl') {
+                    vfs.createDirectory('/usr/games');
+                    vfs.writeFile('/usr/games/sl', '#!/bin/bash\n# sl\n');
+                } else if (found.id === 'krypton-calculator' || found.id === 'calculator') {
+                    vfs.createDirectory('/usr/share/applications');
+                    vfs.writeFile('/usr/share/applications/calculator.desktop', '[Desktop Entry]\nName=Calculator\nExec=krypton-calculator\nIcon=🧮\nType=Application\nCategories=Utility;Calculator;\n');
+                } else if (found.id === 'krypton-notes' || found.id === 'notes') {
+                    vfs.createDirectory('/usr/share/applications');
+                    vfs.writeFile('/usr/share/applications/notes.desktop', '[Desktop Entry]\nName=Notes\nExec=krypton-notes\nIcon=📝\nType=Application\nCategories=Utility;TextEditor;\n');
+                } else if (found.id === 'krypton-taskmgr' || found.id === 'taskmgr') {
+                    vfs.createDirectory('/usr/share/applications');
+                    vfs.writeFile('/usr/share/applications/taskmgr.desktop', '[Desktop Entry]\nName=Task Manager\nExec=krypton-taskmgr\nIcon=📊\nType=Application\nCategories=System;Monitor;\n');
+                } else if (found.id === 'krypton-filemgr' || found.id === 'filemgr') {
+                    vfs.createDirectory('/usr/share/applications');
+                    vfs.writeFile('/usr/share/applications/filemgr.desktop', '[Desktop Entry]\nName=File Manager\nExec=krypton-filemgr\nIcon=📁\nType=Application\nCategories=System;FileManager;\n');
+                } else if (found.id === 'krypton-browser' || found.id === 'browser') {
+                    vfs.createDirectory('/usr/share/applications');
+                    vfs.writeFile('/usr/share/applications/browser.desktop', '[Desktop Entry]\nName=Web Browser\nExec=krypton-browser\nIcon=🌐\nType=Application\nCategories=Network;WebBrowser;\n');
+                }
+
+                // Update /var/lib/dpkg/status
+                const currentDpkgStatus = vfs.readFile('/var/lib/dpkg/status') || '';
+                const newPkgEntry = `Package: ${found.id}\nStatus: install ok installed\nPriority: optional\nSection: ${found.section || 'universe'}\nInstalled-Size: ${sizeKb}\nMaintainer: ${found.maintainer || 'Krypton Maintainers <pkg@krypton-os.org>'}\nArchitecture: ${found.architecture || found.arch || 'amd64'}\nVersion: ${found.version}\nDescription: ${found.summary || found.description || found.name}\n\n`;
+                if (!currentDpkgStatus.includes(`Package: ${found.id}`)) {
+                    vfs.writeFile('/var/lib/dpkg/status', currentDpkgStatus + newPkgEntry);
+                }
+
                 vfs.saveFileSystem();
+                window.dispatchEvent(new CustomEvent('krypton_packages_changed', { detail: { action: 'install', package: found.id } }));
 
                 callback({
                     lines: [
@@ -3000,10 +3067,34 @@ async function executeAptCommand(args, isRoot, callback) {
             });
             return;
         }
+
+        // Standard package removal
+        const targetsToRemove = [
+            `/usr/bin/${pkg}`,
+            `/usr/bin/krypton-${pkg}`,
+            `/usr/games/${pkg}`,
+            `/usr/share/applications/${pkg}.desktop`,
+            `/usr/share/applications/${pkg.replace('krypton-', '')}.desktop`
+        ];
+
+        targetsToRemove.forEach(p => {
+            if (vfs.exists(p)) vfs.remove(p);
+        });
+
+        // Update dpkg status
+        const dpkgStatus = vfs.readFile('/var/lib/dpkg/status') || '';
+        if (dpkgStatus.includes(`Package: ${pkg}`)) {
+            vfs.writeFile('/var/lib/dpkg/status', dpkgStatus.replace(new RegExp(`Package: ${pkg}[\\s\\S]*?\\n\\n`, 'g'), ''));
+        }
+
+        vfs.saveFileSystem();
+        window.dispatchEvent(new CustomEvent('krypton_packages_changed', { detail: { action: 'remove', package: pkg } }));
+
         callback({
             lines: [
                 { text: `Reading package lists... Done`, type: 'normal' },
                 { text: `Removing package ${pkg} ...`, type: 'warning' },
+                { text: `Purging binaries and configuration files for ${pkg} ...`, type: 'muted' },
                 { text: `Package '${pkg}' removed successfully.`, type: 'success' }
             ],
             exitCode: 0

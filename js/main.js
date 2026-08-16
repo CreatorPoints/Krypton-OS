@@ -290,6 +290,18 @@ function setupStartMenu({ title, subtitle, apps, showSearch = true }) {
 /* --------------------------------------------------------------------------
    3. Main Installed Desktop Environment (Full Modern 1.0 LTS OS)
    -------------------------------------------------------------------------- */
+function getInstalledDesktopApps() {
+    return MAIN_APPS.filter(app => {
+        // Core tools always available in Modern LTS
+        if (app.id === 'terminal' || app.id === 'settings' || app.id === 'logs') return true;
+        // Check for desktop launcher or binary in VFS
+        const desktopPath = `/usr/share/applications/${app.id}.desktop`;
+        const binPath = `/usr/bin/${app.id}`;
+        const altBin = `/usr/bin/krypton-${app.id}`;
+        return vfs.exists(desktopPath) || vfs.exists(binPath) || vfs.exists(altBin);
+    });
+}
+
 function initMainInstalledDesktop() {
     const savedTheme = localStorage.getItem('krypton_theme') || 'theme-cyberpunk';
     document.body.className = savedTheme;
@@ -302,8 +314,10 @@ function initMainInstalledDesktop() {
 
     grid.innerHTML = '';
 
-    // Render Full App Shortcuts
-    MAIN_APPS.forEach(app => {
+    const installedApps = getInstalledDesktopApps();
+
+    // Render Installed App Shortcuts Only
+    installedApps.forEach(app => {
         const iconEl = document.createElement('div');
         iconEl.className = 'desktop-icon';
         iconEl.setAttribute('data-app-id', app.id);
@@ -327,19 +341,23 @@ function initMainInstalledDesktop() {
 
     const u = localStorage.getItem('krypton_primary_user') || 'guest';
 
-    // Initialize Start Menu with Full App Suite
+    // Initialize Start Menu with Installed App Suite
     setupStartMenu({
         title: `${u}@krypton-station`,
         subtitle: 'Krypton 1.0.0.0 LTS (Linux 6.10.0-krypton-generic)',
-        apps: MAIN_APPS,
+        apps: installedApps,
         showSearch: true
     });
-
-    // Welcome Notification
-    setTimeout(() => {
-        story.showToast('🖥️ KryptonOS 1.0 LTS', `Session active for ${u}. System ready.`, 'info');
-    }, 600);
 }
+
+// Listen for dynamic package install/remove events
+window.addEventListener('krypton_packages_changed', () => {
+    const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true';
+    if (isInstalled && isUpgraded) {
+        initMainInstalledDesktop();
+    }
+});
 
 /* --------------------------------------------------------------------------
    4. Animated Wallpaper Canvas (CPU-Efficient & Visibility-Aware) & Clock

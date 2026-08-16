@@ -210,12 +210,24 @@ export function openTerminal() {
     const content = document.createElement('div');
     content.className = 'terminal-app';
 
+    const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
     const osRel = vfs.readFile('/etc/os-release') || '';
-    const prettyNameMatch = osRel.match(/PRETTY_NAME="([^"]+)"/) || osRel.match(/NAME="([^"]+)"/);
-    const currentPrettyName = prettyNameMatch ? prettyNameMatch[1] : 'KryptonOS GNU/Linux';
-    const procVer = vfs.readFile('/proc/version') || '';
-    const kernelVerMatch = procVer.match(/Linux version ([^\s]+)/);
-    const currentKernelVer = kernelVerMatch ? kernelVerMatch[1] : (vfs.getNode('/boot/vmlinuz-2.0.0.14-generic-krypton') ? '2.0.0.14-generic-krypton' : '6.10.0-krypton-generic');
+    const isUpgraded = isInstalled && localStorage.getItem('krypton_upgraded_lts') === 'true' && osRel.includes('1.0.0.0');
+
+    let currentPrettyName = 'Krypton OS 0.1 Alpha';
+    let currentKernelVer = '2.0.0.14-generic-krypton';
+
+    if (!isInstalled) {
+        currentPrettyName = 'Krypton OS 0.1 Alpha (Live Media)';
+        currentKernelVer = '2.0.0.14-generic-krypton';
+    } else if (isUpgraded) {
+        currentPrettyName = 'Krypton 1.0.0.0 LTS';
+        currentKernelVer = '6.10.0-krypton-generic';
+    } else {
+        const prettyMatch = osRel.match(/PRETTY_NAME="([^"]+)"/);
+        currentPrettyName = prettyMatch ? prettyMatch[1] : 'Krypton OS 0.1 Alpha';
+        currentKernelVer = '2.0.0.14-generic-krypton';
+    }
 
     content.innerHTML = `
         <div class="terminal-line terminal-output-info">${currentPrettyName} (Linux ${currentKernelVer} x86_64)</div>
@@ -1870,7 +1882,8 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     /* 6. System Information (uname, neofetch, free, df, lscpu, lspci, etc.) */
     if (cmd === 'uname') {
-        const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' || (localStorage.getItem('krypton_os_version') === '1.0.0.0');
+        const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+        const isUpgraded = isInstalled && localStorage.getItem('krypton_upgraded_lts') === 'true' && (vfs.readFile('/etc/os-release') || '').includes('1.0.0.0');
         const kernelVer = isUpgraded ? '6.10.0-krypton-generic' : '2.0.0.14-generic-krypton';
         if (args.includes('-a')) {
             const dateText = isUpgraded ? 'Fri Aug 14 2026' : 'Sun Aug 16 1996';
@@ -1887,10 +1900,10 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     if (cmd === 'neofetch' || cmd === 'screenfetch' || cmd === 'fastfetch') {
         const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
-        const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' || (localStorage.getItem('krypton_os_version') === '1.0.0.0');
+        const isUpgraded = isInstalled && localStorage.getItem('krypton_upgraded_lts') === 'true' && (vfs.readFile('/etc/os-release') || '').includes('1.0.0.0');
         const osReleaseStr = vfs.readFile('/etc/os-release') || '';
         const prettyMatch = osReleaseStr.match(/PRETTY_NAME="([^"]+)"/);
-        const osName = prettyMatch ? prettyMatch[1] : (isUpgraded ? 'Krypton 1.0.0.0 LTS' : 'Krypton OS 0.1 Alpha');
+        const osName = !isInstalled ? 'Krypton OS 0.1 Alpha (Live Media)' : (prettyMatch ? prettyMatch[1] : (isUpgraded ? 'Krypton 1.0.0.0 LTS' : 'Krypton OS 0.1 Alpha'));
         const kernelVer = isUpgraded ? '6.10.0-krypton-generic' : '2.0.0.14-generic-krypton';
         const shellVer = isUpgraded ? 'bash 5.2.21' : 'bash 2.0.0-alpha';
         const themeName = isUpgraded ? 'Obsidian-Dark [GTK3/4]' : 'Windows 98 Classic / Alpha';

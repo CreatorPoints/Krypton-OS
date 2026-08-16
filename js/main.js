@@ -30,12 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 export function checkEnvironmentState() {
+    const isLiveBoot = sessionStorage.getItem('krypton_current_boot_medium') === 'live_usb';
     const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
     const osRel = vfs.readFile('/etc/os-release') || '';
     const isAlphaInVfs = osRel.includes('0.1.0-alpha') || vfs.exists('/boot/vmlinuz-2.0.0.14-generic-krypton');
     const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' && !isAlphaInVfs && osRel.includes('1.0.0.0');
 
-    if (!isInstalled || !vfs.exists('/etc/os-release')) {
+    if (isLiveBoot || !isInstalled || !vfs.exists('/etc/os-release')) {
         // 1. Live USB Mode: Windows 98 styled Krypton Alpha OS with Terminal & Installer ONLY
         initLiveSessionDesktop();
     } else if (!isUpgraded) {

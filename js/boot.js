@@ -168,7 +168,7 @@ export class MasterBootEngine {
         if (candidate.includes('SanDisk') || candidate.includes('USB') || candidate.includes('PenDrive')) {
             const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
             const isDeleted = localStorage.getItem('krypton_os_deleted') === 'true';
-            const vmlinuz = vfs.getNode('/boot/vmlinuz-6.10.0-krypton-generic');
+            const vmlinuz = vfs.getNode('/boot/vmlinuz-6.10.0-krypton-generic') || vfs.getNode('/boot/vmlinuz-2.0.0.14-generic-krypton');
             const grubCfg = vfs.getNode('/boot/grub/grub.cfg');
             const osRelease = vfs.getNode('/etc/os-release');
 
@@ -186,7 +186,7 @@ export class MasterBootEngine {
         if (candidate.includes('Samsung') || candidate.includes('NVMe') || candidate.includes('SSD')) {
             const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
             const isDeleted = localStorage.getItem('krypton_os_deleted') === 'true';
-            const vmlinuz = vfs.getNode('/boot/vmlinuz-6.10.0-krypton-generic');
+            const vmlinuz = vfs.getNode('/boot/vmlinuz-6.10.0-krypton-generic') || vfs.getNode('/boot/vmlinuz-2.0.0.14-generic-krypton');
             const grubCfg = vfs.getNode('/boot/grub/grub.cfg');
             const osRelease = vfs.getNode('/etc/os-release');
 
@@ -647,6 +647,7 @@ export class MasterBootEngine {
     bootIntoLiveUSB() {
         this.phase = 'KERNEL_BOOT';
         this.clearTimers();
+        sessionStorage.setItem('krypton_current_boot_medium', 'live_usb');
 
         this.container.innerHTML = `
             <div class="krypton-boot-loader">
@@ -702,18 +703,29 @@ export class MasterBootEngine {
                 <div style="color: #888888;">[  OK  ] Stopped target Graphical Interface.</div>
                 <div style="color: #888888;">[  OK  ] Unmounted all active partitions (/mnt/target).</div>
                 <div style="color: #888888;">[  OK  ] Reached target System Reboot.</div>
-                <div style="margin-top: 20px;">Rebooting system...<span class="bios-underscore-cursor" id="bios-cursor"></span></div>
+                <div style="margin-top: 16px; color: #38bdf8;">Please remove the installation medium, then press ENTER:</div>
+                <div style="margin-top: 10px;">Rebooting system...<span class="bios-underscore-cursor" id="bios-cursor"></span></div>
             </div>
         `;
 
+        const onRebootKey = (e) => {
+            if (e.key === 'Enter' || e.code === 'Enter') {
+                document.removeEventListener('keydown', onRebootKey);
+                this.start();
+            }
+        };
+        document.addEventListener('keydown', onRebootKey);
+
         setTimeout(() => {
+            document.removeEventListener('keydown', onRebootKey);
             this.start();
-        }, 3200);
+        }, 3600);
     }
 
     bootIntoInstalledMainOS() {
         this.phase = 'KERNEL_BOOT';
         this.clearTimers();
+        sessionStorage.setItem('krypton_current_boot_medium', 'ssd');
 
         // Check if staged upgrade reboot is pending
         if (vfs.exists('/var/run/reboot-required') || vfs.exists('/boot/vmlinuz-6.10.0-krypton-generic')) {

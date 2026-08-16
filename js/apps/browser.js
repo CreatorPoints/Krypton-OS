@@ -29,6 +29,14 @@ export function openBrowser(initialUrl = 'google://home') {
     let currentGoogleUser = getActiveGoogleUser();
 
     content.innerHTML = `
+        <div style="background: linear-gradient(90deg, #b45309, #d97706); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 12px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.5px; border-bottom: 1px solid rgba(0,0,0,0.3);">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span>🚧</span> <strong>Krypton Browser — Work In Progress (WIP)</strong>
+                <span style="font-size: 10px; color: #fef3c7; font-weight: normal;">• Web engine under active development</span>
+            </div>
+            <span style="background: rgba(0,0,0,0.3); color: #fde68a; padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 800;">WIP / ALPHA</span>
+        </div>
+
         <div class="browser-toolbar" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #0f131f; border-bottom: 1px solid rgba(255,255,255,0.08);">
             <div style="display: flex; gap: 4px;">
                 <button class="browser-nav-btn" id="b-back" title="Back" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">◄</button>
@@ -158,7 +166,7 @@ export function openBrowser(initialUrl = 'google://home') {
 
     wm.createWindow({
         id: 'browser',
-        title: 'Krypton Web Browser (Google Engine)',
+        title: 'Krypton Browser (WIP)',
         icon: '🌐',
         width: 980,
         height: 660,

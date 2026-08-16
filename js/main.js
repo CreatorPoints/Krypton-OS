@@ -19,7 +19,7 @@ import { boot } from './boot.js';
 
 // Application Registry for Main OS
 const MAIN_APPS = [
-    { id: 'browser', title: 'Krypton Browser', icon: '🌐', open: openBrowser },
+    { id: 'browser', title: 'Krypton Browser (WIP)', icon: '🌐', open: openBrowser },
     { id: 'terminal', title: 'Terminal', icon: '💻', open: openTerminal },
     { id: 'filemgr', title: 'File Explorer', icon: '📁', open: () => openFileManager() },
     { id: 'notes', title: 'Text Editor', icon: '📝', open: () => {

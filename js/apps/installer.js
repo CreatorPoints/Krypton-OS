@@ -755,7 +755,6 @@ export function openInstallerWizard() {
             boot.triggerSystemRebootBroadcast('The system is going down for reboot NOW! (Krypton OS 0.1 Alpha Deployment)');
         }, 2500);
     };
-    };
 
     render();
 

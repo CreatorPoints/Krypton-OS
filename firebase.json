@@ -6,6 +6,10 @@
       "firebase.json",
       ".firebaserc",
       "server.py",
+      "turnserveron",
+      "turnserveroff",
+      ".server.pid",
+      ".server.log",
       ".git/**",
       "**/.*"
     ],

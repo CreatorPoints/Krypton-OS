@@ -16,3 +16,7 @@ sudo apt fetches the new .debs under apt/ and downloads and unpacks them. (a man
 deb shouldnt be a mere picture to leave away
 it should have stuffs like its info, and it should contain actualjs css html logic (yes, the none of the os should have the sligest thing of uninstalled debs and stufss)
 any image asset whatever shall be packaged into deb and the package manager in my os shall download em, proscess e and install on my system.
+--------------
+start is broken on both os
+make that the alpha os uses linux 2.0.0.14-generic-krypton as kernel which only supports the command sudo apt updae and upgrade
+then the modern one will use the lastest available linux header

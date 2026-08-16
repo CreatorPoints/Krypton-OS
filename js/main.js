@@ -75,7 +75,7 @@ function initLiveSessionDesktop() {
     if (!grid) return;
 
     grid.innerHTML = `
-        <div class="desktop-icon" id="icon-terminal" title="Unix / MS-DOS Shell (Linux 6.10)">
+        <div class="desktop-icon" id="icon-terminal" title="Unix / MS-DOS Shell (Linux 2.0.0.14-generic-krypton)">
             <div class="icon-image">💻</div>
             <div class="icon-label">Terminal</div>
         </div>
@@ -101,16 +101,17 @@ function initLiveSessionDesktop() {
         });
     });
 
-    const startBtn = document.getElementById('start-button');
-    if (startBtn) {
-        const newBtn = startBtn.cloneNode(true);
-        startBtn.parentNode.replaceChild(newBtn, startBtn);
-        newBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            sound.playClick();
-            openInstallerWizard();
-        });
-    }
+    const liveApps = [
+        { id: 'term', title: 'Terminal', icon: '💻', open: openTerminal },
+        { id: 'install', title: 'Install Krypton OS', icon: '💿', open: openInstallerWizard }
+    ];
+
+    setupStartMenu({
+        title: 'Krypton Alpha OS',
+        subtitle: 'Live Media (Linux 2.0.0.14-generic-krypton)',
+        apps: liveApps,
+        showSearch: false
+    });
 }
 
 /* --------------------------------------------------------------------------
@@ -130,7 +131,7 @@ function initBaseInstalledDesktop() {
             <div class="icon-image">🌐</div>
             <div class="icon-label">Web Navigator</div>
         </div>
-        <div class="desktop-icon" id="icon-terminal" title="Terminal (Linux 6.10 Header)">
+        <div class="desktop-icon" id="icon-terminal" title="Terminal (Linux 2.0.0.14-generic-krypton)">
             <div class="icon-image">💻</div>
             <div class="icon-label">Terminal</div>
         </div>
@@ -150,7 +151,7 @@ function initBaseInstalledDesktop() {
     });
     document.getElementById('icon-readme')?.addEventListener('dblclick', () => {
         sound.playClick();
-        openNotes('upgrade_notes.txt', `=== Krypton OS 0.1 Alpha Base Installation ===\n\nKernel: Linux 6.10.0-krypton-generic x86_64\nInstalled Packages: Base System, Web Navigator (Alpha), GNU Bash 5.2\n\nTo upgrade this system to the modern Krypton 1.0 LTS Desktop Suite:\n1. Open the Terminal\n2. Run the standard Debian upgrade command:\n     sudo apt update && sudo apt upgrade -y\n\nAll modern apps, Wayland compositor, and glass UI will be automatically unlocked!`);
+        openNotes('upgrade_notes.txt', `=== Krypton OS 0.1 Alpha Base Installation ===\n\nKernel: Linux 2.0.0.14-generic-krypton (Vintage Alpha Subsystem)\nInstalled Packages: Base System, Web Navigator (Alpha), GNU Bash 2.0\n\nTo upgrade this system to the modern Linux 6.10 kernel and Krypton 1.0 LTS Desktop Suite:\n1. Open the Terminal\n2. Run the standard Debian upgrade command:\n     sudo apt update && sudo apt upgrade\n\nAll modern apps, Wayland compositor, and glass UI will be automatically unlocked!`);
     });
 
     document.querySelectorAll('.desktop-icon').forEach(icon => {
@@ -160,73 +161,130 @@ function initBaseInstalledDesktop() {
         });
     });
 
-    initStartMenuBase();
+    const baseApps = [
+        { id: 'nav', title: 'Web Navigator (Alpha)', icon: '🌐', open: openBrowser },
+        { id: 'term', title: 'Terminal', icon: '💻', open: openTerminal },
+        { id: 'notes', title: 'Upgrade Notes', icon: '📝', open: () => openNotes('upgrade_notes.txt', `=== Krypton OS 0.1 Alpha ===\nRun 'sudo apt update && sudo apt upgrade' in Terminal to upgrade to Linux 6.10 and Krypton 1.0 LTS.`) }
+    ];
+
+    setupStartMenu({
+        title: 'Krypton Alpha OS',
+        subtitle: 'Base Install (Linux 2.0.0.14-generic-krypton)',
+        apps: baseApps,
+        showSearch: false
+    });
 
     setTimeout(() => {
-        story.showToast('ℹ️ Krypton Alpha Base OS', "Base OS installed. Run 'sudo apt update && sudo apt upgrade' in Terminal to upgrade to Krypton 1.0 LTS.", 'info');
+        story.showToast('ℹ️ Krypton Alpha Base OS', "Base OS active (Linux 2.0.0.14). Run 'sudo apt update && sudo apt upgrade' to upgrade to Linux 6.10 & Krypton 1.0 LTS.", 'info');
     }, 600);
 }
 
-function initStartMenuBase() {
+/* --------------------------------------------------------------------------
+   3. Unified Start Menu Engine
+   -------------------------------------------------------------------------- */
+let activeStartMenuCloser = null;
+
+function setupStartMenu({ title, subtitle, apps, showSearch = true }) {
     const startBtn = document.getElementById('start-button');
     const startMenu = document.getElementById('start-menu');
     const startAppGrid = document.getElementById('start-app-grid');
+    const searchInput = document.getElementById('start-search-input');
+    const userNameEl = startMenu?.querySelector('.user-name');
+    const userStatusEl = startMenu?.querySelector('.user-status');
+    const searchContainer = startMenu?.querySelector('.start-menu-search');
+
     if (!startBtn || !startMenu) return;
 
-    const newStartBtn = startBtn.cloneNode(true);
-    startBtn.parentNode.replaceChild(newStartBtn, startBtn);
-
-    newStartBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        startMenu.classList.toggle('hidden');
-        sound.playClick();
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!startMenu.contains(e.target) && !newStartBtn.contains(e.target)) {
-            startMenu.classList.add('hidden');
-        }
-    });
-
-    if (startAppGrid) {
-        startAppGrid.innerHTML = `
-            <div class="start-app-item" id="s-app-nav">
-                <div class="start-app-icon">🌐</div>
-                <div class="start-app-label">Web Navigator (Alpha)</div>
-            </div>
-            <div class="start-app-item" id="s-app-term">
-                <div class="start-app-icon">💻</div>
-                <div class="start-app-label">Terminal</div>
-            </div>
-        `;
-
-        document.getElementById('s-app-nav')?.addEventListener('click', () => {
-            sound.playClick();
-            openBrowser();
-            startMenu.classList.add('hidden');
-        });
-        document.getElementById('s-app-term')?.addEventListener('click', () => {
-            sound.playClick();
-            openTerminal();
-            startMenu.classList.add('hidden');
-        });
+    if (userNameEl) userNameEl.textContent = title;
+    if (userStatusEl) userStatusEl.innerHTML = `<span class="status-dot"></span> ${subtitle}`;
+    if (searchContainer) {
+        searchContainer.style.display = showSearch ? 'block' : 'none';
     }
 
-    document.getElementById('start-btn-settings')?.addEventListener('click', () => {
-        story.showToast('⚠️ Alpha Notice', "Settings control center requires Krypton 1.0 LTS. Run 'sudo apt update && sudo apt upgrade' to install.", 'warning');
-        startMenu.classList.add('hidden');
-    });
-    document.getElementById('start-btn-terminal')?.addEventListener('click', () => {
-        openTerminal();
-        startMenu.classList.add('hidden');
-    });
-    document.getElementById('start-btn-restart')?.addEventListener('click', () => {
-        sound.playWindowClose();
-        startMenu.classList.add('hidden');
-        wm.windows.forEach((_, id) => wm.closeWindow(id));
-        document.getElementById('desktop-environment').classList.add('hidden');
-        boot.start();
-    });
+    const renderApps = (filter = '') => {
+        if (!startAppGrid) return;
+        startAppGrid.innerHTML = '';
+        apps.filter(a => a.title.toLowerCase().includes(filter.toLowerCase())).forEach(app => {
+            const item = document.createElement('div');
+            item.className = 'start-app-item';
+            item.innerHTML = `
+                <div class="start-app-icon">${app.icon}</div>
+                <div class="start-app-label">${app.title}</div>
+            `;
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                sound.playClick();
+                app.open();
+                startMenu.classList.add('hidden');
+            });
+            startAppGrid.appendChild(item);
+        });
+    };
+
+    renderApps();
+
+    if (searchInput && showSearch) {
+        searchInput.value = '';
+        searchInput.oninput = (e) => renderApps(e.target.value);
+    }
+
+    // Bind action footer buttons
+    const btnSettings = document.getElementById('start-btn-settings');
+    const btnTerminal = document.getElementById('start-btn-terminal');
+    const btnRestart = document.getElementById('start-btn-restart');
+
+    if (btnSettings) {
+        btnSettings.onclick = (e) => {
+            e.stopPropagation();
+            startMenu.classList.add('hidden');
+            const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true';
+            if (isUpgraded) {
+                openSettings();
+            } else {
+                story.showToast('⚠️ Alpha Notice', "Settings control center requires Krypton 1.0 LTS. Run 'sudo apt update && sudo apt upgrade' to install.", 'warning');
+            }
+        };
+    }
+
+    if (btnTerminal) {
+        btnTerminal.onclick = (e) => {
+            e.stopPropagation();
+            startMenu.classList.add('hidden');
+            openTerminal();
+        };
+    }
+
+    if (btnRestart) {
+        btnRestart.onclick = (e) => {
+            e.stopPropagation();
+            sound.playWindowClose();
+            startMenu.classList.add('hidden');
+            boot.triggerSystemRebootBroadcast('The system is going down for reboot NOW!');
+        };
+    }
+
+    // Toggle menu
+    startBtn.onclick = (e) => {
+        e.stopPropagation();
+        const willShow = startMenu.classList.contains('hidden');
+        startMenu.classList.toggle('hidden');
+        sound.playClick();
+        if (willShow && searchInput && showSearch) {
+            setTimeout(() => searchInput.focus(), 100);
+        }
+    };
+
+    if (activeStartMenuCloser) {
+        document.removeEventListener('click', activeStartMenuCloser);
+    }
+
+    activeStartMenuCloser = (e) => {
+        if (!startMenu.contains(e.target) && !startBtn.contains(e.target)) {
+            startMenu.classList.add('hidden');
+        }
+    };
+
+    document.addEventListener('click', activeStartMenuCloser);
 }
 
 /* --------------------------------------------------------------------------
@@ -267,82 +325,20 @@ function initMainInstalledDesktop() {
         grid.appendChild(iconEl);
     });
 
-    // Initialize Start Menu
-    initStartMenu();
+    const u = localStorage.getItem('krypton_primary_user') || 'guest';
+
+    // Initialize Start Menu with Full App Suite
+    setupStartMenu({
+        title: `${u}@krypton-station`,
+        subtitle: 'Krypton 1.0.0.0 LTS (Linux 6.10.0-krypton-generic)',
+        apps: MAIN_APPS,
+        showSearch: true
+    });
 
     // Welcome Notification
     setTimeout(() => {
-        const u = localStorage.getItem('krypton_primary_user') || 'guest';
         story.showToast('🖥️ KryptonOS 1.0 LTS', `Session active for ${u}. System ready.`, 'info');
     }, 600);
-}
-
-/* --------------------------------------------------------------------------
-   3. Start Menu & Search
-   -------------------------------------------------------------------------- */
-function initStartMenu() {
-    const startBtn = document.getElementById('start-button');
-    const startMenu = document.getElementById('start-menu');
-    const startAppGrid = document.getElementById('start-app-grid');
-    const searchInput = document.getElementById('start-search-input');
-
-    if (!startBtn || !startMenu) return;
-
-    // Clone button to strip previous live session listeners
-    const newStartBtn = startBtn.cloneNode(true);
-    startBtn.parentNode.replaceChild(newStartBtn, startBtn);
-
-    newStartBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        startMenu.classList.toggle('hidden');
-        sound.playClick();
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!startMenu.contains(e.target) && !newStartBtn.contains(e.target)) {
-            startMenu.classList.add('hidden');
-        }
-    });
-
-    const renderStartApps = (filter = '') => {
-        if (!startAppGrid) return;
-        startAppGrid.innerHTML = '';
-        MAIN_APPS.filter(a => a.title.toLowerCase().includes(filter.toLowerCase())).forEach(app => {
-            const item = document.createElement('div');
-            item.className = 'start-app-item';
-            item.innerHTML = `
-                <div class="start-app-icon">${app.icon}</div>
-                <div class="start-app-label">${app.title}</div>
-            `;
-            item.addEventListener('click', () => {
-                sound.playClick();
-                app.open();
-                startMenu.classList.add('hidden');
-            });
-            startAppGrid.appendChild(item);
-        });
-    };
-
-    renderStartApps();
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => renderStartApps(e.target.value));
-    }
-
-    document.getElementById('start-btn-settings')?.addEventListener('click', () => {
-        openSettings();
-        startMenu.classList.add('hidden');
-    });
-    document.getElementById('start-btn-terminal')?.addEventListener('click', () => {
-        openTerminal();
-        startMenu.classList.add('hidden');
-    });
-    document.getElementById('start-btn-restart')?.addEventListener('click', () => {
-        sound.playWindowClose();
-        startMenu.classList.add('hidden');
-        wm.windows.forEach((_, id) => wm.closeWindow(id));
-        document.getElementById('desktop-environment').classList.add('hidden');
-        boot.start();
-    });
 }
 
 /* --------------------------------------------------------------------------

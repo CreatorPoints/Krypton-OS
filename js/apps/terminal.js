@@ -716,6 +716,28 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         return;
     }
 
+    // 0.0 Legacy Kernel 2.0.0.14 Feature Gate (Alpha Mode)
+    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' || (localStorage.getItem('krypton_os_version') === '1.0.0.0');
+    if (!isUpgraded) {
+        const allowedAlphaCommands = [
+            'apt', 'apt-get', 'dpkg', 'sudo', 'su',
+            'cd', 'pwd', 'ls', 'cat', 'echo', 'clear', 'cls', 'help',
+            'reboot', 'shutdown', 'poweroff', 'exit', 'logout',
+            'uname', 'neofetch', 'date', 'whoami', 'hostname',
+            'df', 'free', 'ps', 'history', 'alias', 'export'
+        ];
+        if (!allowedAlphaCommands.includes(cmd) && !cmd.startsWith('./')) {
+            callback({
+                lines: [
+                    { text: `bash: ${cmd}: command not supported on legacy Linux 2.0.0.14-generic-krypton kernel.`, type: 'error' },
+                    { text: `To upgrade to modern Linux 6.10 kernel and full app suite, run: 'sudo apt update && sudo apt upgrade'`, type: 'warning' }
+                ],
+                exitCode: 127
+            });
+            return;
+        }
+    }
+
     // 0.1 Check if /bin is missing/broken
     const binNode = vfs.getNode('/bin');
     const shellBuiltins = ['echo', 'pwd', 'cd', 'exit', 'help', 'reboot', 'shutdown', 'poweroff', 'cls', 'clear', 'export', 'alias', 'unalias', 'history', 'startx', 'systemctl', 'service', 'su', 'sudo', 'useradd', 'adduser', 'userdel', 'passwd', 'chvt'];
@@ -1757,10 +1779,13 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     /* 6. System Information (uname, neofetch, free, df, lscpu, lspci, etc.) */
     if (cmd === 'uname') {
+        const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' || (localStorage.getItem('krypton_os_version') === '1.0.0.0');
+        const kernelVer = isUpgraded ? '6.10.0-krypton-generic' : '2.0.0.14-generic-krypton';
         if (args.includes('-a')) {
-            callback({ lines: [{ text: "Linux krypton-station 6.10.0-krypton-generic #1 SMP PREEMPT_DYNAMIC Fri Aug 14 2026 x86_64 x86_64 x86_64 GNU/Linux", type: 'normal' }], exitCode: 0 });
+            const dateText = isUpgraded ? 'Fri Aug 14 2026' : 'Sun Aug 16 1996';
+            callback({ lines: [{ text: `Linux krypton-station ${kernelVer} #1 SMP PREEMPT_DYNAMIC ${dateText} x86_64 x86_64 x86_64 GNU/Linux`, type: 'normal' }], exitCode: 0 });
         } else if (args.includes('-r')) {
-            callback({ lines: [{ text: "6.10.0-krypton-generic", type: 'normal' }], exitCode: 0 });
+            callback({ lines: [{ text: kernelVer, type: 'normal' }], exitCode: 0 });
         } else if (args.includes('-m')) {
             callback({ lines: [{ text: "x86_64", type: 'normal' }], exitCode: 0 });
         } else {
@@ -1771,9 +1796,13 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     if (cmd === 'neofetch' || cmd === 'screenfetch' || cmd === 'fastfetch') {
         const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+        const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' || (localStorage.getItem('krypton_os_version') === '1.0.0.0');
         const osReleaseStr = vfs.readFile('/etc/os-release') || '';
         const prettyMatch = osReleaseStr.match(/PRETTY_NAME="([^"]+)"/);
-        const osName = prettyMatch ? prettyMatch[1] : 'Krypton 1.0.0.0 LTS';
+        const osName = prettyMatch ? prettyMatch[1] : (isUpgraded ? 'Krypton 1.0.0.0 LTS' : 'Krypton OS 0.1 Alpha');
+        const kernelVer = isUpgraded ? '6.10.0-krypton-generic' : '2.0.0.14-generic-krypton';
+        const shellVer = isUpgraded ? 'bash 5.2.21' : 'bash 2.0.0-alpha';
+        const themeName = isUpgraded ? 'Obsidian-Dark [GTK3/4]' : 'Windows 98 Classic / Alpha';
 
         callback({
             lines: [
@@ -1781,14 +1810,14 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
                 { text: `-----------------------`, type: 'muted' },
                 { text: `OS: ${osName} x86_64 (${isInstalled ? 'Installed on /dev/nvme0n1p2' : 'Live USB ISO'})`, type: 'normal' },
                 { text: `Host: ASUSTeK COMPUTER INC. ROG STRIX Z490-E GAMING`, type: 'normal' },
-                { text: `Kernel: 6.10.0-krypton-generic`, type: 'normal' },
+                { text: `Kernel: ${kernelVer}`, type: 'normal' },
                 { text: `Uptime: 3 hours, 58 mins`, type: 'normal' },
-                { text: `Packages: 1422 (dpkg)`, type: 'normal' },
-                { text: `Shell: bash 5.2.21`, type: 'normal' },
+                { text: `Packages: ${isUpgraded ? '1422 (dpkg)' : '34 (dpkg-alpha)'}`, type: 'normal' },
+                { text: `Shell: ${shellVer}`, type: 'normal' },
                 { text: `Resolution: 2560x1440 @ 165Hz (DisplayPort-1)`, type: 'normal' },
-                { text: `DE: Krypton Desktop (Wayland)`, type: 'normal' },
+                { text: `DE: ${isUpgraded ? 'Krypton Desktop (Wayland)' : 'Win98 / Alpha Shell'}`, type: 'normal' },
                 { text: `WM: krypton-wm`, type: 'normal' },
-                { text: `Theme: Obsidian-Dark [GTK3/4]`, type: 'normal' },
+                { text: `Theme: ${themeName}`, type: 'normal' },
                 { text: `Terminal: krypton-terminal`, type: 'normal' },
                 { text: `CPU: Intel(R) Core(TM) i7-10700K (16) @ 3.80GHz`, type: 'normal' },
                 { text: `GPU: NVIDIA GeForce RTX 3080 10GB`, type: 'normal' },

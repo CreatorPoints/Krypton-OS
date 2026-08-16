@@ -6,7 +6,6 @@ import { wm } from './wm.js';
 import { vfs } from './fs.js';
 import { story } from './story.js';
 import { sound } from './sound.js';
-import { boot } from './boot.js';
 import { openTerminal } from './apps/terminal.js';
 import { openInstallerWizard } from './apps/installer.js';
 import { appLoader } from './loader.js';
@@ -16,7 +15,6 @@ window.wm = wm;
 window.vfs = vfs;
 window.story = story;
 window.sound = sound;
-window.boot = boot;
 window.appLoader = appLoader;
 
 // Register built-in core application launchers
@@ -258,7 +256,11 @@ function setupStartMenu({ title, subtitle, apps, showSearch = true }) {
             e.stopPropagation();
             sound.playWindowClose();
             startMenu.classList.add('hidden');
-            boot.triggerSystemRebootBroadcast('The system is going down for reboot NOW!');
+            if (window.systemBoot) {
+                window.systemBoot.triggerSystemRebootBroadcast('The system is going down for reboot NOW!');
+            } else if (window.boot) {
+                window.boot.triggerSystemRebootBroadcast('The system is going down for reboot NOW!');
+            }
         };
     }
 

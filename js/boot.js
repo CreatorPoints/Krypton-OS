@@ -1064,6 +1064,7 @@ export class MasterBootEngine {
 
 export const boot = new MasterBootEngine();
 window.systemBoot = boot;
+window.boot = boot;
 
 // Global Hardware Reset Key Listener (Ctrl+Alt+Del or Ctrl+Shift+Del)
 window.addEventListener('keydown', (e) => {

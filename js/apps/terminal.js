@@ -490,11 +490,12 @@ export function openTerminal() {
             // Check if command is sudo and needs password prompt
             const trimmed = rawLine.trim();
             const isSudo = trimmed === 'sudo' || trimmed.startsWith('sudo ');
+            const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
             const lastSudo = parseInt(localStorage.getItem('krypton_sudo_timestamp') || '0', 10);
             const isSudoCached = (Date.now() - lastSudo) < 120000; // 2 minutes cache
             const reqPass = localStorage.getItem('krypton_require_password') !== 'false';
 
-            if (isSudo && currentUser !== 'root' && !isSudoCached && reqPass) {
+            if (isSudo && isInstalled && currentUser !== 'root' && !isSudoCached && reqPass) {
                 isWaitingForPassword = true;
                 promptText.innerHTML = `<span style="color:#fbbf24; font-weight:700;">[sudo] password for ${currentUser}: </span>`;
                 input.type = 'password';
@@ -1217,6 +1218,18 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'sudo') {
+        const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+        if (!isInstalled) {
+            callback({
+                lines: [
+                    { text: "sudo: sudo elevation is disabled in Live Media (Read-Only Live ISO session).", type: 'error' },
+                    { text: "Use 'krypton-installer' to install Krypton OS to /dev/nvme0n1 first.", type: 'warning' }
+                ],
+                exitCode: 1
+            });
+            return;
+        }
+
         if (args.length === 0) {
             callback({ lines: [{ text: "usage: sudo [-u user] command [args...]", type: 'normal' }], exitCode: 1 });
             return;
@@ -2992,6 +3005,19 @@ async function fetchAptRepoCatalog() {
 async function executeAptCommand(args, isRoot, callback) {
     const subCmd = (args[0] || '').toLowerCase();
     const pkg = (args[1] || '').toLowerCase();
+    const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+
+    if (!isInstalled && (subCmd === 'update' || subCmd === 'upgrade' || subCmd === 'dist-upgrade' || subCmd === 'full-upgrade' || subCmd === 'install' || subCmd === 'remove')) {
+        callback({
+            lines: [
+                { text: "E: Package operations (update/upgrade/install) are disabled on Live Media.", type: 'error' },
+                { text: "E: The Live ISO installer environment is read-only.", type: 'warning' },
+                { text: "E: Please run 'krypton-installer' to install Krypton OS to /dev/nvme0n1 first.", type: 'info' }
+            ],
+            exitCode: 100
+        });
+        return;
+    }
 
     if (!isRoot && (subCmd === 'install' || subCmd === 'remove' || subCmd === 'upgrade' || subCmd === 'update' || subCmd === 'purge' || subCmd === 'dist-upgrade' || subCmd === 'full-upgrade')) {
         callback({

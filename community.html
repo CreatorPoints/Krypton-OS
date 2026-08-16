@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community & Ecosystem - KryptonOS</title>
+    <meta name="description" content="Connect with the KryptonOS developer ecosystem, explore the APT package repository, contribute code, and join discussions.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%3E<text y=%2226%22 font-size=%2228%22>⚛️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #060913;
+            --bg-surface: #0c1222;
+            --bg-surface-elevated: #131d35;
+            --border-color: #1e293b;
+            --border-hover: #38bdf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --cyan-primary: #00e5ff;
+            --blue-accent: #0284c7;
+            --green-success: #10b981;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 72px;
+            background: rgba(6, 9, 19, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 800;
+            font-size: 20px;
+        }
+
+        .nav-badge {
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(0, 229, 255, 0.12);
+            color: var(--cyan-primary);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            padding: 2px 8px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--cyan-primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0284c7 0%, #00e5ff 100%);
+            color: #060913;
+            box-shadow: 0 4px 14px rgba(0, 229, 255, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 229, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--cyan-primary);
+            background: #1e293b;
+        }
+
+        .container {
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 140px 32px 100px;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .page-header h1 {
+            font-size: clamp(36px, 5vw, 56px);
+            font-weight: 900;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+        }
+
+        .page-header p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .channels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-bottom: 80px;
+        }
+
+        .channel-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.25s ease;
+        }
+
+        .channel-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--cyan-primary);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .channel-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .channel-card h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .channel-card p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        /* Package Submission Section */
+        .guide-section {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 60px;
+        }
+
+        .guide-section h2 {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+
+        .guide-section p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            max-width: 800px;
+        }
+
+        .code-block {
+            background: #060913;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: #38bdf8;
+            overflow-x: auto;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border-color);
+            padding: 60px 32px 40px;
+            background: #04060c;
+        }
+
+        .footer-content {
+            max-width: 1240px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .footer-links a:hover {
+            color: var(--cyan-primary);
+        }
+
+        .footer-copy {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 24px;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="/krypton" class="nav-brand">
+            <span style="font-size: 24px;">⚛️</span>
+            <span>Krypton<span style="color: var(--cyan-primary);">OS</span></span>
+            <span class="nav-badge">1.0 LTS</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/krypton">Overview</a></li>
+            <li><a href="/downloads">Downloads & Web OS</a></li>
+            <li><a href="/community" class="active">Community</a></li>
+            <li><a href="https://github.com/CreatorPoints/Krypton-OS" target="_blank">GitHub</a></li>
+        </ul>
+        <div class="nav-cta">
+            <a href="/" class="btn btn-primary">
+                <span>🚀 Launch Web OS</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="container">
+        <header class="page-header">
+            <h1>KryptonOS Community & Ecosystem</h1>
+            <p>Connect with developers, contribute to the open-source Linux sandbox simulator, submit new APT packages, and discuss feature roadmaps.</p>
+        </header>
+
+        <!-- Community Channels Grid -->
+        <div class="channels-grid">
+            
+            <div class="channel-card">
+                <div>
+                    <div class="channel-icon">🐙</div>
+                    <h3>GitHub Repository</h3>
+                    <p>Access the full source code, file bug reports, track commits, and submit Pull Requests to the main codebase.</p>
+                </div>
+                <a href="https://github.com/CreatorPoints/Krypton-OS" target="_blank" class="btn btn-secondary">
+                    <span>Visit GitHub Repository ↗</span>
+                </a>
+            </div>
+
+            <div class="channel-card">
+                <div>
+                    <div class="channel-icon">💬</div>
+                    <h3>Developer Discussions</h3>
+                    <p>Propose new POSIX commands, discuss kernel emulation features, and collaborate on system architecture.</p>
+                </div>
+                <a href="https://github.com/CreatorPoints/Krypton-OS/discussions" target="_blank" class="btn btn-secondary">
+                    <span>Join Discussions ↗</span>
+                </a>
+            </div>
+
+            <div class="channel-card">
+                <div>
+                    <div class="channel-icon">📦</div>
+                    <h3>Upstream APT Repository</h3>
+                    <p>Browse official `.deb` packages in the Krypton-Repo catalog, test upgrades, and verify cryptographic SHA-256 signatures.</p>
+                </div>
+                <a href="https://github.com/CreatorPoints/Krypton-Repo" target="_blank" class="btn btn-secondary">
+                    <span>Explore APT Repo ↗</span>
+                </a>
+            </div>
+
+            <div class="channel-card">
+                <div>
+                    <div class="channel-icon">🐛</div>
+                    <h3>Issue & Bug Tracker</h3>
+                    <p>Report edge cases, terminal shell bugs, package manager solver issues, or desktop windowing glitches.</p>
+                </div>
+                <a href="https://github.com/CreatorPoints/Krypton-OS/issues" target="_blank" class="btn btn-secondary">
+                    <span>Report an Issue ↗</span>
+                </a>
+            </div>
+
+            <div class="channel-card">
+                <div>
+                    <div class="channel-icon">📚</div>
+                    <h3>POSIX Documentation</h3>
+                    <p>Read standard Unix manpages, filesystem hierarchy standards (FHS 3.0), and bootloader lifecycle specifications.</p>
+                </div>
+                <a href="/krypton#features" class="btn btn-secondary">
+                    <span>View Specifications ↗</span>
+                </a>
+            </div>
+
+            <div class="channel-card">
+                <div>
+                    <div class="channel-icon">🌐</div>
+                    <h3>Web Edition Live Simulator</h3>
+                    <p>Run the operating system live in your browser tab to test new packages and shell pipelines immediately.</p>
+                </div>
+                <a href="/" class="btn btn-primary">
+                    <span>🚀 Launch Simulator</span>
+                </a>
+            </div>
+
+        </div>
+
+        <!-- APT Packaging Guide -->
+        <section class="guide-section">
+            <h2>Packaging Applications for Krypton APT</h2>
+            <p>KryptonOS uses an authentic Debian `.deb` package structure. Package payloads are distributed as cryptographic JSON archives containing control files, permission manifests, and extracted JavaScript modules:</p>
+
+            <div class="code-block">
+{
+  "control": {
+    "Package": "krypton-example",
+    "Version": "1.0.0-release",
+    "Architecture": "amd64",
+    "Maintainer": "Krypton Maintainers &lt;packages@krypton-os.org&gt;",
+    "InstalledSize": 4096,
+    "Section": "utils",
+    "Priority": "optional",
+    "Description": "Example custom sandboxed utility application"
+  },
+  "files": {
+    "/usr/bin/example": "#!/bin/bash\nexec /usr/lib/krypton-example/index.js \"$@\"\n",
+    "/usr/share/applications/example.desktop": "[Desktop Entry]\nName=Example App\nExec=example\nIcon=⚡\nType=Application\nCategories=Utility;\n",
+    "/usr/lib/krypton-example/index.js": "export function launch(args) { window.story.showToast('Hello from KryptonOS!'); }"
+  }
+}
+            </div>
+
+            <p style="font-size: 14px; color: var(--text-muted);">
+                Submit your `.deb` packages via Pull Request to the <a href="https://github.com/CreatorPoints/Krypton-Repo" target="_blank" style="color: var(--cyan-primary);">Krypton-Repo</a> repository to be indexed in the official repository catalog.
+            </p>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span style="font-size: 20px;">⚛️</span>
+                <span>KryptonOS Project</span>
+            </div>
+            <ul class="footer-links">
+                <li><a href="/krypton">Home</a></li>
+                <li><a href="/downloads">Downloads & Web Edition</a></li>
+                <li><a href="/community">Community</a></li>
+                <li><a href="https://github.com/CreatorPoints/Krypton-OS" target="_blank">GitHub Repository</a></li>
+            </ul>
+        </div>
+        <div class="footer-copy">
+            <p>© 2026 KryptonOS Open Source Initiative • Maintained by CreatorPoints</p>
+        </div>
+    </footer>
+
+</body>
+</html>

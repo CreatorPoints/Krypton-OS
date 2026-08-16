@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Downloads & Web Edition - KryptonOS</title>
+    <meta name="description" content="Download official KryptonOS 1.0 LTS installation images or launch the live sandboxed operating system directly in your web browser.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%3E<text y=%2226%22 font-size=%2228%22>⚛️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #060913;
+            --bg-surface: #0c1222;
+            --bg-surface-elevated: #131d35;
+            --border-color: #1e293b;
+            --border-hover: #38bdf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --cyan-primary: #00e5ff;
+            --blue-accent: #0284c7;
+            --green-success: #10b981;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 72px;
+            background: rgba(6, 9, 19, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 800;
+            font-size: 20px;
+        }
+
+        .nav-badge {
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(0, 229, 255, 0.12);
+            color: var(--cyan-primary);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            padding: 2px 8px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--cyan-primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0284c7 0%, #00e5ff 100%);
+            color: #060913;
+            box-shadow: 0 4px 14px rgba(0, 229, 255, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 229, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--cyan-primary);
+            background: #1e293b;
+        }
+
+        .container {
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 140px 32px 100px;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .page-header h1 {
+            font-size: clamp(36px, 5vw, 56px);
+            font-weight: 900;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+        }
+
+        .page-header p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Download Edition Cards */
+        .download-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 32px;
+            margin-bottom: 80px;
+        }
+
+        .download-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px 32px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            transition: all 0.25s ease;
+        }
+
+        .download-card.highlight {
+            border-color: rgba(0, 229, 255, 0.4);
+            box-shadow: 0 10px 40px rgba(0, 229, 255, 0.12);
+        }
+
+        .download-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--cyan-primary);
+        }
+
+        .card-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        .card-header h2 {
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .card-header .version-tag {
+            font-size: 13px;
+            color: var(--cyan-primary);
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .card-header p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .meta-list {
+            list-style: none;
+            margin-bottom: 32px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        .meta-list li {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            padding: 8px 0;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .meta-list li span.val {
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 13px;
+        }
+
+        .card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Checksum Box */
+        .checksum-box {
+            background: #060913;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 20px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+
+        .checksum-box span.title {
+            color: var(--cyan-primary);
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        /* Requirements Section */
+        .req-section {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 60px;
+        }
+
+        .req-section h2 {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 24px;
+            color: #ffffff;
+        }
+
+        .req-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .req-card {
+            background: #090e1a;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 24px;
+        }
+
+        .req-card h3 {
+            font-size: 18px;
+            color: var(--cyan-primary);
+            margin-bottom: 14px;
+        }
+
+        .req-card ul {
+            list-style: none;
+        }
+
+        .req-card ul li {
+            font-size: 14px;
+            color: var(--text-secondary);
+            padding: 6px 0;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border-color);
+            padding: 60px 32px 40px;
+            background: #04060c;
+        }
+
+        .footer-content {
+            max-width: 1240px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .footer-links a:hover {
+            color: var(--cyan-primary);
+        }
+
+        .footer-copy {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 24px;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="/krypton" class="nav-brand">
+            <span style="font-size: 24px;">⚛️</span>
+            <span>Krypton<span style="color: var(--cyan-primary);">OS</span></span>
+            <span class="nav-badge">1.0 LTS</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/krypton">Overview</a></li>
+            <li><a href="/downloads" class="active">Downloads & Web OS</a></li>
+            <li><a href="/community">Community</a></li>
+            <li><a href="https://github.com/CreatorPoints/Krypton-OS" target="_blank">GitHub</a></li>
+        </ul>
+        <div class="nav-cta">
+            <a href="/" class="btn btn-primary">
+                <span>🚀 Launch Web OS</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="container">
+        <header class="page-header">
+            <h1>Get KryptonOS</h1>
+            <p>Run the live simulator in your browser with zero installation, or download the official x86_64 installation image.</p>
+        </header>
+
+        <!-- Edition Cards Grid -->
+        <div class="download-grid">
+            
+            <!-- Card 1: Web Edition (Instant Run) -->
+            <div class="download-card highlight">
+                <span class="card-badge">Instant Run</span>
+                <div class="card-header">
+                    <h2>Krypton Web Edition</h2>
+                    <div class="version-tag">Production Sandbox • v1.0.0.0 LTS</div>
+                    <p>Experience the complete Linux operating system simulator directly in your browser. Powered by WebAssembly and client IndexedDB persistence.</p>
+                </div>
+
+                <ul class="meta-list">
+                    <li><span>Architecture</span><span class="val">Browser Virtualization (x86_64 SIM)</span></li>
+                    <li><span>Storage Mode</span><span class="val">IndexedDB Two-Layer Overlay</span></li>
+                    <li><span>Boot Engine</span><span class="val">American Megatrends BIOS + GRUB 2.06</span></li>
+                    <li><span>Installation</span><span class="val">0 MB (Zero Install Required)</span></li>
+                </ul>
+
+                <div class="card-actions">
+                    <a href="/" class="btn btn-primary" style="font-size: 16px; padding: 14px 20px;">
+                        <span>🚀 Launch Live Web Edition (Instant)</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Card 2: ISO Live Image -->
+            <div class="download-card">
+                <div class="card-header">
+                    <h2>Krypton 1.0 LTS ISO</h2>
+                    <div class="version-tag">Standard x86_64 Installation Media</div>
+                    <p>Official hybrid live installation image for hardware and virtual machines (QEMU, KVM, VirtualBox, and bare metal).</p>
+                </div>
+
+                <ul class="meta-list">
+                    <li><span>Kernel</span><span class="val">Linux 6.10.0-krypton-generic</span></li>
+                    <li><span>Architecture</span><span class="val">x86_64 (amd64)</span></li>
+                    <li><span>File Size</span><span class="val">4.2 GB ISO</span></li>
+                    <li><span>Target Storage</span><span class="val">NVMe M.2 / SATA SSD</span></li>
+                </ul>
+
+                <div class="card-actions">
+                    <a href="https://github.com/CreatorPoints/Krypton-OS/releases" target="_blank" class="btn btn-secondary">
+                        <span>📥 Direct Download (.ISO)</span>
+                    </a>
+                    <a href="https://github.com/CreatorPoints/Krypton-OS" target="_blank" class="btn btn-secondary">
+                        <span>🧲 Torrent Magnet Link</span>
+                    </a>
+                </div>
+
+                <div class="checksum-box">
+                    <span class="title">SHA-256 Checksum:</span>
+                    dfe95a7f732126d988c608fad5bce3fc37c0b808b7c94f9d63c0a0331183c9bc
+                </div>
+            </div>
+
+            <!-- Card 3: Vintage Alpha OS Image -->
+            <div class="download-card">
+                <div class="card-header">
+                    <h2>Krypton Alpha 0.1</h2>
+                    <div class="version-tag">Vintage Subsystem • v0.1.0-alpha</div>
+                    <p>Minimal base installer edition featuring the vintage Linux 2.0 subsystem, upgradable via `sudo apt update && sudo apt upgrade`.</p>
+                </div>
+
+                <ul class="meta-list">
+                    <li><span>Kernel</span><span class="val">Linux 2.0.0.14-generic-krypton</span></li>
+                    <li><span>Architecture</span><span class="val">x86_64</span></li>
+                    <li><span>File Size</span><span class="val">640 MB ISO</span></li>
+                    <li><span>Upgrade Path</span><span class="val">Debian APT Solver -> 1.0 LTS</span></li>
+                </ul>
+
+                <div class="card-actions">
+                    <a href="https://github.com/CreatorPoints/Krypton-OS/releases" target="_blank" class="btn btn-secondary">
+                        <span>📥 Download Alpha ISO (640 MB)</span>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- System Requirements -->
+        <section class="req-section">
+            <h2>System Requirements</h2>
+            <div class="req-grid">
+                <div class="req-card">
+                    <h3>Web Edition (In-Browser)</h3>
+                    <ul>
+                        <li>• Any modern browser (Chrome 90+, Firefox 88+, Safari 14+, Edge)</li>
+                        <li>• JavaScript enabled with IndexedDB support</li>
+                        <li>• Minimum 2 GB RAM recommended</li>
+                        <li>• Display resolution 1280x720 or higher</li>
+                    </ul>
+                </div>
+                <div class="req-card">
+                    <h3>Hardware / Bare Metal ISO</h3>
+                    <ul>
+                        <li>• 64-bit x86-64 Dual Core processor (2.0 GHz+)</li>
+                        <li>• 4 GB System RAM (8 GB recommended for Wayland compositor)</li>
+                        <li>• 20 GB free storage (NVMe SSD or SATA)</li>
+                        <li>• Bootable USB drive (4 GB+ capacity)</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span style="font-size: 20px;">⚛️</span>
+                <span>KryptonOS Project</span>
+            </div>
+            <ul class="footer-links">
+                <li><a href="/krypton">Home</a></li>
+                <li><a href="/downloads">Downloads & Web Edition</a></li>
+                <li><a href="/community">Community</a></li>
+                <li><a href="https://github.com/CreatorPoints/Krypton-OS" target="_blank">GitHub Repository</a></li>
+            </ul>
+        </div>
+        <div class="footer-copy">
+            <p>© 2026 KryptonOS Open Source Initiative • Maintained by CreatorPoints</p>
+        </div>
+    </footer>
+
+</body>
+</html>

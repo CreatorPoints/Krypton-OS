@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KryptonOS 1.0 LTS - Realistic Linux Sandbox & Desktop Simulator</title>
+    <meta name="description" content="KryptonOS is an authentic, production-grade Linux sandbox operating system simulator in your browser with real VFS, APT packaging, BIOS/GRUB boot, and Wayland desktop.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%3E<text y=%2226%22 font-size=%2228%22>⚛️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #060913;
+            --bg-surface: #0c1222;
+            --bg-surface-elevated: #131d35;
+            --border-color: #1e293b;
+            --border-hover: #38bdf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --cyan-primary: #00e5ff;
+            --blue-accent: #0284c7;
+            --green-success: #10b981;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 72px;
+            background: rgba(6, 9, 19, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 800;
+            font-size: 20px;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-brand span.logo-atom {
+            font-size: 24px;
+        }
+
+        .nav-badge {
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(0, 229, 255, 0.12);
+            color: var(--cyan-primary);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            padding: 2px 8px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--cyan-primary);
+        }
+
+        .nav-cta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0284c7 0%, #00e5ff 100%);
+            color: #060913;
+            box-shadow: 0 4px 14px rgba(0, 229, 255, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 229, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--cyan-primary);
+            background: #1e293b;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 160px 32px 100px;
+            max-width: 1240px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 30px;
+            background: rgba(2, 132, 199, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            color: #38bdf8;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: clamp(38px, 6vw, 68px);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -1.5px;
+            margin-bottom: 24px;
+            color: #ffffff;
+        }
+
+        .hero h1 span.gradient-text {
+            background: linear-gradient(135deg, #38bdf8 0%, #00e5ff 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p.hero-desc {
+            font-size: clamp(17px, 2vw, 21px);
+            color: var(--text-secondary);
+            max-width: 820px;
+            margin: 0 auto 40px;
+            font-weight: 400;
+        }
+
+        .hero-actions {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+        }
+
+        .hero-actions .btn {
+            padding: 14px 28px;
+            font-size: 16px;
+            border-radius: 10px;
+        }
+
+        /* Interactive Showcase Mockup */
+        .terminal-mockup {
+            max-width: 960px;
+            margin: 0 auto;
+            background: #0b0f19;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 229, 255, 0.1);
+            overflow: hidden;
+            text-align: left;
+        }
+
+        .mockup-header {
+            background: #0f172a;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .mockup-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mockup-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .mockup-title {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .mockup-body {
+            padding: 24px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            line-height: 1.6;
+            color: #f8fafc;
+            overflow-x: auto;
+        }
+
+        /* Features Section */
+        .section {
+            padding: 100px 32px;
+            max-width: 1240px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 64px;
+        }
+
+        .section-header h2 {
+            font-size: 38px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: #ffffff;
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            font-size: 17px;
+            color: var(--text-secondary);
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 32px;
+            transition: all 0.25s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(0, 229, 255, 0.4);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #ffffff;
+        }
+
+        .feature-card p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Architecture Specs Table */
+        .spec-container {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 32px;
+            overflow-x: auto;
+        }
+
+        .spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        .spec-table th {
+            padding: 14px 18px;
+            color: var(--cyan-primary);
+            font-weight: 700;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .spec-table td {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .spec-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-primary);
+        }
+
+        /* Call To Action Banner */
+        .cta-banner {
+            background: linear-gradient(135deg, #0c1829 0%, #061120 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 60px 40px;
+            text-align: center;
+            margin-top: 60px;
+            box-shadow: 0 10px 40px rgba(0, 229, 255, 0.1);
+        }
+
+        .cta-banner h2 {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+
+        .cta-banner p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border-color);
+            padding: 60px 32px 40px;
+            background: #04060c;
+        }
+
+        .footer-content {
+            max-width: 1240px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--cyan-primary);
+        }
+
+        .footer-copy {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 24px;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 20px;
+            }
+            .nav-links {
+                display: none;
+            }
+            .hero {
+                padding-top: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation -->
+    <nav class="navbar">
+        <a href="/krypton" class="nav-brand">
+            <span class="logo-atom">⚛️</span>
+            <span>Krypton<span style="color: var(--cyan-primary);">OS</span></span>
+            <span class="nav-badge">1.0 LTS</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/krypton" class="active">Overview</a></li>
+            <li><a href="/downloads">Downloads & Web OS</a></li>
+            <li><a href="/community">Community</a></li>
+            <li><a href="https://github.com/CreatorPoints/Krypton-OS" target="_blank">GitHub</a></li>
+        </ul>
+        <div class="nav-cta">
+            <a href="/" class="btn btn-primary">
+                <span>🚀 Launch Web Edition</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Hero -->
+    <header class="hero">
+        <div class="hero-pill">
+            <span>✨ Krypton 1.0.0.0 LTS Released</span>
+        </div>
+        <h1>The Authentic Sandbox Linux OS<br><span class="gradient-text">Running Directly in Your Browser</span></h1>
+        <p class="hero-desc">
+            Engineered with a real two-layer virtual filesystem, POSIX coreutils, authentic Debian APT package management, real hardware POST & GRUB bootloader, and sandboxed Wayland desktop.
+        </p>
+        <div class="hero-actions">
+            <a href="/" class="btn btn-primary">
+                <span>▶️ Run Web Edition (Instant Live OS)</span>
+            </a>
+            <a href="/downloads" class="btn btn-secondary">
+                <span>📥 Download ISO & Images</span>
+            </a>
+        </div>
+
+        <!-- Terminal Showcase -->
+        <div class="terminal-mockup">
+            <div class="mockup-header">
+                <div class="mockup-dots">
+                    <span class="mockup-dot" style="background: #ef4444;"></span>
+                    <span class="mockup-dot" style="background: #eab308;"></span>
+                    <span class="mockup-dot" style="background: #10b981;"></span>
+                </div>
+                <div class="mockup-title">guest@krypton-station:~ (GNU Bash 5.2)</div>
+                <div></div>
+            </div>
+            <div class="mockup-body">
+                <p><span style="color: #00e5ff;">guest@krypton-station</span>:<span style="color: #38bdf8;">~</span>$ neofetch</p>
+                <pre style="color: #38bdf8; margin: 12px 0;">
+       /\          <span style="color: #00e5ff; font-weight: bold;">guest@krypton-station</span>
+      /  \         ---------------------
+     /\   \        <span style="color: #f8fafc;">OS:</span> KryptonOS 1.0.0.0 LTS x86_64
+    /      \       <span style="color: #f8fafc;">Host:</span> Browser Virtualization Hypervisor
+   /   ,,   \      <span style="color: #f8fafc;">Kernel:</span> 6.10.0-krypton-generic
+  /   |  |  -\     <span style="color: #f8fafc;">Uptime:</span> 2 hours, 14 mins
+ /_-''    ''-_\    <span style="color: #f8fafc;">Packages:</span> 16 (dpkg)
+                   <span style="color: #f8fafc;">Shell:</span> bash 5.2.15
+                   <span style="color: #f8fafc;">Resolution:</span> 1920x1080 (Wayland Compositor)
+                   <span style="color: #f8fafc;">DE:</span> Krypton Glass Desktop 1.0
+                   <span style="color: #f8fafc;">CPU:</span> Intel Core i7-10700K @ 3.80GHz
+                   <span style="color: #f8fafc;">Memory:</span> 428MiB / 16384MiB
+                </pre>
+                <p><span style="color: #00e5ff;">guest@krypton-station</span>:<span style="color: #38bdf8;">~</span>$ sudo apt update && sudo apt upgrade</p>
+                <p style="color: #10b981;">Hit:1 https://deb.krypton-os.org/krypton beryllium InRelease</p>
+                <p style="color: #94a3b8;">Reading package lists... Done</p>
+                <p style="color: #10b981;">[ OK ] All systems verified. KryptonOS is up to date.</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Architecture & Features -->
+    <section class="section" id="features">
+        <div class="section-header">
+            <h2>Engineered For Realism</h2>
+            <p>Every component follows strict Unix standards, POSIX compliance, and authentic Debian packaging paradigms.</p>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>Two-Layer VFS Overlay Architecture</h3>
+                <p>Immutable baseline web core decoupled from client package storage. Browser hard-refreshes never leak un-upgraded code, preserving authentic sandbox state.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📦</div>
+                <h3>Authentic APT & DPKG Package Engine</h3>
+                <p>True `.deb` archive downloads, cryptographic SHA-256 verification, dependency resolution, `/var/lib/dpkg/status` parsing, and dynamic `/usr/lib/` module extraction.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Hardware POST, BIOS & GRUB 2.06</h3>
+                <p>Complete American Megatrends Aptio BIOS setup, NVMe/SATA drive mapping, GRUB boot menu with fallback `grub rescue>` shell and Factory Reset recovery.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🖥️</div>
+                <h3>Complete Desktop Application Suite</h3>
+                <p>Sandboxed Quantum Web Browser, Terminal, Upgrade Notes, Scientific Calculator, World Clock & Stopwatch, File Explorer, Task Manager, and System Logs.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">💻</div>
+                <h3>POSIX Shell & Core Utilities</h3>
+                <p>Standard GNU Bash emulation supporting pipes (`|`), redirects (`>`, `>>`), logic (`&&`, `;`), parameter expansion, grep, find, lsblk, top, and nano.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🚨</div>
+                <h3>Destructive Sandbox & Recovery</h3>
+                <p>Full destructive command simulation including `sudo rm -rf / --no-preserve-root` with unlinking panic states and live USB recovery mounts.</p>
+            </div>
+        </div>
+
+        <!-- Technical Specifications Table -->
+        <div style="margin-top: 80px;">
+            <div class="section-header">
+                <h2>Technical Specifications</h2>
+                <p>Kernel, packaging, and virtualization parameters</p>
+            </div>
+            <div class="spec-container">
+                <table class="spec-table">
+                    <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Baseline Alpha OS</th>
+                            <th>Krypton 1.0 LTS (Upgraded)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Linux Kernel</td>
+                            <td>Linux 2.0.0.14-generic-krypton</td>
+                            <td>Linux 6.10.0-krypton-generic</td>
+                        </tr>
+                        <tr>
+                            <td>Display Server</td>
+                            <td>Vintage Framebuffer / X11</td>
+                            <td>Wayland Modern Compositor</td>
+                        </tr>
+                        <tr>
+                            <td>Virtual Filesystem</td>
+                            <td>FHS 3.0 POSIX Directory Tree</td>
+                            <td>IndexedDB Persistent Two-Layer Overlay</td>
+                        </tr>
+                        <tr>
+                            <td>Package Manager</td>
+                            <td>GNU DPKG 1.22.0 + APT 2.7.14</td>
+                            <td>GNU DPKG 1.22.0 + APT 2.7.14</td>
+                        </tr>
+                        <tr>
+                            <td>Storage Emulation</td>
+                            <td>NVMe M.2 1TB + USB 32GB Live ISO</td>
+                            <td>NVMe M.2 1TB + USB 32GB Live ISO</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Call To Action -->
+        <div class="cta-banner">
+            <h2>Ready to experience KryptonOS?</h2>
+            <p>Launch the live sandbox in your browser immediately or download the official live ISO.</p>
+            <a href="/" class="btn btn-primary" style="padding: 14px 32px; font-size: 16px;">
+                <span>🚀 Launch Web Edition Now</span>
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span style="font-size: 20px;">⚛️</span>
+                <span>KryptonOS Project</span>
+            </div>
+            <ul class="footer-links">
+                <li><a href="/krypton">Home</a></li>
+                <li><a href="/downloads">Downloads & Web Edition</a></li>
+                <li><a href="/community">Community</a></li>
+                <li><a href="https://github.com/CreatorPoints/Krypton-OS" target="_blank">GitHub Repository</a></li>
+            </ul>
+        </div>
+        <div class="footer-copy">
+            <p>© 2026 KryptonOS Open Source Initiative • Maintained by CreatorPoints</p>
+        </div>
+    </footer>
+
+</body>
+</html>

@@ -86,9 +86,9 @@ class DynamicAppLoader {
             vfs.createDirectory(appDir);
         }
 
-        const files = vfs.list(appDir);
+        const files = vfs.listDir(appDir) || [];
         for (const file of files) {
-            if (file.name.endsWith('.desktop') && !file.isDir) {
+            if (file.name.endsWith('.desktop') && file.type === 'file') {
                 const fullPath = `${appDir}/${file.name}`;
                 const content = vfs.readFile(fullPath);
                 if (content) {

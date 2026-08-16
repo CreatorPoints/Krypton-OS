@@ -527,6 +527,10 @@ export class VirtualFileSystem {
         }));
     }
 
+    list(pathStr) {
+        return this.listDir(pathStr) || [];
+    }
+
     exists(pathStr) {
         return this.getNode(pathStr) !== null;
     }

@@ -2,13 +2,13 @@
   {
     "id": "krypton-desktop-core",
     "name": "krypton-desktop-core",
-    "version": "0.1.0.2",
+    "version": "1.0.0.0",
     "architecture": "amd64",
     "section": "x11/desktop",
     "size": 4820,
     "maintainer": "KryptonOS Core Team <core@krypton-os.org>",
     "summary": "KryptonOS Desktop Shell, Wayland Compositor, and Modern UI Utilities",
-    "file": "krypton-desktop-core_0.1.0.2_amd64.deb",
+    "file": "krypton-desktop-core_1.0.0.0_amd64.deb",
     "depends": "krypton-wm (>= 1.0), wayland (>= 1.22), libadwaita-1 (>= 1.5)",
     "description": "Core desktop shell package for KryptonOS. Contains modern wallpaper assets, Wayland panel compositor, settings center, and system service integrations."
   },

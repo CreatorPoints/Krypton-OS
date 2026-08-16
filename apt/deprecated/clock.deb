@@ -1,0 +1,14 @@
+Package: clock
+Version: 0.1.0-alpha
+Architecture: all
+Section: utils/clock
+Priority: optional
+Maintainer: Krypton Vintage Team <legacy@krypton-os.org>
+Installed-Size: 420
+Depends: base-files (>= 0.1.0)
+Homepage: https://krypton-os.org/alpha/clock
+Description: Krypton Vintage System Clock & Panel Tray Widget
+ Legacy taskbar clock and timezone synchronization daemon for Krypton Alpha.
+DATA_PAYLOAD:
+/usr/bin/clock: #!/bin/bash\ndate\n
+/usr/share/applications/clock.desktop: [Desktop Entry]\nName=System Clock\nExec=clock\nIcon=🕒\nType=Application\nCategories=Utility;Clock;\nComment=Vintage Taskbar Clock\n

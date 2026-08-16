@@ -42,37 +42,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
 export function checkEnvironmentState() {
     const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+    const osVersion = localStorage.getItem('krypton_os_version') || '0.1.0-alpha';
+    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' || osVersion === '1.0.0.0';
 
-    if (isInstalled) {
-        initMainInstalledDesktop();
-    } else {
+    if (!isInstalled) {
+        // 1. Live USB Mode: Windows 98 styled Krypton Alpha OS with Terminal & Installer ONLY
         initLiveSessionDesktop();
+    } else if (!isUpgraded) {
+        // 2. Base Installed OS: Downloaded base Krypton Alpha OS with Buggy Web Navigator + Linux 6.10 Terminal + APT
+        initBaseInstalledDesktop();
+    } else {
+        // 3. Upgraded Modern OS: Full modern Krypton 1.0 LTS desktop suite
+        initMainInstalledDesktop();
     }
 }
 
+// System upgrade listener (when user executes sudo apt upgrade)
+window.addEventListener('krypton_system_upgraded', () => {
+    checkEnvironmentState();
+});
+
 /* --------------------------------------------------------------------------
-   1. Live Session Desktop (Pre-Installation)
+   1. Live Session Desktop (Pre-Installation: Win98 Style Krypton Alpha OS)
    -------------------------------------------------------------------------- */
 function initLiveSessionDesktop() {
-    const desktopEnv = document.getElementById('desktop-environment');
-    if (desktopEnv) desktopEnv.className = '';
+    document.body.className = 'theme-win98';
+
+    const startBtnSpan = document.querySelector('#start-button span');
+    if (startBtnSpan) startBtnSpan.textContent = 'Start';
 
     const grid = document.getElementById('desktop-grid');
     if (!grid) return;
 
     grid.innerHTML = `
-        <div class="desktop-icon" id="icon-terminal">
+        <div class="desktop-icon" id="icon-terminal" title="Unix / MS-DOS Shell (Linux 6.10)">
             <div class="icon-image">💻</div>
             <div class="icon-label">Terminal</div>
         </div>
-        <div class="desktop-icon" id="icon-install-krypton">
+        <div class="desktop-icon" id="icon-install-krypton" title="Install Krypton OS to Hard Disk">
             <div class="icon-image">💿</div>
             <div class="icon-label">Install Krypton OS</div>
         </div>
     `;
 
-    document.getElementById('icon-terminal')?.addEventListener('dblclick', openTerminal);
-    document.getElementById('icon-install-krypton')?.addEventListener('dblclick', openInstallerWizard);
+    document.getElementById('icon-terminal')?.addEventListener('dblclick', () => {
+        sound.playClick();
+        openTerminal();
+    });
+    document.getElementById('icon-install-krypton')?.addEventListener('dblclick', () => {
+        sound.playClick();
+        openInstallerWizard();
+    });
 
     document.querySelectorAll('.desktop-icon').forEach(icon => {
         icon.addEventListener('click', () => {
@@ -81,15 +101,143 @@ function initLiveSessionDesktop() {
         });
     });
 
-    document.getElementById('start-button')?.addEventListener('click', openInstallerWizard);
+    const startBtn = document.getElementById('start-button');
+    if (startBtn) {
+        const newBtn = startBtn.cloneNode(true);
+        startBtn.parentNode.replaceChild(newBtn, startBtn);
+        newBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sound.playClick();
+            openInstallerWizard();
+        });
+    }
 }
 
 /* --------------------------------------------------------------------------
-   2. Main Installed Desktop Environment (Full OS)
+   2. Base Installed Desktop (Krypton Alpha OS: Buggy Browser + Terminal + APT)
+   -------------------------------------------------------------------------- */
+function initBaseInstalledDesktop() {
+    document.body.className = 'theme-win98';
+
+    const startBtnSpan = document.querySelector('#start-button span');
+    if (startBtnSpan) startBtnSpan.textContent = 'Start';
+
+    const grid = document.getElementById('desktop-grid');
+    if (!grid) return;
+
+    grid.innerHTML = `
+        <div class="desktop-icon" id="icon-browser" title="Krypton Web Navigator 0.1 Alpha">
+            <div class="icon-image">🌐</div>
+            <div class="icon-label">Web Navigator</div>
+        </div>
+        <div class="desktop-icon" id="icon-terminal" title="Terminal (Linux 6.10 Header)">
+            <div class="icon-image">💻</div>
+            <div class="icon-label">Terminal</div>
+        </div>
+        <div class="desktop-icon" id="icon-readme" title="System Upgrade Instructions">
+            <div class="icon-image">📝</div>
+            <div class="icon-label">Upgrade Notes</div>
+        </div>
+    `;
+
+    document.getElementById('icon-browser')?.addEventListener('dblclick', () => {
+        sound.playClick();
+        openBrowser();
+    });
+    document.getElementById('icon-terminal')?.addEventListener('dblclick', () => {
+        sound.playClick();
+        openTerminal();
+    });
+    document.getElementById('icon-readme')?.addEventListener('dblclick', () => {
+        sound.playClick();
+        openNotes('upgrade_notes.txt', `=== Krypton OS 0.1 Alpha Base Installation ===\n\nKernel: Linux 6.10.0-krypton-generic x86_64\nInstalled Packages: Base System, Web Navigator (Alpha), GNU Bash 5.2\n\nTo upgrade this system to the modern Krypton 1.0 LTS Desktop Suite:\n1. Open the Terminal\n2. Run the standard Debian upgrade command:\n     sudo apt update && sudo apt upgrade -y\n\nAll modern apps, Wayland compositor, and glass UI will be automatically unlocked!`);
+    });
+
+    document.querySelectorAll('.desktop-icon').forEach(icon => {
+        icon.addEventListener('click', () => {
+            document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
+            icon.classList.add('selected');
+        });
+    });
+
+    initStartMenuBase();
+
+    setTimeout(() => {
+        story.showToast('ℹ️ Krypton Alpha Base OS', "Base OS installed. Run 'sudo apt update && sudo apt upgrade' in Terminal to upgrade to Krypton 1.0 LTS.", 'info');
+    }, 600);
+}
+
+function initStartMenuBase() {
+    const startBtn = document.getElementById('start-button');
+    const startMenu = document.getElementById('start-menu');
+    const startAppGrid = document.getElementById('start-app-grid');
+    if (!startBtn || !startMenu) return;
+
+    const newStartBtn = startBtn.cloneNode(true);
+    startBtn.parentNode.replaceChild(newStartBtn, startBtn);
+
+    newStartBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startMenu.classList.toggle('hidden');
+        sound.playClick();
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!startMenu.contains(e.target) && !newStartBtn.contains(e.target)) {
+            startMenu.classList.add('hidden');
+        }
+    });
+
+    if (startAppGrid) {
+        startAppGrid.innerHTML = `
+            <div class="start-app-item" id="s-app-nav">
+                <div class="start-app-icon">🌐</div>
+                <div class="start-app-label">Web Navigator (Alpha)</div>
+            </div>
+            <div class="start-app-item" id="s-app-term">
+                <div class="start-app-icon">💻</div>
+                <div class="start-app-label">Terminal</div>
+            </div>
+        `;
+
+        document.getElementById('s-app-nav')?.addEventListener('click', () => {
+            sound.playClick();
+            openBrowser();
+            startMenu.classList.add('hidden');
+        });
+        document.getElementById('s-app-term')?.addEventListener('click', () => {
+            sound.playClick();
+            openTerminal();
+            startMenu.classList.add('hidden');
+        });
+    }
+
+    document.getElementById('start-btn-settings')?.addEventListener('click', () => {
+        story.showToast('⚠️ Alpha Notice', "Settings control center requires Krypton 1.0 LTS. Run 'sudo apt update && sudo apt upgrade' to install.", 'warning');
+        startMenu.classList.add('hidden');
+    });
+    document.getElementById('start-btn-terminal')?.addEventListener('click', () => {
+        openTerminal();
+        startMenu.classList.add('hidden');
+    });
+    document.getElementById('start-btn-restart')?.addEventListener('click', () => {
+        sound.playWindowClose();
+        startMenu.classList.add('hidden');
+        wm.windows.forEach((_, id) => wm.closeWindow(id));
+        document.getElementById('desktop-environment').classList.add('hidden');
+        boot.start();
+    });
+}
+
+/* --------------------------------------------------------------------------
+   3. Main Installed Desktop Environment (Full Modern 1.0 LTS OS)
    -------------------------------------------------------------------------- */
 function initMainInstalledDesktop() {
-    const desktopEnv = document.getElementById('desktop-environment');
-    if (desktopEnv) desktopEnv.className = 'theme-cyberpunk';
+    const savedTheme = localStorage.getItem('krypton_theme') || 'theme-cyberpunk';
+    document.body.className = savedTheme;
+
+    const startBtnSpan = document.querySelector('#start-button span');
+    if (startBtnSpan) startBtnSpan.textContent = 'Krypton';
 
     const grid = document.getElementById('desktop-grid');
     if (!grid) return;

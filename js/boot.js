@@ -676,40 +676,71 @@ export class MasterBootEngine {
         }, 1900);
     }
 
+    triggerSystemRebootBroadcast(reason = 'The system is going down for reboot NOW!') {
+        this.clearTimers();
+        this.container = document.getElementById('boot-screen');
+        if (!this.container) return;
+
+        this.container.innerHTML = '';
+        this.container.style.display = 'flex';
+        document.getElementById('desktop-environment')?.classList.add('hidden');
+        document.getElementById('tty-screen')?.classList.add('hidden');
+        if (window.wm && window.wm.windows) {
+            window.wm.windows.forEach((_, id) => window.wm.closeWindow(id));
+        }
+
+        const now = new Date();
+        const timeString = now.toTimeString().split(' ')[0];
+        const dayStr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+        const monStr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()];
+        const dateStr = `${dayStr} ${monStr} ${now.getDate()} ${timeString} ${now.getFullYear()}`;
+
+        this.container.innerHTML = `
+            <div class="bios-error-viewport" style="background: #000000; color: #ffffff; font-family: 'VT323', monospace; font-size: 24px; padding: 28px; line-height: 1.4; height: 100vh; box-sizing: border-box;">
+                <div style="margin-bottom: 16px;">Broadcast message from root@krypton-station (pts/0) (${dateStr}):</div>
+                <div style="margin-bottom: 24px; color: #ffff55;">${reason}</div>
+                <div style="color: #888888;">[  OK  ] Stopped target Graphical Interface.</div>
+                <div style="color: #888888;">[  OK  ] Unmounted all active partitions (/mnt/target).</div>
+                <div style="color: #888888;">[  OK  ] Reached target System Reboot.</div>
+                <div style="margin-top: 20px;">Rebooting system...<span class="bios-underscore-cursor" id="bios-cursor"></span></div>
+            </div>
+        `;
+
+        setTimeout(() => {
+            this.start();
+        }, 3200);
+    }
+
     bootIntoInstalledMainOS() {
         this.phase = 'KERNEL_BOOT';
         this.clearTimers();
 
-        const osRel = vfs.readFile('/etc/os-release') || '';
-        const prettyMatch = osRel.match(/PRETTY_NAME="([^"]+)"/);
-        const osTitle = prettyMatch ? prettyMatch[1] : 'Krypton 1.0 LTS';
-
+        // Silent Graphical Plymouth Boot Screen (No text log clutter)
         this.container.innerHTML = `
-            <div class="krypton-boot-loader">
-                <div class="krypton-loader-logo">
-                    <div class="krypton-atom-icon">⚛️</div>
-                    <div class="krypton-loader-title">KRYPTON<span style="color: #00e5ff;">OS</span></div>
-                    <div class="krypton-loader-sub">${osTitle}</div>
+            <div class="krypton-boot-loader" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #000000;">
+                <div class="krypton-loader-logo" style="text-align: center; margin-bottom: 28px;">
+                    <div class="krypton-atom-icon" style="font-size: 64px; animation: atomPulse 2s infinite ease-in-out;">⚛️</div>
+                    <div class="krypton-loader-title" style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 28px; letter-spacing: 4px; color: #ffffff; margin-top: 12px;">
+                        KRYPTON<span style="color: #00e5ff;">OS</span>
+                    </div>
                 </div>
-                <div class="krypton-progress-bar-container">
-                    <div class="krypton-progress-bar-fill" id="krypton-boot-fill"></div>
+                <div class="krypton-progress-bar-container" style="width: 240px; height: 4px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden;">
+                    <div class="krypton-progress-bar-fill" id="krypton-boot-fill" style="height: 100%; width: 0%; background: #00e5ff; transition: width 1.2s ease;"></div>
                 </div>
-                <div class="krypton-loader-status" id="krypton-boot-status">Starting system services...</div>
             </div>
         `;
 
         const fill = document.getElementById('krypton-boot-fill');
-        const status = document.getElementById('krypton-boot-status');
 
-        setTimeout(() => { if (fill) fill.style.width = '40%'; if (status) status.textContent = 'Loading kernel modules...'; }, 250);
-        setTimeout(() => { if (fill) fill.style.width = '80%'; if (status) status.textContent = 'Starting Wayland session...'; }, 800);
-        setTimeout(() => { if (fill) fill.style.width = '100%'; if (status) status.textContent = 'Welcome!'; }, 1400);
+        setTimeout(() => { if (fill) fill.style.width = '45%'; }, 250);
+        setTimeout(() => { if (fill) fill.style.width = '85%'; }, 800);
+        setTimeout(() => { if (fill) fill.style.width = '100%'; }, 1300);
 
         setTimeout(() => {
             this.container.style.display = 'none';
             checkEnvironmentState();
             document.getElementById('desktop-environment').classList.remove('hidden');
-        }, 1800);
+        }, 1700);
     }
 
     showPostInstallBootOrderNotice() {

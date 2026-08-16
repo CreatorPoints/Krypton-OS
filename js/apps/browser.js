@@ -28,38 +28,80 @@ export function openBrowser(initialUrl = 'google://home') {
 
     let currentGoogleUser = getActiveGoogleUser();
 
-    content.innerHTML = `
-        <div style="background: linear-gradient(90deg, #b45309, #d97706); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 12px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.5px; border-bottom: 1px solid rgba(0,0,0,0.3);">
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <span>🚧</span> <strong>Krypton Browser — Work In Progress (WIP)</strong>
-                <span style="font-size: 10px; color: #fef3c7; font-weight: normal;">• Web engine under active development</span>
-            </div>
-            <span style="background: rgba(0,0,0,0.3); color: #fde68a; padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 800;">WIP / ALPHA</span>
-        </div>
+    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' || localStorage.getItem('krypton_os_version') === '1.0.0.0';
 
-        <div class="browser-toolbar" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #0f131f; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <div style="display: flex; gap: 4px;">
-                <button class="browser-nav-btn" id="b-back" title="Back" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">◄</button>
-                <button class="browser-nav-btn" id="b-forward" title="Forward" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">►</button>
-                <button class="browser-nav-btn" id="b-reload" title="Reload" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🔄</button>
-                <button class="browser-nav-btn" id="b-home" title="Google Home" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🏠</button>
+    if (!isUpgraded) {
+        // Intentionally Buggy Vintage 90s Alpha Browser Chrome
+        content.innerHTML = `
+            <div style="background: #c0c0c0; color: #000; font-size: 11px; font-family: 'Tahoma', 'MS Sans Serif', sans-serif; padding: 4px 8px; border-bottom: 2px solid #808080; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span>⚠️</span> <strong>Krypton Web Navigator (v0.1 Alpha — Intentionally Buggy)</strong>
+                    <span style="color: #666;">• Legacy 90s HTML 3.2 Engine</span>
+                </div>
+                <span style="background: #ffff00; color: #000; padding: 1px 6px; font-weight: 700; border: 1px solid #000; font-size: 10px;">BUGGY ALPHA</span>
             </div>
 
-            <div class="browser-address-bar" style="flex: 1; display: flex; align-items: center; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 2px 14px; gap: 8px;">
-                <span style="font-size: 13px; color: #4285F4;">🔍</span>
-                <input type="text" id="b-url-input" value="${initialUrl}" placeholder="Search with Google or enter any URL (e.g. gemini.google.com, youtube.com, github.com)..." style="flex: 1; background: transparent; border: none; color: #fff; font-size: 13px; outline: none; padding: 6px 0; font-family: 'Outfit', sans-serif;">
+            <div style="background: #ffffdd; border-bottom: 1px solid #d4d4aa; padding: 4px 10px; font-size: 11px; color: #854d0e; font-family: monospace; display: flex; align-items: center; justify-content: space-between;">
+                <span>🚨 Warning: JS 1.0 Heap Overflow simulated. Run <code>sudo apt update && sudo apt upgrade</code> in Terminal for modern Chromium engine.</span>
+                <span style="color: #059669; font-weight: bold;">[ 📞 56k Dial-Up: 28.8 Kbps OK ]</span>
             </div>
 
-            <button class="browser-nav-btn" id="b-go" title="Go / Search" style="background: #4285F4; color: #fff; font-weight: bold; border-radius: 20px; padding: 6px 16px; border: none; cursor: pointer; font-size: 12px; box-shadow: 0 2px 6px rgba(66,133,244,0.3);">Go</button>
+            <div class="browser-toolbar" style="display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #c0c0c0; border-bottom: 2px solid #808080; border-top: 1px solid #fff;">
+                <div style="display: flex; gap: 3px;">
+                    <button class="browser-nav-btn" id="b-back" title="Back" style="background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #404040; border-bottom: 2px solid #404040; color: #000; font-weight: bold; padding: 3px 8px; cursor: pointer; font-size: 11px;">◄ Back</button>
+                    <button class="browser-nav-btn" id="b-forward" title="Forward" style="background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #404040; border-bottom: 2px solid #404040; color: #000; font-weight: bold; padding: 3px 8px; cursor: pointer; font-size: 11px;">Forward ►</button>
+                    <button class="browser-nav-btn" id="b-reload" title="Reload" style="background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #404040; border-bottom: 2px solid #404040; color: #000; font-weight: bold; padding: 3px 8px; cursor: pointer; font-size: 11px;">🔄 Reload</button>
+                    <button class="browser-nav-btn" id="b-home" title="Home" style="background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #404040; border-bottom: 2px solid #404040; color: #000; font-weight: bold; padding: 3px 8px; cursor: pointer; font-size: 11px;">🏠 Home</button>
+                </div>
 
-            <!-- Google Account Badge in Toolbar -->
-            <div id="b-google-auth-badge" style="display: flex; align-items: center; cursor: pointer;"></div>
-        </div>
+                <div class="browser-address-bar" style="flex: 1; display: flex; align-items: center; background: #fff; border-top: 2px solid #404040; border-left: 2px solid #404040; border-right: 2px solid #fff; border-bottom: 2px solid #fff; padding: 2px 8px; gap: 6px;">
+                    <span style="font-size: 11px; font-weight: bold; color: #000080; font-family: monospace;">Location:</span>
+                    <input type="text" id="b-url-input" value="${initialUrl}" placeholder="Enter URL or search query..." style="flex: 1; background: transparent; border: none; color: #000; font-size: 12px; outline: none; padding: 2px 0; font-family: 'Tahoma', sans-serif;">
+                </div>
 
-        <div class="browser-viewport" id="b-viewport" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #121520;">
-            <!-- Live Web Engine Viewport -->
-        </div>
-    `;
+                <button class="browser-nav-btn" id="b-go" title="Go" style="background: #c0c0c0; color: #000; font-weight: bold; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #404040; border-bottom: 2px solid #404040; padding: 3px 12px; cursor: pointer; font-size: 11px;">Go!</button>
+                <div id="b-google-auth-badge" style="display: flex; align-items: center; cursor: pointer;"></div>
+            </div>
+
+            <div class="browser-viewport" id="b-viewport" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff; color: #000;">
+                <!-- Web Engine Viewport -->
+            </div>
+        `;
+    } else {
+        // Modern Quantum Browser Chrome
+        content.innerHTML = `
+            <div style="background: linear-gradient(90deg, #00e5ff, #3b82f6); color: #000; font-size: 11px; font-weight: 700; padding: 3px 12px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.5px; border-bottom: 1px solid rgba(0,0,0,0.3);">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span>🌐</span> <strong>Krypton Quantum Browser (1.0 LTS)</strong>
+                    <span style="font-size: 10px; color: #003366; font-weight: 600;">• Real Web Search & Gemini AI Engine</span>
+                </div>
+                <span style="background: rgba(0,0,0,0.15); color: #000; padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 800;">1.0 LTS RELEASE</span>
+            </div>
+
+            <div class="browser-toolbar" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #0f131f; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                <div style="display: flex; gap: 4px;">
+                    <button class="browser-nav-btn" id="b-back" title="Back" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">◄</button>
+                    <button class="browser-nav-btn" id="b-forward" title="Forward" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">►</button>
+                    <button class="browser-nav-btn" id="b-reload" title="Reload" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🔄</button>
+                    <button class="browser-nav-btn" id="b-home" title="Google Home" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🏠</button>
+                </div>
+
+                <div class="browser-address-bar" style="flex: 1; display: flex; align-items: center; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 2px 14px; gap: 8px;">
+                    <span style="font-size: 13px; color: #4285F4;">🔍</span>
+                    <input type="text" id="b-url-input" value="${initialUrl}" placeholder="Search with Google or enter any URL (e.g. gemini.google.com, youtube.com, github.com)..." style="flex: 1; background: transparent; border: none; color: #fff; font-size: 13px; outline: none; padding: 6px 0; font-family: 'Outfit', sans-serif;">
+                </div>
+
+                <button class="browser-nav-btn" id="b-go" title="Go / Search" style="background: #4285F4; color: #fff; font-weight: bold; border-radius: 20px; padding: 6px 16px; border: none; cursor: pointer; font-size: 12px; box-shadow: 0 2px 6px rgba(66,133,244,0.3);">Go</button>
+
+                <!-- Google Account Badge in Toolbar -->
+                <div id="b-google-auth-badge" style="display: flex; align-items: center; cursor: pointer;"></div>
+            </div>
+
+            <div class="browser-viewport" id="b-viewport" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #121520;">
+                <!-- Live Web Engine Viewport -->
+            </div>
+        `;
+    }
 
     const urlInput = content.querySelector('#b-url-input');
     const viewport = content.querySelector('#b-viewport');
@@ -165,7 +207,7 @@ export function openBrowser(initialUrl = 'google://home') {
 
     wm.createWindow({
         id: 'browser',
-        title: 'Krypton Browser (WIP)',
+        title: isUpgraded ? 'Krypton Quantum Browser (1.0 LTS)' : 'Krypton Web Navigator (v0.1 Alpha - Buggy Browser)',
         icon: '🌐',
         width: 980,
         height: 660,

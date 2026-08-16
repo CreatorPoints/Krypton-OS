@@ -1,0 +1,14 @@
+Package: kryp-browser
+Version: 0.1.0-alpha
+Architecture: amd64
+Section: web/browsers
+Priority: optional
+Maintainer: Krypton Vintage Team <legacy@krypton-os.org>
+Installed-Size: 1840
+Depends: base-files (>= 0.1.0)
+Homepage: https://krypton-os.org/alpha/browser
+Description: Krypton Web Navigator (Legacy 0.1 Alpha)
+ Built-in vintage web browser with 56k dial-up emulator and HTML 3.2 engine.
+DATA_PAYLOAD:
+/usr/bin/kryp-browser: #!/bin/bash\nexec /usr/bin/krypton-browser-alpha "$@"\n
+/usr/share/applications/kryp-browser.desktop: [Desktop Entry]\nName=Web Navigator\nExec=kryp-browser\nIcon=🌐\nType=Application\nCategories=Network;WebBrowser;\nComment=Krypton Alpha Web Browser\n

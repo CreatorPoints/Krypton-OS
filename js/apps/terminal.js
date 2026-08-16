@@ -365,6 +365,22 @@ export function openTerminal() {
 
                 if (res.clear) {
                     historyContainer.innerHTML = '';
+                } else if (res.streamLines && res.streamLines.length > 0) {
+                    let sIdx = 0;
+                    input.disabled = true;
+                    const streamNext = () => {
+                        if (sIdx < res.streamLines.length) {
+                            const item = res.streamLines[sIdx++];
+                            appendLine(item.text, item.type || 'normal');
+                            content.scrollTop = content.scrollHeight;
+                            setTimeout(streamNext, item.delay !== undefined ? item.delay : 120);
+                        } else {
+                            input.disabled = false;
+                            input.focus();
+                            if (res.onComplete) res.onComplete();
+                        }
+                    };
+                    streamNext();
                 } else if (res.lines && res.lines.length > 0) {
                     res.lines.forEach(l => appendLine(l.text, l.type || 'normal'));
                 }
@@ -956,11 +972,8 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         });
 
         setTimeout(() => {
-            wm.windows.forEach((_, id) => wm.closeWindow(id));
-            document.getElementById('desktop-environment')?.classList.add('hidden');
-            document.getElementById('tty-screen')?.classList.add('hidden');
-            boot.start();
-        }, 600);
+            boot.triggerSystemRebootBroadcast('The system is going down for reboot NOW!');
+        }, 800);
         return;
     }
 
@@ -2633,75 +2646,86 @@ async function executeAptCommand(args, isRoot, callback) {
 
     if (subCmd === 'update') {
         const curVer = getOsVersion();
-        const isUpgradable = curVer !== '0.1.0.2';
+        const isUpgradable = curVer !== '1.0.0.0' && localStorage.getItem('krypton_upgraded_lts') !== 'true';
 
-        const lines = [
-            { text: "Hit:1 https://deb.krypton-os.org/krypton beryllium InRelease", type: 'normal' },
-            { text: `Get:2 https://deb.krypton-os.org/krypton/pool/main Packages [${packages.length * 1.8} kB]`, type: 'normal' },
-            { text: `Fetched ${(packages.length * 1.8).toFixed(1)} kB in 0s (340 kB/s) - Synchronized ${packages.length} packages from repo`, type: 'muted' },
-            { text: "Reading package lists... Done", type: 'success' },
-            { text: "Building dependency tree... Done", type: 'success' },
-            { text: "Reading state information... Done", type: 'success' }
+        const streamLines = [
+            { text: "Hit:1 https://deb.krypton-os.org/krypton beryllium InRelease", type: 'normal', delay: 180 },
+            { text: `Get:2 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/pool/main Packages [48.2 kB]`, type: 'normal', delay: 240 },
+            { text: `Fetched 48.2 kB in 0s (340 kB/s) - Synchronized catalog from Krypton-Repo`, type: 'muted', delay: 140 },
+            { text: "Reading package lists... Done", type: 'success', delay: 120 },
+            { text: "Building dependency tree... Done", type: 'success', delay: 100 },
+            { text: "Reading state information... Done", type: 'success', delay: 100 }
         ];
 
         if (isUpgradable) {
-            lines.push({ text: "1 package can be upgraded. Run 'apt list --upgradable' to see it.", type: 'warning' });
+            streamLines.push({ text: "3 packages can be upgraded: krypton-desktop-core, krypton-browser, krypton-core-apps. Run 'apt list --upgradable' to see them.", type: 'warning', delay: 100 });
         } else {
-            lines.push({ text: "All packages are up to date.", type: 'success' });
+            streamLines.push({ text: "All packages are up to date.", type: 'success', delay: 80 });
         }
 
-        callback({ lines, exitCode: 0 });
+        callback({ streamLines, exitCode: 0 });
         return;
     }
 
     if (subCmd === 'upgrade' || subCmd === 'dist-upgrade' || subCmd === 'full-upgrade') {
         const curVer = getOsVersion();
-        if (curVer === '0.1.0.2') {
+        const isUpgraded = curVer === '1.0.0.0' && localStorage.getItem('krypton_upgraded_lts') === 'true';
+
+        if (isUpgraded) {
             callback({
-                lines: [
-                    { text: "Reading package lists... Done", type: 'normal' },
-                    { text: "Building dependency tree... Done", type: 'normal' },
-                    { text: "Calculating upgrade... Done", type: 'normal' },
-                    { text: "0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.", type: 'success' }
+                streamLines: [
+                    { text: "Reading package lists... Done", type: 'normal', delay: 120 },
+                    { text: "Building dependency tree... Done", type: 'normal', delay: 100 },
+                    { text: "Calculating upgrade... Done", type: 'normal', delay: 100 },
+                    { text: "0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.", type: 'success', delay: 80 }
                 ],
                 exitCode: 0
             });
             return;
         }
 
-        // Perform System Upgrade to Krypton 0.1.0.2
-        const newVersion = "0.1.0.2";
-        const newPrettyName = "Krypton 0.1.0.2";
+        // Perform System Upgrade to Krypton 1.0.0.0 LTS
+        const newVersion = "1.0.0.0";
+        const newPrettyName = "Krypton 1.0.0.0 LTS";
 
-        vfs.writeFile('/etc/os-release', `NAME="KryptonOS"\nVERSION="${newVersion}"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="${newPrettyName}"\nVERSION_ID="${newVersion}"\nVERSION_CODENAME=beryllium\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n`);
-        vfs.writeFile('/etc/issue', `${newPrettyName} \\n \\l\n`);
-        vfs.writeFile('/etc/motd', `\n=======================================================\n  Welcome to ${newPrettyName} (Linux 6.10.0-generic)\n  * Documentation:  https://krypton-os.org/docs\n  * Management:     https://krypton-os.org/manage\n  * Support:        https://krypton-os.org/support\n=======================================================\n`);
-        vfs.saveFileSystem();
-
-        localStorage.setItem('krypton_os_version', newVersion);
-        window.dispatchEvent(new CustomEvent('krypton_system_upgraded', { detail: { version: newVersion } }));
-        story.showToast('🚀 System Upgraded', `Successfully upgraded to ${newPrettyName}!`, 'success');
+        const streamLines = [
+            { text: "Reading package lists... Done", type: 'normal', delay: 140 },
+            { text: "Building dependency tree... Done", type: 'normal', delay: 120 },
+            { text: "Calculating upgrade... Done", type: 'normal', delay: 150 },
+            { text: `The following packages will be upgraded:\n  krypton-desktop-core (${curVer} => ${newVersion})\n  krypton-browser (${curVer} => ${newVersion})\n  krypton-apps-bundle (${curVer} => ${newVersion})`, type: 'info', delay: 200 },
+            { text: "3 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.", type: 'normal', delay: 150 },
+            { text: "Need to get 14,820 kB of archives.", type: 'normal', delay: 100 },
+            { text: "After this operation, 480 kB of additional disk space will be used.", type: 'muted', delay: 100 },
+            { text: `Get:1 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/pool/main/krypton-desktop-core_${newVersion}_amd64.deb [4,820 kB]`, type: 'normal', delay: 260 },
+            { text: `Get:2 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/pool/main/krypton-browser_${newVersion}_amd64.deb [6,400 kB]`, type: 'normal', delay: 260 },
+            { text: `Get:3 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/pool/main/krypton-apps-bundle_${newVersion}_amd64.deb [3,600 kB]`, type: 'normal', delay: 260 },
+            { text: "Fetched 14,820 kB in 1s (14.8 MB/s)", type: 'muted', delay: 180 },
+            { text: "(Reading database ... 42194 files and directories currently installed.)", type: 'muted', delay: 120 },
+            { text: `Preparing to unpack .../krypton-desktop-core_${newVersion}_amd64.deb ...`, type: 'normal', delay: 180 },
+            { text: `Unpacking krypton-desktop-core (${newVersion}) over (${curVer}) ...`, type: 'normal', delay: 200 },
+            { text: `Setting up krypton-desktop-core (${newVersion}) ...`, type: 'success', delay: 180 },
+            { text: `Setting up krypton-browser (${newVersion}) ...`, type: 'success', delay: 180 },
+            { text: `Setting up krypton-apps-bundle (${newVersion}) ...`, type: 'success', delay: 180 },
+            { text: "Processing triggers for desktop-file-utils (0.26-1) ...", type: 'normal', delay: 120 },
+            { text: "Processing triggers for initramfs-tools (0.142) ...", type: 'normal', delay: 120 },
+            { text: `[ OK ] System upgrade packages installed: ${newPrettyName} staged.`, type: 'success', delay: 150 },
+            { text: `\n*** System restart required to complete modern Krypton 1.0 LTS upgrade ***`, type: 'warning', delay: 100 },
+            { text: `Run 'sudo reboot' in Terminal to restart and activate the full modern desktop environment.`, type: 'cyan', delay: 80 }
+        ];
 
         callback({
-            lines: [
-                { text: "Reading package lists... Done", type: 'normal' },
-                { text: "Building dependency tree... Done", type: 'normal' },
-                { text: "Calculating upgrade... Done", type: 'normal' },
-                { text: `The following packages will be upgraded:\n  krypton-desktop-core (${curVer} => ${newVersion})`, type: 'info' },
-                { text: "1 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.", type: 'normal' },
-                { text: "Need to get 4,820 kB of archives.", type: 'normal' },
-                { text: "After this operation, 120 kB of additional disk space will be used.", type: 'muted' },
-                { text: `Get:1 https://deb.krypton-os.org/krypton/pool/main krypton-desktop-core ${newVersion} [4,820 kB]`, type: 'normal' },
-                { text: "Fetched 4,820 kB in 0s (14.6 MB/s)", type: 'muted' },
-                { text: "(Reading database ... 42194 files and directories currently installed.)", type: 'muted' },
-                { text: "Preparing to unpack .../krypton-desktop-core_0.1.0.2_amd64.deb ...", type: 'normal' },
-                { text: `Unpacking krypton-desktop-core (${newVersion}) over (${curVer}) ...`, type: 'normal' },
-                { text: `Setting up krypton-desktop-core (${newVersion}) ...`, type: 'success' },
-                { text: "Processing triggers for desktop-file-utils (0.26-1) ...", type: 'normal' },
-                { text: "Processing triggers for initramfs-tools (0.142) ...", type: 'normal' },
-                { text: `[ OK ] System upgrade completed: ${newPrettyName} is now active.`, type: 'success' }
-            ],
-            exitCode: 0
+            streamLines,
+            exitCode: 0,
+            onComplete: () => {
+                vfs.writeFile('/etc/os-release', `NAME="KryptonOS"\nVERSION="${newVersion}"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="${newPrettyName}"\nVERSION_ID="${newVersion}"\nVERSION_CODENAME=beryllium\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n`);
+                vfs.writeFile('/etc/issue', `${newPrettyName} \\n \\l\n`);
+                vfs.writeFile('/etc/motd', `\n=======================================================\n  Welcome to ${newPrettyName} (Linux 6.10.0-generic)\n  * Full Modern Desktop Suite Unlocked!\n  * Documentation:  https://krypton-os.org/docs\n  * Support:        https://krypton-os.org/support\n=======================================================\n`);
+                vfs.saveFileSystem();
+
+                localStorage.setItem('krypton_os_version', newVersion);
+                localStorage.setItem('krypton_upgraded_lts', 'true');
+                story.showToast('🚀 System Upgraded', `Krypton 1.0 LTS packages ready. Type 'sudo reboot' in Terminal to restart.`, 'info');
+            }
         });
         return;
     }

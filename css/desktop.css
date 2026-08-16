@@ -371,4 +371,140 @@
 .tty-output-success { color: #55ff55; }
 .tty-output-warning { color: #ffff55; }
 .tty-output-cyan { color: #00e5ff; }
+
+/* ==========================================================================
+   Windows 98 / Retro 90s OS Styling (Krypton Alpha Live USB & Base Mode)
+   ========================================================================== */
+body.theme-win98 #desktop-environment {
+    background: #008080 !important;
+    font-family: 'Tahoma', 'MS Sans Serif', 'Segoe UI', sans-serif !important;
+}
+
+body.theme-win98 #wallpaper-canvas {
+    display: none !important;
+}
+
+body.theme-win98 .desktop-grid {
+    padding: 16px;
+    gap: 20px;
+}
+
+body.theme-win98 .desktop-icon {
+    width: 74px;
+    padding: 6px 4px;
+    border-radius: 0;
+    border: 1px solid transparent;
+}
+
+body.theme-win98 .desktop-icon:hover {
+    background: rgba(0, 0, 128, 0.4);
+}
+
+body.theme-win98 .desktop-icon.selected {
+    background: #000080 !important;
+    border: 1px dotted #ffff80 !important;
+}
+
+body.theme-win98 .desktop-icon .icon-label {
+    color: #ffffff !important;
+    font-family: 'Tahoma', 'MS Sans Serif', sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    text-shadow: 1px 1px 1px #000 !important;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 1px 3px;
+    border-radius: 2px;
+}
+
+body.theme-win98 #taskbar {
+    background: #c0c0c0 !important;
+    height: 32px !important;
+    border-top: 2px solid #ffffff !important;
+    border-left: 2px solid #ffffff !important;
+    border-right: 2px solid #808080 !important;
+    border-bottom: 2px solid #808080 !important;
+    padding: 2px 4px !important;
+    backdrop-filter: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+body.theme-win98 .start-button {
+    background: #c0c0c0 !important;
+    border-top: 2px solid #ffffff !important;
+    border-left: 2px solid #ffffff !important;
+    border-right: 2px solid #404040 !important;
+    border-bottom: 2px solid #404040 !important;
+    color: #000000 !important;
+    font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    border-radius: 0 !important;
+    height: 24px !important;
+    padding: 0 8px !important;
+    gap: 5px !important;
+    box-shadow: none !important;
+}
+
+body.theme-win98 .start-button:active {
+    border-top: 2px solid #404040 !important;
+    border-left: 2px solid #404040 !important;
+    border-right: 2px solid #ffffff !important;
+    border-bottom: 2px solid #ffffff !important;
+    background: #b0b0b0 !important;
+}
+
+body.theme-win98 .taskbar-btn {
+    background: #c0c0c0 !important;
+    border-top: 2px solid #ffffff !important;
+    border-left: 2px solid #ffffff !important;
+    border-right: 2px solid #404040 !important;
+    border-bottom: 2px solid #404040 !important;
+    border-radius: 0 !important;
+    color: #000000 !important;
+    font-family: 'Tahoma', 'Segoe UI', sans-serif !important;
+    font-size: 11px !important;
+    height: 24px !important;
+    font-weight: 500 !important;
+    padding: 0 8px !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+}
+
+body.theme-win98 .taskbar-btn.active {
+    background: #dfdfdf !important;
+    border-top: 2px solid #404040 !important;
+    border-left: 2px solid #404040 !important;
+    border-right: 2px solid #ffffff !important;
+    border-bottom: 2px solid #ffffff !important;
+    font-weight: 700 !important;
+}
+
+body.theme-win98 .system-tray {
+    border-top: 1px solid #808080 !important;
+    border-left: 1px solid #808080 !important;
+    border-right: 1px solid #ffffff !important;
+    border-bottom: 1px solid #ffffff !important;
+    background: #c0c0c0 !important;
+    color: #000000 !important;
+    height: 24px !important;
+    padding: 0 6px !important;
+    border-radius: 0 !important;
+    gap: 6px !important;
+}
+
+body.theme-win98 .clock-pill {
+    background: transparent !important;
+    color: #000000 !important;
+    border: none !important;
+    padding: 0 !important;
+    font-size: 11px !important;
+    font-family: 'Tahoma', sans-serif !important;
+    box-shadow: none !important;
+}
+
+body.theme-win98 .clock-time, body.theme-win98 .clock-date {
+    color: #000000 !important;
+    font-weight: 500 !important;
+}
 .tty-output-muted { color: #888888; }

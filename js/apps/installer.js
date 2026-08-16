@@ -584,20 +584,20 @@ export function openInstallerWizard() {
 
     const showDiskConfirmWindow = (onConfirm) => {
         const dialogContent = document.createElement('div');
-        dialogContent.style.cssText = 'display: flex; flex-direction: column; gap: 12px; color: #000; font-family: "Fira Code", monospace;';
+        dialogContent.style.cssText = 'display: flex; flex-direction: column; gap: 14px; color: #ffffff; background: #0f172a; padding: 18px; font-family: "Outfit", sans-serif;';
 
         dialogContent.innerHTML = `
-            <div style="font-weight: bold; font-size: 14px; color: #cc0000; border-bottom: 1px solid #808080; padding-bottom: 6px;">
-                ⚠️ Confirm Disk Formatting & Upstream Installation
+            <div style="font-weight: 700; font-size: 15px; color: #ef4444; border-bottom: 1px solid #334155; padding-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>⚠️</span> Confirm Disk Formatting & Upstream Installation
             </div>
-            <div style="font-size: 13px; color: #222;">
-                Write upstream KryptonOS rootfs image to <strong>/dev/nvme0n1</strong>?<br>
-                Target drive: <em>Samsung SSD 980 PRO 1TB</em>.<br>
-                User: <strong>${userLogin}</strong> (${userName}) • Google: <strong>${googleAccount ? googleAccount.email : 'None'}</strong>
+            <div style="font-size: 13px; color: #ffffff; line-height: 1.6;">
+                Write upstream KryptonOS rootfs image to <strong style="color: #38bdf8;">/dev/nvme0n1</strong>?<br>
+                Target drive: <strong style="color: #ffffff;">Samsung SSD 980 PRO 1TB</strong>.<br>
+                User: <strong style="color: #4ade80;">${userLogin}</strong> (${userName}) • Google: <strong style="color: #38bdf8;">${googleAccount ? googleAccount.email : 'None'}</strong>
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
-                <button id="disk-btn-cancel" style="padding: 6px 14px; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; cursor: pointer; font-size: 12px;">Cancel</button>
-                <button id="disk-btn-confirm" style="padding: 6px 14px; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; color: #cc0000; cursor: pointer; font-size: 12px;">▶ Erase & Install</button>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
+                <button id="disk-btn-cancel" style="padding: 7px 16px; background: #334155; color: #ffffff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">Cancel</button>
+                <button id="disk-btn-confirm" style="padding: 7px 18px; background: #dc2626; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 13px; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);">▶ Erase & Install</button>
             </div>
         `;
 
@@ -605,8 +605,8 @@ export function openInstallerWizard() {
             id: 'disk-confirm-dialog',
             title: 'Confirm Installation Target',
             icon: '⚠️',
-            width: 440,
-            height: 230,
+            width: 460,
+            height: 240,
             content: dialogContent
         });
 
@@ -621,23 +621,27 @@ export function openInstallerWizard() {
 
     const showOSNoticeWindow = (title, msg) => {
         const d = document.createElement('div');
-        d.style.cssText = 'padding: 16px; color: #000; font-family: "Outfit", sans-serif; font-size: 13px; line-height: 1.5;';
+        d.style.cssText = 'padding: 18px; color: #ffffff; background: #0f172a; font-family: "Outfit", sans-serif; font-size: 13px; line-height: 1.6; display: flex; flex-direction: column; gap: 12px;';
         d.innerHTML = `
-            <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px; color: #1a202c;">${title}</div>
-            <div style="color: #4a5568; margin-bottom: 16px;">${msg}</div>
-            <div style="display: flex; justify-content: flex-end;">
-                <button id="notice-ok-btn" style="padding: 6px 16px; background: #00e5ff; color: #000; font-weight: 700; border: none; border-radius: 4px; cursor: pointer;">OK</button>
+            <div style="font-weight: 700; font-size: 15px; color: #38bdf8;">${title}</div>
+            <div style="color: #ffffff;">${msg}</div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+                <button id="notice-ok-btn" style="padding: 7px 18px; background: #0284c7; color: #ffffff; font-weight: 700; border: none; border-radius: 6px; cursor: pointer;">OK</button>
             </div>
         `;
+
         wm.createWindow({
-            id: 'installer-notice',
+            id: 'os-notice-dialog',
             title: title,
             icon: 'ℹ️',
-            width: 360,
-            height: 180,
+            width: 400,
+            height: 200,
             content: d
         });
-        d.querySelector('#notice-ok-btn').addEventListener('click', () => wm.closeWindow('installer-notice'));
+
+        d.querySelector('#notice-ok-btn').addEventListener('click', () => {
+            wm.closeWindow('os-notice-dialog');
+        });
     };
 
     // =========================================================================

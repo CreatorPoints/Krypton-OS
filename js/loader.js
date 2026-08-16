@@ -172,21 +172,29 @@ class DynamicAppLoader {
             this.moduleCache.set(normId, mod);
 
             // Prioritize specific application entry functions, then fallback to generic launch/open/default
-            let launchFn = mod.openNotes || mod.openTextEditor || mod.openBrowser || mod.openWebBrowser || mod.openKryptonBrowser || mod.openCalculator || mod.openFileMgr || mod.openFileManager || mod.openFileExplorer || mod.openTaskMgr || mod.openTaskManager || mod.openSystemMonitor || mod.openSettings || mod.openMessages || mod.openSystemLogs;
-            if (!launchFn) {
-                launchFn = mod.launch || mod.openApp || mod.default || mod.open;
+            const specificAppFn = mod.openNotes || mod.openTextEditor || mod.openBrowser || mod.openWebBrowser || mod.openKryptonBrowser || mod.openCalculator || mod.openFileMgr || mod.openFileManager || mod.openFileExplorer || mod.openTaskMgr || mod.openTaskManager || mod.openSystemMonitor || mod.openSettings || mod.openMessages || mod.openSystemLogs;
+            
+            if (typeof specificAppFn === 'function') {
+                if (Array.isArray(args)) {
+                    return specificAppFn(...args);
+                } else if (typeof args === 'string' || typeof args === 'number' || typeof args === 'boolean') {
+                    return specificAppFn(args);
+                } else {
+                    return specificAppFn();
+                }
             }
 
-            if (typeof launchFn === 'function') {
+            const fallbackFn = mod.launch || mod.openApp || mod.default || mod.open;
+            if (typeof fallbackFn === 'function') {
                 if (Array.isArray(args)) {
-                    return launchFn(...args);
-                } else if (args !== null && args !== undefined) {
-                    return launchFn(args);
+                    return fallbackFn(...args);
+                } else if (typeof args === 'string') {
+                    return fallbackFn(args);
                 }
-                return launchFn({ wm, vfs, sound, story, boot, args });
-            } else {
-                throw new Error(`Module '${normId}' does not export a recognized launch function.`);
+                return fallbackFn({ wm, vfs, sound, story, boot, args });
             }
+
+            throw new Error(`Module '${normId}' does not export a recognized launch function.`);
         } catch (err) {
             console.error(`[AppLoader] Dynamic import failed for '${normId}':`, err);
             story.showToast('❌ Execution Error', `Could not start '${normId}': ${err.message}`, 'error');

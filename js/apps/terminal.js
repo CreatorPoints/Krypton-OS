@@ -7,7 +7,6 @@ import { vfs, idbStore, downloadWithMetrics } from '../fs.js';
 import { story } from '../story.js';
 import { sound } from '../sound.js';
 import { boot } from '../boot.js';
-import { openNotes } from './notes.js';
 
 export const REPO_DPKG_PACKAGES = [
     { id: 'krypton-desktop-core', file: 'krypton-desktop-core_0.1.0.2_amd64.deb', name: 'krypton-desktop-core', version: '0.1.0.2', arch: 'amd64', section: 'x11/desktop', size: 4820, maintainer: 'KryptonOS Core Team <core@krypton-os.org>', summary: 'KryptonOS Desktop Shell, Wayland Compositor, and System Utilities' },
@@ -2498,11 +2497,21 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         const fileTarget = args[0] || 'untitled.txt';
         const targetPath = resolvePath(currentDir, fileTarget);
         const existingContent = vfs.readFile(targetPath) || '';
-        openNotes(fileTarget, existingContent);
-        callback({
-            lines: [{ text: `Opened '${fileTarget}' in Krypton Editor.`, type: 'success' }],
-            exitCode: 0
-        });
+        if (window.appLoader && vfs.exists('/usr/lib/krypton-notes/index.js')) {
+            window.appLoader.launch('notes', [fileTarget, existingContent]);
+            callback({
+                lines: [{ text: `Opened '${fileTarget}' in Krypton Editor.`, type: 'success' }],
+                exitCode: 0
+            });
+        } else {
+            callback({
+                lines: [
+                    { text: `Command '${cmd}' not found, but can be installed with:`, type: 'normal' },
+                    { text: `sudo apt install krypton-notes`, type: 'cyan' }
+                ],
+                exitCode: 127
+            });
+        }
         return;
     }
 

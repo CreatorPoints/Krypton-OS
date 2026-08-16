@@ -1,0 +1,14 @@
+{
+  "format": "krypton-deb-1.0",
+  "package": "base-files",
+  "version": "1.0.0",
+  "architecture": "amd64",
+  "maintainer": "Krypton Core Team <packages@krypton-os.org>",
+  "section": "admin",
+  "description": "KryptonOS Core System Files & OS Identity Manifest",
+  "files": {
+    "/etc/os-release": "NAME=\"KryptonOS\"\nVERSION=\"1.0.0.0\"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME=\"Krypton 1.0.0.0 LTS\"\nVERSION_ID=\"1.0.0.0\"\nVERSION_CODENAME=beryllium\nHOME_URL=\"https://krypton-os.org/\"\nSUPPORT_URL=\"https://krypton-os.org/support\"\nBUG_REPORT_URL=\"https://bugs.krypton-os.org/\"\n",
+    "/etc/issue": "Krypton 1.0.0.0 LTS \\n \\l\n",
+    "/etc/motd": "\n=======================================================\n  Welcome to Krypton 1.0.0.0 LTS (Linux 6.10.0-generic)\n  * Full Modern Desktop Suite Unlocked!\n  * Documentation:  https://krypton-os.org/docs\n  * Support:        https://krypton-os.org/support\n=======================================================\n"
+  }
+}

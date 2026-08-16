@@ -715,6 +715,18 @@ export class MasterBootEngine {
         this.phase = 'KERNEL_BOOT';
         this.clearTimers();
 
+        // Check if staged upgrade reboot is pending
+        if (vfs.exists('/var/run/reboot-required') || vfs.exists('/boot/vmlinuz-6.10.0-krypton-generic')) {
+            localStorage.setItem('krypton_upgraded_lts', 'true');
+            localStorage.setItem('krypton_os_version', '1.0.0.0');
+            vfs.remove('/var/run/reboot-required');
+            vfs.writeFile('/proc/version', 'Linux version 6.10.0-krypton-generic (gcc 13.2.0) #1 SMP PREEMPT_DYNAMIC\n');
+            vfs.writeFile('/etc/os-release', 'NAME="KryptonOS"\nVERSION="1.0.0.0"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="Krypton 1.0.0.0 LTS"\nVERSION_ID="1.0.0.0"\nVERSION_CODENAME=beryllium\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n');
+            vfs.writeFile('/etc/issue', 'Krypton 1.0.0.0 LTS \\n \\l\n');
+            vfs.writeFile('/etc/motd', '\n=======================================================\n  Welcome to Krypton 1.0.0.0 LTS (Linux 6.10.0-generic)\n  * Full Modern Desktop Suite Unlocked!\n  * Documentation:  https://krypton-os.org/docs\n  * Support:        https://krypton-os.org/support\n=======================================================\n');
+            vfs.saveFileSystem();
+        }
+
         // Silent Graphical Plymouth Boot Screen (No text log clutter)
         this.container.innerHTML = `
             <div class="krypton-boot-loader" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #000000;">

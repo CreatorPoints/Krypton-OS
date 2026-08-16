@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 KryptonOS Package Builder & Repository Catalog Generator
-Packages applications into authentic .deb archives with real JavaScript payloads,
+Packages applications and system components into authentic .deb archives with real payloads,
 calculates SHA-256 hashes, and outputs packages.json for Krypton-Repo.
 """
 
@@ -41,6 +41,37 @@ def build_all_packages():
 
     # Read base app sources from Krypton-Repo/src/apps/
     apps_dir = REPO_ROOT / "src" / "apps"
+
+    system_packages = [
+        {
+            "id": "base-files",
+            "name": "base-files",
+            "file": "base-files.deb",
+            "version": "1.0.0",
+            "arch": "amd64",
+            "section": "admin",
+            "summary": "KryptonOS Core System Files & OS Identity Manifest",
+            "files": {
+                "/etc/os-release": 'NAME="KryptonOS"\nVERSION="1.0.0.0"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="Krypton 1.0.0.0 LTS"\nVERSION_ID="1.0.0.0"\nVERSION_CODENAME=beryllium\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n',
+                "/etc/issue": "Krypton 1.0.0.0 LTS \\n \\l\n",
+                "/etc/motd": "\n=======================================================\n  Welcome to Krypton 1.0.0.0 LTS (Linux 6.10.0-generic)\n  * Full Modern Desktop Suite Unlocked!\n  * Documentation:  https://krypton-os.org/docs\n  * Support:        https://krypton-os.org/support\n=======================================================\n"
+            }
+        },
+        {
+            "id": "linux-image-6.10.0-krypton-generic",
+            "name": "linux-image-6.10.0-krypton-generic",
+            "file": "linux-image-6.10.0-krypton-generic.deb",
+            "version": "6.10.0-1",
+            "arch": "amd64",
+            "section": "kernel",
+            "summary": "Linux Kernel Image 6.10.0 with Wayland, NVMe, and POSIX subsystems",
+            "files": {
+                "/boot/vmlinuz-6.10.0-krypton-generic": "ELF 64-bit LSB executable, x86-64, Linux 6.10.0-krypton-generic (gcc-13.2.0)",
+                "/boot/initrd.img-6.10.0-krypton-generic": "ASCII cpio archive (SVR4 with CRC), initial ramdisk rootfs image",
+                "/boot/grub/grub.cfg": "# GRUB 2.06\nset default=0\nset timeout=3\nmenuentry 'Krypton 1.0.0.0 LTS (Linux 6.10.0-krypton-generic)' {\n  linux /boot/vmlinuz-6.10.0-krypton-generic root=UUID=7f8a-99b2-krypton ro quiet splash\n  initrd /boot/initrd.img-6.10.0-krypton-generic\n}\nmenuentry 'Krypton OS 0.1 Alpha (Linux 2.0.0.14-generic-krypton)' {\n  linux /boot/vmlinuz-2.0.0.14-generic-krypton root=UUID=7f8a-99b2-krypton ro quiet splash\n  initrd /boot/initrd.img-2.0.0.14-generic-krypton\n}\n"
+            }
+        }
+    ]
 
     packages_def = [
         {
@@ -211,16 +242,42 @@ def build_all_packages():
 
     catalog = []
 
-    # 1. Build GUI Packages
+    # 1. Build System Packages
+    for p in system_packages:
+        deb_content = make_deb_payload(p, p["files"])
+        deb_hash = sha256_str(deb_content)
+        deb_size = len(deb_content.encode('utf-8'))
+        uncompressed_size = sum(len(content.encode('utf-8')) for content in p["files"].values())
+
+        repo_deb_path = REPO_ROOT / "apt" / p["file"]
+        with open(repo_deb_path, 'w', encoding='utf-8') as f:
+            f.write(deb_content)
+
+        os_deb_path = OS_ROOT / "apt" / p["file"]
+        with open(os_deb_path, 'w', encoding='utf-8') as f:
+            f.write(deb_content)
+
+        catalog.append({
+            "id": p["id"],
+            "name": p["name"],
+            "version": p["version"],
+            "architecture": p["arch"],
+            "section": p["section"],
+            "size": deb_size,
+            "installed_size": uncompressed_size,
+            "sha256": deb_hash,
+            "file": p["file"],
+            "summary": p["summary"],
+            "maintainer": "Krypton Core Maintainers <packages@krypton-os.org>"
+        })
+        print(f"  [+] Built {p['file']:<35} | Size: {deb_size:>6} B | Installed: {uncompressed_size:>6} B")
+
+    # 2. Build GUI Packages
     for p in packages_def:
         raw_code = get_file_content(p["src"])
         # Wrap module to ensure export launch function is available
         export_wrapped_code = raw_code
         if "export function launch" not in export_wrapped_code:
-            # Add launch wrapper calling the main open function
-            main_fn = f"open{p['desktop_name'].replace(' ', '')}"
-            if "open" in p["id"]:
-                main_fn = "open" + p["id"].replace("krypton-", "").capitalize()
             export_wrapped_code += f"""
 
 // Dynamic App Loader Entrypoint
@@ -246,13 +303,12 @@ export default launch;
         deb_content = make_deb_payload(p, files)
         deb_hash = sha256_str(deb_content)
         deb_size = len(deb_content.encode('utf-8'))
+        uncompressed_size = sum(len(content.encode('utf-8')) for content in files.values())
 
-        # Write to Krypton-Repo
         repo_deb_path = REPO_ROOT / "apt" / p["file"]
         with open(repo_deb_path, 'w', encoding='utf-8') as f:
             f.write(deb_content)
 
-        # Also write to local Krypton-OS/apt/ for fallback
         os_deb_path = OS_ROOT / "apt" / p["file"]
         with open(os_deb_path, 'w', encoding='utf-8') as f:
             f.write(deb_content)
@@ -264,18 +320,20 @@ export default launch;
             "architecture": p["arch"],
             "section": p["section"],
             "size": deb_size,
+            "installed_size": uncompressed_size,
             "sha256": deb_hash,
             "file": p["file"],
             "summary": p["summary"],
             "maintainer": "Krypton Maintainers <packages@krypton-os.org>"
         })
-        print(f"  [+] Built {p['file']:<25} | Size: {deb_size:>6} B | SHA256: {deb_hash[:16]}...")
+        print(f"  [+] Built {p['file']:<35} | Size: {deb_size:>6} B | Installed: {uncompressed_size:>6} B")
 
-    # 2. Build CLI Packages
+    # 3. Build CLI Packages
     for p in cli_packages:
         deb_content = make_deb_payload(p, p["files"])
         deb_hash = sha256_str(deb_content)
         deb_size = len(deb_content.encode('utf-8'))
+        uncompressed_size = sum(len(content.encode('utf-8')) for content in p["files"].values())
 
         repo_deb_path = REPO_ROOT / "apt" / p["file"]
         with open(repo_deb_path, 'w', encoding='utf-8') as f:
@@ -292,14 +350,15 @@ export default launch;
             "architecture": p["arch"],
             "section": p["section"],
             "size": deb_size,
+            "installed_size": uncompressed_size,
             "sha256": deb_hash,
             "file": p["file"],
             "summary": p["summary"],
             "maintainer": "Krypton Maintainers <packages@krypton-os.org>"
         })
-        print(f"  [+] Built {p['file']:<25} | Size: {deb_size:>6} B | SHA256: {deb_hash[:16]}...")
+        print(f"  [+] Built {p['file']:<35} | Size: {deb_size:>6} B | Installed: {uncompressed_size:>6} B")
 
-    # 3. Write packages.json catalog
+    # 4. Write packages.json catalog
     catalog_json = json.dumps(catalog, indent=2)
     with open(REPO_ROOT / "apt" / "packages.json", 'w', encoding='utf-8') as f:
         f.write(catalog_json)

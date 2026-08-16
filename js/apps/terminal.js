@@ -210,8 +210,15 @@ export function openTerminal() {
     const content = document.createElement('div');
     content.className = 'terminal-app';
 
+    const osRel = vfs.readFile('/etc/os-release') || '';
+    const prettyNameMatch = osRel.match(/PRETTY_NAME="([^"]+)"/) || osRel.match(/NAME="([^"]+)"/);
+    const currentPrettyName = prettyNameMatch ? prettyNameMatch[1] : 'KryptonOS GNU/Linux';
+    const procVer = vfs.readFile('/proc/version') || '';
+    const kernelVerMatch = procVer.match(/Linux version ([^\s]+)/);
+    const currentKernelVer = kernelVerMatch ? kernelVerMatch[1] : (vfs.getNode('/boot/vmlinuz-2.0.0.14-generic-krypton') ? '2.0.0.14-generic-krypton' : '6.10.0-krypton-generic');
+
     content.innerHTML = `
-        <div class="terminal-line terminal-output-info">KryptonOS 1.0 LTS (Linux 6.10.0-krypton-generic x86_64)</div>
+        <div class="terminal-line terminal-output-info">${currentPrettyName} (Linux ${currentKernelVer} x86_64)</div>
         <div class="terminal-line terminal-output-muted">Type 'help' for command list or 'man &lt;command&gt;' for documentation.</div>
         <div class="terminal-line"> </div>
         <div id="terminal-history"></div>
@@ -2744,8 +2751,84 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 }
 
 /* --------------------------------------------------------------------------
-   APT Package Manager Helper (Real Dynamic Repository Engine)
+   APT Package Manager Helper (Real Dynamic Repository Engine & State Solver)
    -------------------------------------------------------------------------- */
+
+function parseDpkgStatus() {
+    const raw = vfs.readFile('/var/lib/dpkg/status') || '';
+    const entries = raw.split(/\n\s*\n/).filter(b => b.trim().length > 0);
+    const installed = [];
+
+    for (const block of entries) {
+        const pkgMatch = block.match(/Package:\s*([^\n]+)/);
+        const statusMatch = block.match(/Status:\s*([^\n]+)/);
+        const verMatch = block.match(/Version:\s*([^\n]+)/);
+        const sizeMatch = block.match(/Installed-Size:\s*([^\n]+)/);
+        const secMatch = block.match(/Section:\s*([^\n]+)/);
+        const archMatch = block.match(/Architecture:\s*([^\n]+)/);
+        const descMatch = block.match(/Description:\s*([^\n]+)/);
+
+        if (pkgMatch && (!statusMatch || statusMatch[1].includes('installed'))) {
+            installed.push({
+                id: pkgMatch[1].trim(),
+                name: pkgMatch[1].trim(),
+                version: verMatch ? verMatch[1].trim() : '1.0.0',
+                installedSize: sizeMatch ? parseInt(sizeMatch[1].trim(), 10) : 1024,
+                section: secMatch ? secMatch[1].trim() : 'universe',
+                architecture: archMatch ? archMatch[1].trim() : 'amd64',
+                description: descMatch ? descMatch[1].trim() : ''
+            });
+        }
+    }
+    return installed;
+}
+
+function compareSemver(v1, v2) {
+    if (v1 === v2) return 0;
+    if (v1.includes('alpha') && !v2.includes('alpha')) return -1;
+    if (!v1.includes('alpha') && v2.includes('alpha')) return 1;
+
+    const parseSegments = (v) => v.replace(/-[a-zA-Z0-9]+/, '').split('.').map(n => parseInt(n, 10) || 0);
+    const seg1 = parseSegments(v1);
+    const seg2 = parseSegments(v2);
+    for (let i = 0; i < Math.max(seg1.length, seg2.length); i++) {
+        const s1 = seg1[i] || 0;
+        const s2 = seg2[i] || 0;
+        if (s1 > s2) return 1;
+        if (s1 < s2) return -1;
+    }
+    return v1.localeCompare(v2);
+}
+
+function getUpgradablePackages(catalog) {
+    const installed = parseDpkgStatus();
+    const upgradables = [];
+
+    for (const inst of installed) {
+        const avail = catalog.find(p => p.id === inst.id || p.name === inst.id || p.id === `krypton-${inst.id}` || inst.id === `krypton-${p.id}`);
+        if (avail) {
+            if (compareSemver(avail.version, inst.version) > 0) {
+                upgradables.push({
+                    installed: inst,
+                    available: avail
+                });
+            }
+        }
+    }
+    return upgradables;
+}
+
+function countVfsNodes(node) {
+    if (!node) return 0;
+    let count = 1;
+    if (node.type === 'dir' && node.children) {
+        for (const k of Object.keys(node.children)) {
+            count += countVfsNodes(node.children[k]);
+        }
+    }
+    return count;
+}
+
 async function fetchAptRepoCatalog() {
     try {
         const catalogMeta = await downloadWithMetrics(
@@ -2781,19 +2864,11 @@ async function executeAptCommand(args, isRoot, callback) {
         return;
     }
 
-    const getOsVersion = () => {
-        const osRel = vfs.readFile('/etc/os-release') || '';
-        const match = osRel.match(/VERSION="([^"]+)"/);
-        return match ? match[1] : (localStorage.getItem('krypton_os_version') || '1.0.0.0');
-    };
-
     const packages = await fetchAptRepoCatalog();
+    const totalVfsFiles = countVfsNodes(vfs.root);
 
     if (subCmd === 'update') {
-        const curVer = getOsVersion();
-        const isUpgradable = curVer !== '1.0.0.0' && localStorage.getItem('krypton_upgraded_lts') !== 'true';
-
-        let catalogSizeKb = 48.2;
+        let catalogSizeKb = 5.5;
         let fetchElapsed = 0.2;
 
         try {
@@ -2807,6 +2882,7 @@ async function executeAptCommand(args, isRoot, callback) {
         } catch (e) {}
 
         const speedKb = Math.round(catalogSizeKb / Math.max(0.05, fetchElapsed));
+        const upgradables = getUpgradablePackages(packages);
 
         const streamLines = [
             { text: "Hit:1 https://deb.krypton-os.org/krypton beryllium InRelease", type: 'normal', delay: 160 },
@@ -2817,8 +2893,9 @@ async function executeAptCommand(args, isRoot, callback) {
             { text: "Reading state information... Done", type: 'success', delay: 100 }
         ];
 
-        if (isUpgradable) {
-            streamLines.push({ text: "3 packages can be upgraded: krypton-desktop-core, krypton-browser, krypton-core-apps. Run 'apt list --upgradable' to see them.", type: 'warning', delay: 100 });
+        if (upgradables.length > 0) {
+            const pkgNames = upgradables.map(u => u.available.name).join(', ');
+            streamLines.push({ text: `${upgradables.length} packages can be upgraded: ${pkgNames}. Run 'apt list --upgradable' to see them.`, type: 'warning', delay: 100 });
         } else {
             streamLines.push({ text: "All packages are up to date.", type: 'success', delay: 80 });
         }
@@ -2828,10 +2905,9 @@ async function executeAptCommand(args, isRoot, callback) {
     }
 
     if (subCmd === 'upgrade' || subCmd === 'dist-upgrade' || subCmd === 'full-upgrade') {
-        const curVer = getOsVersion();
-        const isUpgraded = curVer === '1.0.0.0' && localStorage.getItem('krypton_upgraded_lts') === 'true';
+        const upgradables = getUpgradablePackages(packages);
 
-        if (isUpgraded) {
+        if (upgradables.length === 0) {
             callback({
                 streamLines: [
                     { text: "Reading package lists... Done", type: 'normal', delay: 120 },
@@ -2844,29 +2920,65 @@ async function executeAptCommand(args, isRoot, callback) {
             return;
         }
 
-        // Perform Real System Upgrade to Krypton 1.0.0.0 LTS
-        const newVersion = "1.0.0.0";
-        const newPrettyName = "Krypton 1.0.0.0 LTS";
+        const totalDownloadBytes = upgradables.reduce((acc, u) => acc + (u.available.size || 1024), 0);
+        const totalDeltaBytes = upgradables.reduce((acc, u) => acc + Math.max(0, (u.available.installed_size || u.available.size || 0) - (u.installed.installedSize || 0)), 0);
+        const totalDownloadKb = (totalDownloadBytes / 1024).toFixed(1);
+        const totalDeltaKb = (totalDeltaBytes / 1024).toFixed(1);
 
-        const upgradePkgs = [
-            'krypton-browser',
-            'krypton-calculator',
-            'krypton-notes',
-            'krypton-filemgr',
-            'krypton-taskmgr',
-            'krypton-settings',
-            'krypton-messages'
+        const streamLines = [
+            { text: "Reading package lists... Done", type: 'normal', delay: 140 },
+            { text: "Building dependency tree... Done", type: 'normal', delay: 120 },
+            { text: "Calculating upgrade... Done", type: 'normal', delay: 150 },
+            { text: `The following packages will be upgraded:\n${upgradables.map(u => `  ${u.available.name} (${u.installed.version} => ${u.available.version})`).join('\n')}`, type: 'info', delay: 200 },
+            { text: `${upgradables.length} upgraded, 0 newly installed, 0 to remove and 0 not upgraded.`, type: 'normal', delay: 150 },
+            { text: `Need to get ${totalDownloadKb} kB of archives.`, type: 'normal', delay: 100 },
+            { text: `After this operation, ${totalDeltaKb} kB of additional disk space will be used.`, type: 'muted', delay: 100 }
         ];
 
-        // Download real packages from Krypton-Repo and unpack into VFS
+        upgradables.forEach((u, idx) => {
+            const debFilename = u.available.file || (u.available.id + '.deb');
+            const sizeKb = ((u.available.size || 1024) / 1024).toFixed(1);
+            streamLines.push({
+                text: `Get:${idx + 1} https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/${debFilename} [${sizeKb} kB]`,
+                type: 'normal',
+                delay: 200
+            });
+        });
+
+        streamLines.push({
+            text: `Fetched ${totalDownloadKb} kB in 1s (${totalDownloadKb} kB/s) - Verified SHA-256 and unpacked into VFS`,
+            type: 'muted',
+            delay: 180
+        });
+        streamLines.push({
+            text: `(Reading database ... ${totalVfsFiles} files and directories currently installed.)`,
+            type: 'muted',
+            delay: 120
+        });
+
+        upgradables.forEach(u => {
+            const debFilename = u.available.file || (u.available.id + '.deb');
+            streamLines.push({ text: `Preparing to unpack .../${debFilename} ...`, type: 'normal', delay: 160 });
+            streamLines.push({ text: `Unpacking ${u.available.name} (${u.available.version}) over (${u.installed.version}) ...`, type: 'normal', delay: 180 });
+            streamLines.push({ text: `Setting up ${u.available.name} (${u.available.version}) ...`, type: 'success', delay: 160 });
+        });
+
+        streamLines.push({ text: "Processing triggers for krypton-desktop...", type: 'normal', delay: 120 });
+        streamLines.push({ text: "Updating desktop application registry (/usr/share/applications)... Done", type: 'normal', delay: 120 });
+        streamLines.push({ text: `[ OK ] System upgrade packages installed: Krypton 1.0.0.0 LTS staged.`, type: 'success', delay: 150 });
+        streamLines.push({ text: `\n*** System restart required to complete modern Krypton 1.0 LTS upgrade ***`, type: 'warning', delay: 100 });
+        streamLines.push({ text: `Run 'sudo reboot' in Terminal to restart and boot Linux 6.10.0-krypton-generic.`, type: 'cyan', delay: 80 });
+
+        // Asynchronously download, verify and extract each package
         (async () => {
-            for (const pName of upgradePkgs) {
+            for (const u of upgradables) {
                 try {
-                    const debUrl = `https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/${pName}.deb`;
-                    const localDebUrl = `./apt/${pName}.deb`;
+                    const debFilename = u.available.file || (u.available.id + '.deb');
+                    const debUrl = `https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/${debFilename}`;
+                    const localDebUrl = `./apt/${debFilename}`;
                     const debMeta = await downloadWithMetrics(debUrl, localDebUrl);
                     if (debMeta && debMeta.text) {
-                        await idbStore.put('packages', { name: pName, data: debMeta.text, sha256: debMeta.sha256, size: debMeta.size });
+                        await idbStore.put('packages', { name: u.available.id, data: debMeta.text, sha256: debMeta.sha256, size: debMeta.size });
                         let parsed = null;
                         try { parsed = JSON.parse(debMeta.text); } catch (e) {}
                         if (parsed && parsed.files) {
@@ -2881,51 +2993,25 @@ async function executeAptCommand(args, isRoot, callback) {
             }
         })();
 
-        const streamLines = [
-            { text: "Reading package lists... Done", type: 'normal', delay: 140 },
-            { text: "Building dependency tree... Done", type: 'normal', delay: 120 },
-            { text: "Calculating upgrade... Done", type: 'normal', delay: 150 },
-            { text: `The following packages will be upgraded:\n  krypton-browser (${curVer} => ${newVersion})\n  krypton-calculator (${curVer} => ${newVersion})\n  krypton-notes (${curVer} => ${newVersion})\n  krypton-filemgr (${curVer} => ${newVersion})\n  krypton-taskmgr (${curVer} => ${newVersion})\n  krypton-settings (${curVer} => ${newVersion})\n  krypton-messages (${curVer} => ${newVersion})`, type: 'info', delay: 200 },
-            { text: "7 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.", type: 'normal', delay: 150 },
-            { text: "Need to get 132.8 kB of archives.", type: 'normal', delay: 100 },
-            { text: "After this operation, 1.4 MB of additional disk space will be used.", type: 'muted', delay: 100 },
-            { text: `Get:1 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/krypton-browser.deb [75.6 kB]`, type: 'normal', delay: 260 },
-            { text: `Get:2 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/krypton-settings.deb [35.8 kB]`, type: 'normal', delay: 260 },
-            { text: `Get:3 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/krypton-messages.deb [5.8 kB]`, type: 'normal', delay: 260 },
-            { text: `Get:4 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/krypton-taskmgr.deb [4.9 kB]`, type: 'normal', delay: 260 },
-            { text: `Get:5 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/krypton-filemgr.deb [4.7 kB]`, type: 'normal', delay: 260 },
-            { text: `Get:6 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/krypton-calculator.deb [4.3 kB]`, type: 'normal', delay: 260 },
-            { text: `Get:7 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/krypton-notes.deb [3.1 kB]`, type: 'normal', delay: 260 },
-            { text: "Fetched 132.8 kB in 1s (132.8 kB/s) - Verified SHA-256 and unpacked into /usr/lib & /usr/share/applications", type: 'muted', delay: 180 },
-            { text: "(Reading database ... 42194 files and directories currently installed.)", type: 'muted', delay: 120 },
-            { text: `Preparing to unpack .../krypton-browser.deb ...`, type: 'normal', delay: 180 },
-            { text: `Unpacking modern application suite over (${curVer}) ...`, type: 'normal', delay: 200 },
-            { text: `Setting up krypton-browser (${newVersion}) ...`, type: 'success', delay: 180 },
-            { text: `Setting up krypton-settings (${newVersion}) ...`, type: 'success', delay: 180 },
-            { text: `Setting up krypton-taskmgr (${newVersion}) ...`, type: 'success', delay: 180 },
-            { text: `Setting up krypton-filemgr (${newVersion}) ...`, type: 'success', delay: 180 },
-            { text: `Setting up krypton-calculator (${newVersion}) ...`, type: 'success', delay: 180 },
-            { text: `Setting up krypton-notes (${newVersion}) ...`, type: 'success', delay: 180 },
-            { text: "Processing triggers for desktop-file-utils (0.26-1) ...", type: 'normal', delay: 120 },
-            { text: "Processing triggers for initramfs-tools (0.142) ...", type: 'normal', delay: 120 },
-            { text: `[ OK ] System upgrade packages installed: ${newPrettyName} staged.`, type: 'success', delay: 150 },
-            { text: `\n*** System restart required to complete modern Krypton 1.0 LTS upgrade ***`, type: 'warning', delay: 100 },
-            { text: `Run 'sudo reboot' in Terminal to restart and activate the full modern desktop environment.`, type: 'cyan', delay: 80 }
-        ];
-
         callback({
             streamLines,
             exitCode: 0,
             onComplete: () => {
-                vfs.writeFile('/etc/os-release', `NAME="KryptonOS"\nVERSION="${newVersion}"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="${newPrettyName}"\nVERSION_ID="${newVersion}"\nVERSION_CODENAME=beryllium\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n`);
-                vfs.writeFile('/etc/issue', `${newPrettyName} \\n \\l\n`);
-                vfs.writeFile('/etc/motd', `\n=======================================================\n  Welcome to ${newPrettyName} (Linux 6.10.0-generic)\n  * Full Modern Desktop Suite Unlocked!\n  * Documentation:  https://krypton-os.org/docs\n  * Support:        https://krypton-os.org/support\n=======================================================\n`);
+                // Update /var/lib/dpkg/status with upgraded package entries
+                let statusContent = vfs.readFile('/var/lib/dpkg/status') || '';
+                for (const u of upgradables) {
+                    const newEntry = `Package: ${u.available.id}\nStatus: install ok installed\nPriority: optional\nSection: ${u.available.section || 'universe'}\nInstalled-Size: ${u.available.installed_size || u.available.size || 1024}\nMaintainer: ${u.available.maintainer || 'Krypton Maintainers <packages@krypton-os.org>'}\nArchitecture: ${u.available.architecture || 'amd64'}\nVersion: ${u.available.version}\nDescription: ${u.available.summary || u.available.description || u.available.name}\n\n`;
+                    if (statusContent.includes(`Package: ${u.available.id}`)) {
+                        statusContent = statusContent.replace(new RegExp(`Package: ${u.available.id}[\\s\\S]*?\\n\\n`, 'g'), newEntry);
+                    } else {
+                        statusContent += newEntry;
+                    }
+                }
+                vfs.writeFile('/var/lib/dpkg/status', statusContent);
+                vfs.writeFile('/var/run/reboot-required', '*** System restart required ***\n');
                 vfs.saveFileSystem();
 
-                localStorage.setItem('krypton_os_version', newVersion);
-                localStorage.setItem('krypton_upgraded_lts', 'true');
-                window.dispatchEvent(new CustomEvent('krypton_system_upgraded'));
-                story.showToast('🚀 System Upgraded', `Krypton 1.0 LTS packages ready. Type 'sudo reboot' in Terminal to restart.`, 'info');
+                story.showToast('🚀 System Upgraded', `Krypton 1.0 LTS packages staged. Run 'sudo reboot' in Terminal to restart.`, 'info');
             }
         });
         return;
@@ -2936,7 +3022,7 @@ async function executeAptCommand(args, isRoot, callback) {
             callback({ lines: [{ text: "apt: missing package name to show", type: 'error' }], exitCode: 1 });
             return;
         }
-        const found = packages.find(p => p.id === pkg || p.name === pkg);
+        const found = packages.find(p => p.id === pkg || p.name === pkg || p.id === `krypton-${pkg}`);
         if (found) {
             callback({
                 lines: [
@@ -2945,7 +3031,7 @@ async function executeAptCommand(args, isRoot, callback) {
                     { text: `Priority: optional`, type: 'normal' },
                     { text: `Section: ${found.section || 'universe'}`, type: 'normal' },
                     { text: `Maintainer: ${found.maintainer || 'Krypton Maintainers <pkg@krypton-os.org>'}`, type: 'normal' },
-                    { text: `Installed-Size: ${found.size || 512} B`, type: 'normal' },
+                    { text: `Installed-Size: ${found.installed_size || found.size || 512} B`, type: 'normal' },
                     { text: `Architecture: ${found.architecture || found.arch || 'amd64'}`, type: 'normal' },
                     { text: `Archive-File: /apt/${found.file || (found.id + '.deb')}`, type: 'muted' },
                     { text: `Description: ${found.summary || found.description}`, type: 'normal' }
@@ -2959,36 +3045,38 @@ async function executeAptCommand(args, isRoot, callback) {
     }
 
     if (subCmd === 'list') {
-        const curVer = getOsVersion();
         const isUpgradableFlag = args.includes('--upgradable') || args.includes('-u');
 
         if (isUpgradableFlag) {
-            if (curVer !== '1.0.0.0') {
-                callback({
-                    lines: [
-                        { text: "Listing... Done", type: 'muted' },
-                        { text: `krypton-browser/stable 1.0.0-release amd64 [upgradable from: ${curVer}]`, type: 'cyan' },
-                        { text: `krypton-calculator/stable 1.0.2-release amd64 [upgradable from: ${curVer}]`, type: 'cyan' },
-                        { text: `krypton-settings/stable 1.0.0-release amd64 [upgradable from: ${curVer}]`, type: 'cyan' }
-                    ],
-                    exitCode: 0
-                });
-            } else {
+            const upgradables = getUpgradablePackages(packages);
+            if (upgradables.length === 0) {
                 callback({
                     lines: [{ text: "Listing... Done", type: 'muted' }],
                     exitCode: 0
                 });
+            } else {
+                const lines = [{ text: "Listing... Done", type: 'muted' }];
+                upgradables.forEach(u => {
+                    lines.push({
+                        text: `${u.available.name}/${u.available.section || 'universe'} ${u.available.version} ${u.available.architecture || 'amd64'} [upgradable from: ${u.installed.version}]`,
+                        type: 'cyan'
+                    });
+                });
+                callback({ lines, exitCode: 0 });
             }
             return;
         }
 
+        const installed = parseDpkgStatus();
         const lines = [
             { text: `Listing... Done (/apt repository - ${packages.length} available)`, type: 'muted' }
         ];
         packages.forEach(p => {
+            const isInst = installed.find(i => i.id === p.id || i.name === p.id || i.id === `krypton-${p.id}`);
+            const stateStr = isInst ? `[installed: ${isInst.version}]` : `[available: ${p.file || p.id + '.deb'}]`;
             lines.push({
-                text: `${p.name}/${p.section || 'universe'} ${p.version} ${p.architecture || p.arch || 'amd64'} [available: ${p.file || p.id + '.deb'}]`,
-                type: p.id === 'antigravity' ? 'cyan' : 'normal'
+                text: `${p.name}/${p.section || 'universe'} ${p.version} ${p.architecture || p.arch || 'amd64'} ${stateStr}`,
+                type: isInst ? 'success' : (p.id === 'antigravity' ? 'cyan' : 'normal')
             });
         });
         callback({ lines, exitCode: 0 });
@@ -3032,7 +3120,6 @@ async function executeAptCommand(args, isRoot, callback) {
             const debUrl = `https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/${debFilename}`;
             const localDebUrl = `./apt/${debFilename}`;
 
-            // Check if cached in IndexedDB
             idbStore.get('packages', found.id).then(async (cachedPkg) => {
                 let pkgMeta = cachedPkg;
                 let downloadedFresh = false;
@@ -3057,7 +3144,6 @@ async function executeAptCommand(args, isRoot, callback) {
                 const hashStr = pkgMeta ? pkgMeta.sha256.substring(0, 16) + '...' : 'verified';
                 const sizeKb = pkgMeta ? (pkgMeta.size / 1024).toFixed(1) : '5.2';
 
-                // Extract all files from .deb package payload into VFS
                 let extractedFilesCount = 0;
                 try {
                     const parsedDeb = JSON.parse(pkgMeta.text || pkgMeta.data);
@@ -3070,17 +3156,15 @@ async function executeAptCommand(args, isRoot, callback) {
                         }
                     }
                 } catch (e) {
-                    // Fallback stub if plain text deb
                     vfs.writeFile(`/usr/bin/${found.id}`, `#!/bin/bash\n# ${found.name} binary\n`);
                 }
 
-                // Handle special side-effects
                 if (found.id === 'antigravity') story.setAntigravity(true);
                 if (found.id === 'adblock' || found.id === 'krypton-adblock') story.setAdblock(true);
 
                 // Update /var/lib/dpkg/status
                 const currentDpkgStatus = vfs.readFile('/var/lib/dpkg/status') || '';
-                const newPkgEntry = `Package: ${found.id}\nStatus: install ok installed\nPriority: optional\nSection: ${found.section || 'universe'}\nInstalled-Size: ${found.size || 512}\nMaintainer: ${found.maintainer || 'Krypton Maintainers <pkg@krypton-os.org>'}\nArchitecture: ${found.architecture || found.arch || 'amd64'}\nVersion: ${found.version}\nDescription: ${found.summary || found.description || found.name}\n\n`;
+                const newPkgEntry = `Package: ${found.id}\nStatus: install ok installed\nPriority: optional\nSection: ${found.section || 'universe'}\nInstalled-Size: ${found.installed_size || found.size || 512}\nMaintainer: ${found.maintainer || 'Krypton Maintainers <packages@krypton-os.org>'}\nArchitecture: ${found.architecture || found.arch || 'amd64'}\nVersion: ${found.version}\nDescription: ${found.summary || found.description || found.name}\n\n`;
                 if (!currentDpkgStatus.includes(`Package: ${found.id}`)) {
                     vfs.writeFile('/var/lib/dpkg/status', currentDpkgStatus + newPkgEntry);
                 }
@@ -3099,11 +3183,12 @@ async function executeAptCommand(args, isRoot, callback) {
                         { text: cacheNotice, type: 'normal' },
                         { text: `Fetched ${sizeKb} kB in 0s - [SHA256: ${hashStr}]`, type: 'muted' },
                         { text: `Selecting previously unselected package ${found.name}.`, type: 'muted' },
-                        { text: `(Reading database ... 42180 files and directories currently installed.)`, type: 'muted' },
+                        { text: `(Reading database ... ${totalVfsFiles} files and directories currently installed.)`, type: 'muted' },
                         { text: `Preparing to unpack /var/cache/apt/archives/${debFilename} ...`, type: 'normal' },
                         { text: `Unpacking ${found.name} (${found.version}) [${extractedFilesCount} files extracted to VFS] ...`, type: 'normal' },
                         { text: `Setting up ${found.name} (${found.version}) ...`, type: 'success' },
-                        { text: `Processing triggers for desktop-file-utils (0.26-1) ...`, type: 'muted' },
+                        { text: `Processing triggers for krypton-desktop...`, type: 'muted' },
+                        { text: `Updating desktop application registry (/usr/share/applications)... Done`, type: 'muted' },
                         { text: `[ OK ] Package '${found.name}' installed successfully.`, type: 'info' }
                     ],
                     exitCode: 0
@@ -3111,6 +3196,66 @@ async function executeAptCommand(args, isRoot, callback) {
             });
             return;
         }
+
+        callback({
+            lines: [{ text: `E: Unable to locate package ${pkg} in /apt repository. Try 'apt list' or 'apt search <query>'`, type: 'error' }],
+            exitCode: 100
+        });
+        return;
+    }
+
+    if (subCmd === 'remove' || subCmd === 'purge') {
+        if (!pkg) {
+            callback({ lines: [{ text: "apt: missing package name operand", type: 'error' }], exitCode: 1 });
+            return;
+        }
+
+        if (pkg === 'antigravity') {
+            story.setAntigravity(false);
+        } else if (pkg === 'adblock' || pkg === 'krypton-adblock') {
+            story.setAdblock(false);
+        }
+
+        // Standard package removal
+        const targetsToRemove = [
+            `/usr/bin/${pkg}`,
+            `/usr/bin/krypton-${pkg}`,
+            `/usr/games/${pkg}`,
+            `/usr/lib/${pkg}`,
+            `/usr/lib/krypton-${pkg}`,
+            `/usr/share/applications/${pkg}.desktop`,
+            `/usr/share/applications/${pkg.replace('krypton-', '')}.desktop`
+        ];
+
+        targetsToRemove.forEach(p => {
+            if (vfs.exists(p)) vfs.remove(p);
+        });
+
+        // Invalidate dynamic module cache
+        if (window.appLoader) {
+            window.appLoader.invalidateCache(pkg);
+        }
+
+        // Update dpkg status
+        const dpkgStatus = vfs.readFile('/var/lib/dpkg/status') || '';
+        if (dpkgStatus.includes(`Package: ${pkg}`)) {
+            vfs.writeFile('/var/lib/dpkg/status', dpkgStatus.replace(new RegExp(`Package: ${pkg}[\\s\\S]*?\\n\\n`, 'g'), ''));
+        }
+
+        vfs.saveFileSystem();
+        window.dispatchEvent(new CustomEvent('krypton_packages_changed', { detail: { action: 'remove', package: pkg } }));
+
+        callback({
+            lines: [
+                { text: `Reading package lists... Done`, type: 'normal' },
+                { text: `Removing package ${pkg} ...`, type: 'warning' },
+                { text: `Purging binaries, libraries, and desktop entries for ${pkg} from VFS ...`, type: 'muted' },
+                { text: `Package '${pkg}' removed successfully.`, type: 'success' }
+            ],
+            exitCode: 0
+        });
+        return;
+    }
 
         callback({
             lines: [{ text: `E: Unable to locate package ${pkg} in /apt repository. Try 'apt list' or 'apt search <query>'`, type: 'error' }],

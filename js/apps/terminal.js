@@ -590,15 +590,52 @@ function executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prev
         }
     }
 
+    if (commands.length === 0) {
+        callback({ lines: [], exitCode: 0 });
+        return;
+    }
+
+    // Fast-path: single command without chaining
+    if (commands.length === 1) {
+        executePipeline(commands[0], currentDir, currentUser, env, aliases, prevDir, callback);
+        return;
+    }
+
+    let accumulatedStreamLines = [];
     let accumulatedLines = [];
     let activeDir = currentDir;
     let activeUser = currentUser;
     let shouldClear = false;
+    let lastExitCode = 0;
+    let onCompleteCallbacks = [];
 
     let index = 0;
     const runNext = () => {
         if (index >= commands.length) {
-            callback({ lines: accumulatedLines, newDir: activeDir, newUser: activeUser, clear: shouldClear });
+            const finalOnComplete = () => {
+                onCompleteCallbacks.forEach(fn => {
+                    try { fn(); } catch (e) {}
+                });
+            };
+            if (accumulatedStreamLines.length > 0) {
+                callback({
+                    streamLines: accumulatedStreamLines,
+                    newDir: activeDir,
+                    newUser: activeUser,
+                    clear: shouldClear,
+                    exitCode: lastExitCode,
+                    onComplete: finalOnComplete
+                });
+            } else {
+                callback({
+                    lines: accumulatedLines,
+                    newDir: activeDir,
+                    newUser: activeUser,
+                    clear: shouldClear,
+                    exitCode: lastExitCode,
+                    onComplete: finalOnComplete
+                });
+            }
             return;
         }
 
@@ -607,12 +644,47 @@ function executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prev
             if (res.clear) shouldClear = true;
             if (res.newDir) activeDir = res.newDir;
             if (res.newUser) activeUser = res.newUser;
-            if (res.lines) accumulatedLines.push(...res.lines);
+            if (res.exitCode !== undefined) lastExitCode = res.exitCode;
+            if (res.onComplete) onCompleteCallbacks.push(res.onComplete);
 
-            if (res.stop) {
-                callback({ lines: accumulatedLines, newDir: activeDir, newUser: activeUser, clear: shouldClear });
+            if (res.streamLines && res.streamLines.length > 0) {
+                accumulatedStreamLines.push(...res.streamLines);
+            } else if (res.lines && res.lines.length > 0) {
+                if (accumulatedStreamLines.length > 0) {
+                    accumulatedStreamLines.push(...res.lines.map(l => ({ text: l.text, type: l.type || 'normal', delay: 40 })));
+                } else {
+                    accumulatedLines.push(...res.lines);
+                }
+            }
+
+            if (res.stop || lastExitCode !== 0) {
+                const finalOnComplete = () => {
+                    onCompleteCallbacks.forEach(fn => {
+                        try { fn(); } catch (e) {}
+                    });
+                };
+                if (accumulatedStreamLines.length > 0) {
+                    callback({
+                        streamLines: accumulatedStreamLines,
+                        newDir: activeDir,
+                        newUser: activeUser,
+                        clear: shouldClear,
+                        exitCode: lastExitCode,
+                        onComplete: finalOnComplete
+                    });
+                } else {
+                    callback({
+                        lines: accumulatedLines,
+                        newDir: activeDir,
+                        newUser: activeUser,
+                        clear: shouldClear,
+                        exitCode: lastExitCode,
+                        onComplete: finalOnComplete
+                    });
+                }
                 return;
             }
+
             runNext();
         });
     };
@@ -638,8 +710,18 @@ function executePipeline(pipelineStr, currentDir, currentUser, env, aliases, pre
     }
 
     const stageStrings = cleanPipeline.split('|').map(s => s.trim()).filter(Boolean);
-    let stageInput = null;
+    if (stageStrings.length === 0) {
+        callback({ lines: [], exitCode: 0 });
+        return;
+    }
 
+    // Direct execution path for non-piped commands (preserves streamLines, delay, onComplete, etc.)
+    if (stageStrings.length === 1 && !redirectFile) {
+        executeSingleCommand(stageStrings[0], currentDir, currentUser, env, aliases, prevDir, null, callback);
+        return;
+    }
+
+    let stageInput = null;
     let stageIdx = 0;
     const runStage = () => {
         if (stageIdx >= stageStrings.length) {
@@ -663,11 +745,8 @@ function executePipeline(pipelineStr, currentDir, currentUser, env, aliases, pre
                 return;
             }
 
-            if (res.lines) {
-                stageInput = res.lines.map(l => l.text).join('\n');
-            } else {
-                stageInput = '';
-            }
+            const outputLines = res.lines || (res.streamLines ? res.streamLines : []);
+            stageInput = outputLines.map(l => l.text).join('\n');
             runStage();
         });
     };

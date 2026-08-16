@@ -517,14 +517,16 @@ function initDragAndDropWallpaper() {
 }
 
 function initClock() {
-    const timeEl = document.getElementById('tray-time');
-    const dateEl = document.getElementById('tray-date');
-    if (!timeEl || !dateEl) return;
+    const timeEl = document.getElementById('clock-time') || document.getElementById('tray-time');
+    const dateEl = document.getElementById('clock-date') || document.getElementById('tray-date');
+    if (!timeEl) return;
 
     const update = () => {
         const now = new Date();
         timeEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        dateEl.textContent = now.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        if (dateEl) {
+            dateEl.textContent = now.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        }
     };
 
     update();

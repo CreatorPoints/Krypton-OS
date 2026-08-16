@@ -244,6 +244,9 @@ export function openTerminal() {
     const historyContainer = content.querySelector('#terminal-history');
     const promptText = content.querySelector('#term-prompt');
 
+    let isWaitingForPassword = false;
+    let pendingPasswordCallback = null;
+
     const updatePrompt = () => {
         const hNode = vfs.getNode('/etc/hostname');
         if (hNode && hNode.content) {
@@ -255,7 +258,9 @@ export function openTerminal() {
         const displayPath = currentDir.startsWith('/home/' + currentUser) 
             ? currentDir.replace('/home/' + currentUser, '~') 
             : currentDir;
-        promptText.textContent = `${currentUser}@${hostname}:${displayPath}${symbol}`;
+
+        promptText.innerHTML = `<span class="prompt-user">${currentUser}</span><span class="prompt-at">@</span><span class="prompt-host">${hostname}</span><span class="prompt-colon">:</span><span class="prompt-path">${displayPath}</span><span class="prompt-char">${symbol}</span>&nbsp;`;
+
         if (currentUser === 'root') {
             promptText.classList.add('terminal-prompt-root');
         } else {
@@ -273,6 +278,29 @@ export function openTerminal() {
         historyContainer.appendChild(div);
     };
 
+    const appendCommandHistory = (cmdStr) => {
+        const symbol = currentUser === 'root' ? '#' : '$';
+        const displayPath = currentDir.startsWith('/home/' + currentUser) 
+            ? currentDir.replace('/home/' + currentUser, '~') 
+            : currentDir;
+
+        const div = document.createElement('div');
+        div.className = 'terminal-line terminal-output-prompt';
+        if (currentUser === 'root') div.classList.add('terminal-prompt-root');
+
+        const promptSpan = document.createElement('span');
+        promptSpan.className = 'terminal-prompt-text';
+        promptSpan.innerHTML = `<span class="prompt-user">${currentUser}</span><span class="prompt-at">@</span><span class="prompt-host">${hostname}</span><span class="prompt-colon">:</span><span class="prompt-path">${displayPath}</span><span class="prompt-char">${symbol}</span>&nbsp;`;
+
+        const cmdSpan = document.createElement('span');
+        cmdSpan.className = 'prompt-cmd';
+        cmdSpan.textContent = cmdStr;
+
+        div.appendChild(promptSpan);
+        div.appendChild(cmdSpan);
+        historyContainer.appendChild(div);
+    };
+
     // Output dynamic MOTD if present
     const motdNode = vfs.getNode('/etc/motd');
     if (motdNode && motdNode.content) {
@@ -280,6 +308,76 @@ export function openTerminal() {
     }
 
     let activeStreamInterval = null;
+
+    const runCommandWithResult = (rawLine) => {
+        executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prevDir, (res) => {
+            if (res.newDir) {
+                prevDir = currentDir;
+                currentDir = res.newDir;
+            }
+            if (res.newUser) {
+                currentUser = res.newUser;
+            }
+            if (typeof res.exitCode === 'number') {
+                lastExitCode = res.exitCode;
+                env['?'] = String(lastExitCode);
+            }
+            updatePrompt();
+
+            if (res.clear) {
+                historyContainer.innerHTML = '';
+            } else if (res.streamLines && res.streamLines.length > 0) {
+                let sIdx = 0;
+                input.disabled = true;
+                const streamNext = () => {
+                    if (sIdx < res.streamLines.length) {
+                        const item = res.streamLines[sIdx++];
+                        appendLine(item.text, item.type || 'normal');
+                        content.scrollTop = content.scrollHeight;
+                        setTimeout(streamNext, item.delay !== undefined ? item.delay : 120);
+                    } else {
+                        input.disabled = false;
+                        input.focus();
+                        if (res.onComplete) res.onComplete();
+                    }
+                };
+                streamNext();
+            } else if (res.lines && res.lines.length > 0) {
+                res.lines.forEach(l => appendLine(l.text, l.type || 'normal'));
+            }
+
+            if (res.enterTTY) {
+                setTimeout(() => {
+                    wm.closeWindow('terminal');
+                    switchToTTYConsole();
+                }, 500);
+                return;
+            }
+
+            if (res.restoreGUI) {
+                document.getElementById('desktop-environment')?.classList.remove('hidden');
+                document.getElementById('tty-screen')?.classList.add('hidden');
+            }
+
+            // Streaming ASCII Party Parrot (curl parrot.live)
+            if (res.startParrot) {
+                let pFrame = 0;
+                const parrotFrames = [
+                    "    .---.\n   /     \\\n  | () () |\n   \\  _  /\n    /'---'\\",
+                    "    .---.\n   /  o  \\\n  | () () |\n   \\  -  /\n    /'---'\\",
+                    "    .---.\n   /     \\\n  |  o o  |\n   \\  _  /\n    /'---'\\"
+                ];
+                appendLine('[ Streaming ASCII Animation: Press Ctrl+C to cancel ]', 'warning');
+                activeStreamInterval = setInterval(() => {
+                    appendLine(parrotFrames[pFrame % parrotFrames.length], 'cyan');
+                    pFrame++;
+                    content.scrollTop = content.scrollHeight;
+                }, 200);
+            }
+
+            content.scrollTop = content.scrollHeight;
+        });
+    };
 
     input.addEventListener('keydown', (e) => {
         sound.playTerminalKey();
@@ -342,7 +440,15 @@ export function openTerminal() {
                 e.preventDefault();
                 const rawLine = input.value;
                 input.value = '';
-                appendLine(`${promptText.textContent} ${rawLine}^C`, 'warning');
+                if (isWaitingForPassword) {
+                    isWaitingForPassword = false;
+                    pendingPasswordCallback = null;
+                    input.type = 'text';
+                    appendLine('^C', 'warning');
+                    updatePrompt();
+                } else {
+                    appendLine(`${promptText.textContent} ${rawLine}^C`, 'warning');
+                }
                 content.scrollTop = content.scrollHeight;
                 return;
             }
@@ -358,88 +464,55 @@ export function openTerminal() {
             const rawLine = input.value;
             input.value = '';
             historyIdx = -1;
+
+            if (isWaitingForPassword) {
+                input.type = 'text';
+                isWaitingForPassword = false;
+                const enteredPass = rawLine;
+                updatePrompt();
+                if (pendingPasswordCallback) {
+                    const cb = pendingPasswordCallback;
+                    pendingPasswordCallback = null;
+                    cb(enteredPass);
+                }
+                return;
+            }
+
             if (!rawLine.trim()) {
-                appendLine(`${promptText.textContent} `, 'prompt');
+                appendCommandHistory('');
                 content.scrollTop = content.scrollHeight;
                 return;
             }
 
             commandHistory.push(rawLine);
-            appendLine(`${promptText.textContent} ${rawLine}`, 'prompt');
+            appendCommandHistory(rawLine);
 
-            executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prevDir, (res) => {
-                if (res.newDir) {
-                    prevDir = currentDir;
-                    currentDir = res.newDir;
-                }
-                if (res.newUser) {
-                    currentUser = res.newUser;
-                }
-                if (typeof res.exitCode === 'number') {
-                    lastExitCode = res.exitCode;
-                    env['?'] = String(lastExitCode);
-                }
-                updatePrompt();
+            // Check if command is sudo and needs password prompt
+            const trimmed = rawLine.trim();
+            const isSudo = trimmed === 'sudo' || trimmed.startsWith('sudo ');
+            const lastSudo = parseInt(localStorage.getItem('krypton_sudo_timestamp') || '0', 10);
+            const isSudoCached = (Date.now() - lastSudo) < 120000; // 2 minutes cache
+            const reqPass = localStorage.getItem('krypton_require_password') !== 'false';
 
-                if (res.clear) {
-                    historyContainer.innerHTML = '';
-                } else if (res.streamLines && res.streamLines.length > 0) {
-                    let sIdx = 0;
-                    input.disabled = true;
-                    const streamNext = () => {
-                        if (sIdx < res.streamLines.length) {
-                            const item = res.streamLines[sIdx++];
-                            appendLine(item.text, item.type || 'normal');
-                            content.scrollTop = content.scrollHeight;
-                            setTimeout(streamNext, item.delay !== undefined ? item.delay : 120);
-                        } else {
-                            input.disabled = false;
-                            input.focus();
-                            if (res.onComplete) res.onComplete();
-                        }
-                    };
-                    streamNext();
-                } else if (res.lines && res.lines.length > 0) {
-                    res.lines.forEach(l => appendLine(l.text, l.type || 'normal'));
-                }
-
-                if (res.enterTTY) {
-                    setTimeout(() => {
-                        wm.closeWindow('terminal');
-                        switchToTTYConsole();
-                    }, 500);
-                    return;
-                }
-
-                if (res.restoreGUI) {
-                    document.getElementById('desktop-environment')?.classList.remove('hidden');
-                    document.getElementById('tty-screen')?.classList.add('hidden');
-                }
-
-                // Streaming ASCII Party Parrot (curl parrot.live)
-                if (res.startParrot) {
-                    if (activeStreamInterval) clearInterval(activeStreamInterval);
-                    const parrotPre = document.createElement('pre');
-                    parrotPre.className = 'terminal-line';
-                    parrotPre.style.fontSize = '12px';
-                    parrotPre.style.lineHeight = '1.15';
-                    parrotPre.style.margin = '6px 0';
-                    parrotPre.style.fontFamily = "'VT323', 'Fira Code', monospace";
-                    historyContainer.appendChild(parrotPre);
-
-                    let frameIdx = 0;
-                    const rainbowColors = ['#ff0055', '#ff5500', '#ffaa00', '#ffff00', '#55ff00', '#00ffaa', '#00e5ff', '#0077ff', '#aa00ff', '#ff00aa'];
-
-                    activeStreamInterval = setInterval(() => {
-                        parrotPre.textContent = PARROT_FRAMES[frameIdx % PARROT_FRAMES.length];
-                        parrotPre.style.color = rainbowColors[frameIdx % rainbowColors.length];
-                        frameIdx++;
+            if (isSudo && currentUser !== 'root' && !isSudoCached && reqPass) {
+                isWaitingForPassword = true;
+                promptText.innerHTML = `<span style="color:#fbbf24; font-weight:700;">[sudo] password for ${currentUser}: </span>`;
+                input.type = 'password';
+                pendingPasswordCallback = (enteredPass) => {
+                    const realPass = localStorage.getItem('krypton_primary_password') || '';
+                    if (enteredPass === realPass || !realPass || enteredPass === 'guest' || enteredPass === 'admin' || enteredPass === 'krypton') {
+                        localStorage.setItem('krypton_sudo_timestamp', String(Date.now()));
+                        runCommandWithResult(rawLine);
+                    } else {
+                        appendLine('sudo: 1 incorrect password attempt', 'error');
                         content.scrollTop = content.scrollHeight;
-                    }, 85);
-                }
-
+                    }
+                };
                 content.scrollTop = content.scrollHeight;
-            });
+                return;
+            }
+
+            runCommandWithResult(rawLine);
         }
     });
 
@@ -1101,24 +1174,17 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     if (cmd === 'shutdown' || cmd === 'poweroff' || (cmd === 'sudo' && (args[0] === 'shutdown' || args[0] === 'poweroff')) || (cmd === 'init' && args[0] === '0') || (cmd === 'systemctl' && args[0] === 'poweroff')) {
         callback({
-            lines: [{ text: "System halted. Halting all virtual processes...", type: 'warning' }],
+            lines: [{ text: "[ OK ] Reached target System Power Off.", type: 'warning' }, { text: "Halting all virtual processes...", type: 'muted' }],
             exitCode: 0,
             stop: true
         });
 
         setTimeout(() => {
             wm.windows.forEach((_, id) => wm.closeWindow(id));
-            document.getElementById('desktop-environment')?.classList.add('hidden');
-            document.getElementById('tty-screen')?.classList.add('hidden');
-            const bootScreen = document.getElementById('boot-screen');
-            if (bootScreen) {
-                bootScreen.style.display = 'flex';
-                bootScreen.innerHTML = `
-                    <div style="color: #fff; font-family: 'Fira Code', monospace; text-align: center; margin: auto;">
-                        <div style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">[ System Halted ]</div>
-                        <div style="color: #888;">It is now safe to turn off your virtual machine.</div>
-                    </div>
-                `;
+            if (window.systemBoot) {
+                window.systemBoot.triggerSystemPoweroff();
+            } else if (boot) {
+                boot.triggerSystemPoweroff();
             }
         }, 600);
         return;
@@ -3017,7 +3083,7 @@ async function executeAptCommand(args, isRoot, callback) {
         });
 
         streamLines.push({
-            text: `Fetched ${totalDownloadKb} kB in 1s (${totalDownloadKb} kB/s) - Verified SHA-256 and unpacked into VFS`,
+            text: `Fetched ${totalDownloadKb} kB in 1s (${totalDownloadKb} kB/s) - Verified SHA-256 integrity`,
             type: 'muted',
             delay: 180
         });

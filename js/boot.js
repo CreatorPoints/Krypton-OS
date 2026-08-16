@@ -749,10 +749,116 @@ export class MasterBootEngine {
         setTimeout(() => { if (fill) fill.style.width = '100%'; }, 1300);
 
         setTimeout(() => {
-            this.container.style.display = 'none';
-            checkEnvironmentState();
-            document.getElementById('desktop-environment').classList.remove('hidden');
+            const reqPass = localStorage.getItem('krypton_require_password');
+            if (reqPass === 'true') {
+                this.showLoginScreen();
+            } else {
+                this.container.style.display = 'none';
+                checkEnvironmentState();
+                document.getElementById('desktop-environment').classList.remove('hidden');
+            }
         }, 1700);
+    }
+
+    showLoginScreen() {
+        this.phase = 'LOGIN_SCREEN';
+        const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
+        const hostname = localStorage.getItem('krypton_hostname') || 'krypton-station';
+        const googleAcc = localStorage.getItem('krypton_google_account');
+        let avatarContent = primaryUser[0].toUpperCase();
+        let displayName = primaryUser;
+        if (googleAcc) {
+            try {
+                const g = JSON.parse(googleAcc);
+                if (g.name) displayName = g.name;
+                if (g.picture) avatarContent = `<img src="${g.picture}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+            } catch (e) {}
+        }
+
+        this.container.style.display = 'block';
+        this.container.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: radial-gradient(circle at center, #0f172a 0%, #020617 100%); color: #ffffff; font-family: 'Outfit', sans-serif;">
+                <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 36px 40px; width: 360px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.8); backdrop-filter: blur(24px);">
+                    <div style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #0284c7, #06b6d4); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 28px; font-weight: 700; color: #fff; box-shadow: 0 4px 16px rgba(2, 132, 199, 0.4);">
+                        ${avatarContent}
+                    </div>
+                    <div style="font-size: 20px; font-weight: 700; color: #f8fafc; margin-bottom: 2px;">${displayName}</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 20px;">${primaryUser}@${hostname}</div>
+
+                    <form id="login-form" style="display: flex; flex-direction: column; gap: 12px;">
+                        <input type="password" id="login-pass-input" placeholder="Enter password..." autofocus style="width: 100%; padding: 10px 14px; border: 1px solid #334155; border-radius: 8px; background: #1e293b; color: #fff; font-size: 14px; outline: none; box-sizing: border-box;">
+                        <div id="login-err-msg" style="font-size: 12px; color: #ef4444; display: none;">Invalid password. Please try again.</div>
+                        <button type="submit" id="login-submit-btn" style="padding: 10px; background: #0284c7; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);">
+                            Log In ➔
+                        </button>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        const form = document.getElementById('login-form');
+        const passInput = document.getElementById('login-pass-input');
+        const errMsg = document.getElementById('login-err-msg');
+
+        if (form && passInput) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const entered = passInput.value;
+                const realPass = localStorage.getItem('krypton_primary_password') || '';
+                if (entered === realPass || !realPass) {
+                    localStorage.setItem('krypton_sudo_timestamp', String(Date.now()));
+                    this.container.style.display = 'none';
+                    checkEnvironmentState();
+                    document.getElementById('desktop-environment').classList.remove('hidden');
+                } else {
+                    if (errMsg) errMsg.style.display = 'block';
+                    passInput.value = '';
+                    passInput.focus();
+                }
+            });
+        }
+    }
+
+    triggerSystemPoweroff() {
+        this.clearTimers();
+        const desktop = document.getElementById('desktop-environment');
+        if (desktop) desktop.classList.add('hidden');
+        const tty = document.getElementById('tty-screen');
+        if (tty) tty.classList.add('hidden');
+
+        this.container.style.display = 'block';
+        this.container.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #000000; color: #ffffff; font-family: 'Outfit', sans-serif;">
+                <div id="poweroff-shutdown-text" style="font-size: 18px; color: #94a3b8; margin-bottom: 24px; transition: opacity 1s;">
+                    System is powering off...
+                </div>
+                <div id="poweroff-btn-container" style="display: none;">
+                    <button id="power-on-btn" style="display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: 1px solid #38bdf8; border-radius: 30px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 0 24px rgba(56, 189, 248, 0.4); transition: transform 0.2s, box-shadow 0.2s;">
+                        <span style="font-size: 20px;">⏻</span> Power On System
+                    </button>
+                </div>
+            </div>
+        `;
+
+        setTimeout(() => {
+            const shutdownText = document.getElementById('poweroff-shutdown-text');
+            if (shutdownText) shutdownText.style.opacity = '0';
+        }, 1200);
+
+        setTimeout(() => {
+            const shutdownText = document.getElementById('poweroff-shutdown-text');
+            if (shutdownText) shutdownText.style.display = 'none';
+            const btnContainer = document.getElementById('poweroff-btn-container');
+            if (btnContainer) btnContainer.style.display = 'block';
+
+            const powerBtn = document.getElementById('power-on-btn');
+            if (powerBtn) {
+                powerBtn.addEventListener('click', () => {
+                    this.container.innerHTML = '';
+                    this.start();
+                });
+            }
+        }, 2500);
     }
 
     showPostInstallBootOrderNotice() {
@@ -943,6 +1049,7 @@ export class MasterBootEngine {
 }
 
 export const boot = new MasterBootEngine();
+window.systemBoot = boot;
 
 // Global Hardware Reset Key Listener (Ctrl+Alt+Del or Ctrl+Shift+Del)
 window.addEventListener('keydown', (e) => {

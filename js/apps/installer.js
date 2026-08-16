@@ -17,13 +17,15 @@ export function openInstallerWizard() {
     let currentStep = 0;
     let selectedLang = 'English (US)';
     let selectedTz = 'UTC+05:30 - Kolkata (India)';
-    let connectedWifi = 'pass-1234ABC';
+    let connectedWifi = null;
+    let wifiFailuresCount = 0;
     let userName = 'Shrestangsu Dutta';
     let userHostname = 'krypton-station';
     let userLogin = 'shrestangsu';
     let userPassword = '';
     let confirmPassword = '';
-    let autoLogin = true;
+    let requirePassword = true;
+    let downloadRecommendedApps = true;
     let installInProgress = false;
     let installTimerInterval = null;
 
@@ -44,7 +46,8 @@ export function openInstallerWizard() {
         { id: 'lang', name: 'Language' },
         { id: 'timezone', name: 'Timezone' },
         { id: 'network', name: 'Network' },
-        { id: 'user', name: 'User & Google Auth' },
+        { id: 'user', name: 'User Setup' },
+        { id: 'software', name: 'Software Selection' },
         { id: 'disk', name: 'Destination Disk' },
         { id: 'install', name: 'Install' }
     ];
@@ -68,10 +71,10 @@ export function openInstallerWizard() {
                     ${renderStepBody(currentStep)}
                 </div>
 
-                ${currentStep < 5 ? `
+                ${currentStep < 6 ? `
                     <div class="wizard-footer">
                         <button class="wizard-btn btn-prev" id="wiz-prev-btn" ${currentStep === 0 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''}>Back</button>
-                        ${currentStep === 4 ? `
+                        ${currentStep === 5 ? `
                             <button class="wizard-btn btn-install" id="wiz-install-btn">Install Now ▶</button>
                         ` : `
                             <button class="wizard-btn btn-next" id="wiz-next-btn">Next ➔</button>
@@ -104,7 +107,7 @@ export function openInstallerWizard() {
                 <div class="step-title">Date & Time Location</div>
                 <div class="step-subtitle">Select your regional timezone to calibrate system clock.</div>
                 <div class="tz-selector-card">
-                    <label style="font-size: 13px; font-weight: 600;">Region / Timezone:</label>
+                    <label style="font-size: 13px; font-weight: 600; color: #f8fafc;">Region / Timezone:</label>
                     <select class="tz-select" id="tz-dropdown">
                         <option value="UTC+05:30 - Kolkata (India)" ${selectedTz.includes('Kolkata') ? 'selected' : ''}>UTC+05:30 - Asia / Kolkata</option>
                         <option value="UTC+00:00 - London (GMT)" ${selectedTz.includes('London') ? 'selected' : ''}>UTC+00:00 - Europe / London</option>
@@ -117,11 +120,11 @@ export function openInstallerWizard() {
             `;
         } else if (stepIdx === 2) {
             const wifis = [
-                { ssid: 'pass-1234ABC', signal: '98%', locked: true },
+                { ssid: 'pass-1234ABC', signal: '98%', locked: true, hint: true },
+                { ssid: 'Neighbor_5G_Locked', signal: '100%', locked: true, neighborLocked: true },
                 { ssid: 'Office_Gigabit_5G', signal: '85%', locked: true },
-                { ssid: 'Lab_Internal_Network', signal: '60%', locked: true },
                 { ssid: 'Guest_WiFi_Free', signal: '45%', locked: false },
-                { ssid: 'Station_5GHz', signal: '80%', locked: true }
+                { ssid: 'Skip Network Setup (Offline)', signal: '--', locked: false, isOffline: true }
             ];
 
             return `
@@ -131,12 +134,12 @@ export function openInstallerWizard() {
                     ${wifis.map(w => {
                         const isConn = connectedWifi === w.ssid;
                         return `
-                            <div class="wifi-card ${isConn ? 'connected' : ''}" data-ssid="${w.ssid}" data-locked="${w.locked}">
+                            <div class="wifi-card ${isConn ? 'connected' : ''}" data-ssid="${w.ssid}" data-locked="${w.locked}" data-neighbor="${w.neighborLocked || false}" data-offline="${w.isOffline || false}">
                                 <div>
-                                    <div class="wifi-name">📶 ${w.ssid}</div>
-                                    <div style="font-size: 11px; color: #888;">Signal: ${w.signal} • ${w.locked ? '🔒 Encrypted WPA2-PSK' : '🔓 Open Network'}</div>
+                                    <div class="wifi-name">${w.isOffline ? '⚡' : '📶'} ${w.ssid}</div>
+                                    <div style="font-size: 11px; color: #94a3b8;">${w.isOffline ? 'Install base packages from local ISO image' : `Signal: ${w.signal} • ${w.locked ? '🔒 Encrypted WPA2-PSK' : '🔓 Open Network'}`}</div>
                                 </div>
-                                <div class="wifi-status-badge">${isConn ? '✓ Connected' : (w.locked ? 'Connect' : 'Join')}</div>
+                                <div class="wifi-status-badge">${isConn ? '✓ Connected' : (w.isOffline ? 'Select' : (w.locked ? 'Connect' : 'Join'))}</div>
                             </div>
                         `;
                     }).join('')}
@@ -145,7 +148,7 @@ export function openInstallerWizard() {
         } else if (stepIdx === 3) {
             return `
                 <div class="step-title">Who are you? (User & Account Setup)</div>
-                <div class="step-subtitle">Configure your workstation account. You can optionally link a Google Account.</div>
+                <div class="step-subtitle">Configure your workstation account credentials. Passwords are required for sudo administration.</div>
 
                 <div style="margin-bottom: 14px;">
                     ${googleAccount ? `
@@ -182,37 +185,71 @@ export function openInstallerWizard() {
 
                 <div class="user-form-card">
                     <div class="user-form-row">
-                        <label class="user-form-label">Full Name:</label>
+                        <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Full Name:</label>
                         <input type="text" class="user-form-input" id="wiz-realname-input" value="${userName}" placeholder="e.g. Shrestangsu Dutta" autocomplete="off" spellcheck="false">
                     </div>
                     <div class="user-form-row">
-                        <label class="user-form-label">Workstation Hostname:</label>
+                        <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Workstation Hostname:</label>
                         <input type="text" class="user-form-input" id="wiz-hostname-input" value="${userHostname}" placeholder="e.g. krypton-station" autocomplete="off" spellcheck="false">
-                        <span class="user-form-hint">Machine identifier used for terminal prompts (<code>${userLogin}@${userHostname}</code>).</span>
+                        <span class="user-form-hint" style="color: #94a3b8;">Machine identifier used for terminal prompts (<code>${userLogin}@${userHostname}</code>).</span>
                     </div>
                     <div class="user-form-row">
-                        <label class="user-form-label">Linux Username:</label>
+                        <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Linux Username <span style="color:#ef4444;">*</span>:</label>
                         <input type="text" class="user-form-input" id="wiz-username-input" value="${userLogin}" placeholder="e.g. guest" autocomplete="off" spellcheck="false">
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                         <div class="user-form-row">
-                            <label class="user-form-label">Password <span style="font-weight: normal; color: #888;">(optional)</span>:</label>
-                            <input type="password" class="user-form-input" id="wiz-password-input" value="${userPassword}" placeholder="Password..." autocomplete="off">
+                            <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Password <span style="color:#ef4444;">*</span>:</label>
+                            <input type="password" class="user-form-input" id="wiz-password-input" value="${userPassword}" placeholder="Required password..." autocomplete="off">
                         </div>
                         <div class="user-form-row">
-                            <label class="user-form-label">Confirm Password:</label>
+                            <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Confirm Password <span style="color:#ef4444;">*</span>:</label>
                             <input type="password" class="user-form-input" id="wiz-confirm-pass-input" value="${confirmPassword}" placeholder="Confirm password..." autocomplete="off">
                         </div>
                     </div>
-                    <div style="margin-top: 6px;">
-                        <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #e0e0e0; cursor: pointer;">
-                            <input type="checkbox" id="wiz-autologin-toggle" ${autoLogin ? 'checked' : ''}>
-                            Log in automatically on system startup
+                    <div style="margin-top: 10px; background: rgba(255,255,255,0.04); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 12px; color: #f8fafc; cursor: pointer;">
+                            <input type="checkbox" id="wiz-requirepass-toggle" ${requirePassword ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
+                            <span><strong>Need password to log in?</strong> (Require password on boot and sudo administration)</span>
                         </label>
                     </div>
                 </div>
             `;
         } else if (stepIdx === 4) {
+            return `
+                <div class="step-title">Software Selection</div>
+                <div class="step-subtitle">Configure standard core system and optional recommended application packages.</div>
+
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid #334155; border-radius: 8px; padding: 16px;">
+                        <div style="font-weight: 700; font-size: 14px; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                            <span>⚙️</span> Essential Core System Utilities (Mandatory)
+                        </div>
+                        <div style="font-size: 12px; color: #cbd5e1; line-height: 1.6;">
+                            The following system packages are essential and will always be installed into <code>/usr/bin</code> and registered with system control:
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; font-size: 12px; color: #e2e8f0;">
+                            <div style="padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 4px;">• <strong>Settings</strong> (Display & Themes)</div>
+                            <div style="padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 4px;">• <strong>Task Manager</strong> (Process Manager)</div>
+                            <div style="padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 4px;">• <strong>File Manager</strong> (VFS Storage Explorer)</div>
+                            <div style="padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 4px;">• <strong>Terminal Shell</strong> (Bourne-Again Shell)</div>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid #0284c7; border-radius: 8px; padding: 16px;">
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                            <input type="checkbox" id="wiz-recommended-apps-toggle" ${downloadRecommendedApps ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; cursor: pointer;">
+                            <div>
+                                <div style="font-weight: 700; font-size: 14px; color: #ffffff;">Download Recommended Optional Apps?</div>
+                                <div style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 4px;">
+                                    Downloads lightweight optional-essentials: <strong>Web Navigator</strong> (Alpha browser), <strong>Calculator</strong>, and <strong>Upgrade Notes</strong> editor.
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            `;
+        } else if (stepIdx === 5) {
             return `
                 <div class="step-title">Select Destination Storage Disk</div>
                 <div class="step-subtitle">Choose the target NVMe / SSD drive where KryptonOS will be installed.</div>
@@ -220,16 +257,16 @@ export function openInstallerWizard() {
                 <div class="drive-card selected">
                     <div class="drive-icon">💽</div>
                     <div class="drive-info">
-                        <div class="drive-name">[ Selected Target ] NVMe SSD: Samsung SSD 980 PRO 1TB (/dev/nvme0n1)</div>
-                        <div class="drive-size">1000.2 GB (931.5 GiB) • Partition Table: GPT (ext4 / EFI / Swap)</div>
+                        <div class="drive-name" style="color: #ffffff; font-weight: 700;">[ Selected Target ] NVMe SSD: Samsung SSD 980 PRO 1TB (/dev/nvme0n1)</div>
+                        <div class="drive-size" style="color: #94a3b8;">1000.2 GB (931.5 GiB) • Partition Table: GPT (ext4 / EFI / Swap)</div>
                     </div>
                 </div>
 
                 <div class="drive-card disabled">
                     <div class="drive-icon">💾</div>
                     <div class="drive-info">
-                        <div class="drive-name">[ Read-Only / Live Media ] USB Flash Drive: SanDisk Ultra 32GB (/dev/sda)</div>
-                        <div class="drive-size">31.2 GB • Live ISO Installer Medium</div>
+                        <div class="drive-name" style="color: #94a3b8;">[ Read-Only / Live Media ] USB Flash Drive: SanDisk Ultra 32GB (/dev/sda)</div>
+                        <div class="drive-size" style="color: #64748b;">31.2 GB • Live ISO Installer Medium</div>
                     </div>
                 </div>
 
@@ -237,7 +274,7 @@ export function openInstallerWizard() {
                     ⚠️ <strong>Warning:</strong> Installation will format target partition <code>/dev/nvme0n1p2</code> and install genuine upstream Krypton OS 0.1 Alpha.
                 </div>
             `;
-        } else if (stepIdx === 5) {
+        } else if (stepIdx === 6) {
             return `
                 <div class="step-title">Installing Krypton OS 0.1 Alpha (Real Stream from Repo)</div>
                 <div class="step-subtitle" id="installer-status-label">Connecting to upstream https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo...</div>
@@ -362,6 +399,20 @@ export function openInstallerWizard() {
             card.addEventListener('click', () => {
                 const ssid = card.getAttribute('data-ssid');
                 const locked = card.getAttribute('data-locked') === 'true';
+                const isNeighbor = card.getAttribute('data-neighbor') === 'true';
+                const isOffline = card.getAttribute('data-offline') === 'true';
+
+                if (isNeighbor) {
+                    story.showToast('Access Denied', 'The neighbor found out you snuck into his Wi-Fi, so he locked it and upgraded his signal strength to 100%. You cannot connect to this network.', 'error');
+                    return;
+                }
+
+                if (isOffline) {
+                    connectedWifi = 'Offline Mode';
+                    story.showToast('Offline Mode', 'Selected offline installation mode from local ISO.', 'info');
+                    render();
+                    return;
+                }
 
                 if (ssid === 'pass-1234ABC') {
                     showWifiPasswordWindow(ssid);
@@ -370,7 +421,7 @@ export function openInstallerWizard() {
                     story.showToast('Wi-Fi Connected', `Connected to open network "${ssid}".`, 'success');
                     render();
                 } else {
-                    story.showToast('Security Error', `Incorrect network security settings for "${ssid}".`, 'error');
+                    story.showToast('Security Error', `WPA2 authentication required for "${ssid}".`, 'error');
                 }
             });
         });
@@ -394,14 +445,22 @@ export function openInstallerWizard() {
         const usernameInput = content.querySelector('#wiz-username-input');
         const passwordInput = content.querySelector('#wiz-password-input');
         const confirmPassInput = content.querySelector('#wiz-confirm-pass-input');
-        const autologinToggle = content.querySelector('#wiz-autologin-toggle');
+        const requirePassToggle = content.querySelector('#wiz-requirepass-toggle');
 
         if (realnameInput) realnameInput.addEventListener('input', (e) => { userName = e.target.value; });
         if (hostnameInput) hostnameInput.addEventListener('input', (e) => { userHostname = e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''); e.target.value = userHostname; });
         if (usernameInput) usernameInput.addEventListener('input', (e) => { userLogin = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''); e.target.value = userLogin; });
         if (passwordInput) passwordInput.addEventListener('input', (e) => { userPassword = e.target.value; });
         if (confirmPassInput) confirmPassInput.addEventListener('input', (e) => { confirmPassword = e.target.value; });
-        if (autologinToggle) autologinToggle.addEventListener('change', (e) => { autoLogin = e.target.checked; });
+        if (requirePassToggle) requirePassToggle.addEventListener('change', (e) => { requirePassword = e.target.checked; });
+
+        // Step 4: Software Selection Toggle
+        const recAppsToggle = content.querySelector('#wiz-recommended-apps-toggle');
+        if (recAppsToggle) {
+            recAppsToggle.addEventListener('change', (e) => {
+                downloadRecommendedApps = e.target.checked;
+            });
+        }
 
         // Navigation Buttons
         const prevBtn = content.querySelector('#wiz-prev-btn');
@@ -419,21 +478,28 @@ export function openInstallerWizard() {
 
         if (nextBtn) {
             nextBtn.addEventListener('click', () => {
-                // Validation for User step
+                // Validation for Step 2 (Network)
+                if (currentStep === 2 && !connectedWifi) {
+                    connectedWifi = 'Offline Mode';
+                }
+
+                // Validation for Step 3 (User)
                 if (currentStep === 3) {
                     if (!userLogin.trim()) {
-                        userLogin = 'guest';
+                        showOSNoticeWindow('Username Required', 'Linux username cannot be empty.');
+                        return;
                     }
-                    if (!userHostname.trim()) {
-                        userHostname = 'krypton-station';
+                    if (!userPassword.trim()) {
+                        showOSNoticeWindow('Password Required', 'Password is required to secure your account and allow sudo administration.');
+                        return;
                     }
-                    if (userPassword && userPassword !== confirmPassword) {
+                    if (userPassword !== confirmPassword) {
                         showOSNoticeWindow('Password Mismatch', 'The passwords you entered do not match. Please verify them.');
                         return;
                     }
                 }
 
-                if (currentStep < 4) {
+                if (currentStep < 5) {
                     currentStep++;
                     render();
                 }
@@ -443,7 +509,7 @@ export function openInstallerWizard() {
         if (installBtn) {
             installBtn.addEventListener('click', () => {
                 showDiskConfirmWindow(() => {
-                    currentStep = 5;
+                    currentStep = 6;
                     render();
                     startDynamicOSInstallation();
                 });
@@ -453,35 +519,68 @@ export function openInstallerWizard() {
 
     const showWifiPasswordWindow = (ssid) => {
         const dialogContent = document.createElement('div');
-        dialogContent.style.cssText = 'display: flex; flex-direction: column; gap: 12px; color: #000; font-family: "Fira Code", monospace;';
+        dialogContent.style.cssText = 'display: flex; flex-direction: column; gap: 12px; color: #f8fafc; background: #0f172a; padding: 16px; font-family: "Outfit", sans-serif;';
 
         dialogContent.innerHTML = `
-            <div style="font-size: 13px; font-weight: bold; color: #000;">
-                Enter WPA2 Security Key for "${ssid}":
+            <div style="font-size: 14px; font-weight: 700; color: #38bdf8;">
+                🔒 Enter Security Key for "${ssid}"
             </div>
-            <input type="password" id="wifi-pass-input" placeholder="Security key..." style="width: 100%; padding: 8px 10px; border: 2px inset #808080; background: #fff; font-family: inherit; font-size: 13px;">
-            <div id="wifi-err-msg" style="font-size: 12px; color: #cc0000; display: none;">
+            <div style="font-size: 12px; color: #94a3b8;">
+                This network requires WPA2/WPA3 Pre-Shared Key (PSK) authentication.
+            </div>
+            <input type="password" id="wifi-pass-input" placeholder="Security key..." style="width: 100%; padding: 8px 12px; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #fff; font-family: monospace; font-size: 13px;">
+            
+            <div id="wifi-hint-msg" style="font-size: 12px; color: #f59e0b; background: rgba(245,158,11,0.1); border: 1px solid #f59e0b; padding: 8px; border-radius: 6px; display: ${wifiFailuresCount >= 3 ? 'block' : 'none'};">
+                💡 <strong>Hint:</strong> Have you seen the name? (The password is in the network name: <code>pass-1234ABC</code>)
+            </div>
+
+            <div id="wifi-err-msg" style="font-size: 12px; color: #ef4444; display: none;">
                 ❌ Authentication Error: Invalid Wi-Fi Password.
             </div>
+
             <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
-                <button id="wifi-btn-cancel" style="padding: 6px 14px; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; cursor: pointer; font-size: 12px;">Cancel</button>
-                <button id="wifi-btn-connect" style="padding: 6px 14px; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; cursor: pointer; font-size: 12px;">Connect</button>
+                <button id="wifi-btn-cancel" style="padding: 6px 14px; background: #334155; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">Cancel</button>
+                <button id="wifi-btn-connect" style="padding: 6px 14px; background: #0284c7; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">Connect</button>
             </div>
         `;
 
         const passInput = dialogContent.querySelector('#wifi-pass-input');
         const errMsg = dialogContent.querySelector('#wifi-err-msg');
+        const hintMsg = dialogContent.querySelector('#wifi-hint-msg');
         const btnConnect = dialogContent.querySelector('#wifi-btn-connect');
         const btnCancel = dialogContent.querySelector('#wifi-btn-cancel');
 
         wm.createWindow({
             id: 'wifi-pass-dialog',
-            title: `Wi-Fi Authentication - ${ssid}`,
+            title: `Wi-Fi Security - ${ssid}`,
             icon: '🔒',
-            width: 380,
-            height: 220,
+            width: 400,
+            height: 260,
             content: dialogContent
         });
+
+        const tryConnect = () => {
+            const pass = passInput.value.trim();
+            if (pass === 'pass-1234ABC' || pass === '1234ABC') {
+                connectedWifi = ssid;
+                wm.closeWindow('wifi-pass-dialog');
+                story.showToast('Wi-Fi Connected', `✓ Connected to "${ssid}" successfully!`, 'success');
+                render();
+            } else {
+                wifiFailuresCount++;
+                errMsg.style.display = 'block';
+                if (wifiFailuresCount >= 3 && hintMsg) {
+                    hintMsg.style.display = 'block';
+                }
+            }
+        };
+
+        btnConnect.addEventListener('click', tryConnect);
+        passInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') tryConnect();
+        });
+        btnCancel.addEventListener('click', () => wm.closeWindow('wifi-pass-dialog'));
+    };
 
         const tryConnect = () => {
             const pass = passInput.value.trim();
@@ -714,16 +813,44 @@ export function openInstallerWizard() {
             appendLog(`[ HTTP ] 200 OK: clock.deb [SHA256: ${clockDeb.sha256.substring(0, 16)}...] cached in IndexedDB`, '#48bb78');
         } catch (e) {}
 
-        // 5. Unpack .deb packages into target system
-        await executeStep('dpkg -i /var/cache/apt/archives/kryp-browser.deb (Krypton Web Navigator 0.1 Alpha)...', () => {
-            vfs.writeFile('/usr/bin/kryp-browser', '#!/bin/bash\nexec /usr/bin/krypton-browser-alpha "$@"\n');
-            vfs.writeFile('/usr/share/applications/kryp-browser.desktop', '[Desktop Entry]\nName=Web Navigator\nExec=kryp-browser\nIcon=🌐\nType=Application\nCategories=Network;WebBrowser;\nComment=Krypton Alpha Web Browser\n');
+        // 5. Unpack Essential Core System Applications (Always Installed)
+        await executeStep('dpkg -i /var/cache/apt/archives/krypton-settings.deb (Display & System Control)...', () => {
+            vfs.writeFile('/usr/bin/krypton-settings', '#!/bin/bash\nexec /usr/lib/krypton-settings/index.js "$@"\n');
+            vfs.writeFile('/usr/share/applications/settings.desktop', '[Desktop Entry]\nName=Settings\nExec=krypton-settings\nIcon=⚙️\nType=Application\nCategories=Settings;System;\nComment=Krypton Control Center\n');
+        }, 1200000);
+
+        await executeStep('dpkg -i /var/cache/apt/archives/krypton-taskmgr.deb (Process & Resource Monitor)...', () => {
+            vfs.writeFile('/usr/bin/krypton-taskmgr', '#!/bin/bash\nexec /usr/lib/krypton-taskmgr/index.js "$@"\n');
+            vfs.writeFile('/usr/share/applications/taskmgr.desktop', '[Desktop Entry]\nName=Task Manager\nExec=krypton-taskmgr\nIcon=📊\nType=Application\nCategories=System;Monitor;\nComment=Process & Performance Monitor\n');
         }, 1000000);
 
-        await executeStep('dpkg -i /var/cache/apt/archives/clock.deb (Vintage Taskbar Clock & Panel Daemon)...', () => {
-            vfs.writeFile('/usr/bin/clock', '#!/bin/bash\ndate\n');
-            vfs.writeFile('/usr/share/applications/clock.desktop', '[Desktop Entry]\nName=System Clock\nExec=clock\nIcon=🕒\nType=Application\nCategories=Utility;Clock;\nComment=Vintage Taskbar Clock\n');
-        }, 600000);
+        await executeStep('dpkg -i /var/cache/apt/archives/krypton-filemgr.deb (VFS File Storage Explorer)...', () => {
+            vfs.writeFile('/usr/bin/krypton-filemgr', '#!/bin/bash\nexec /usr/lib/krypton-filemgr/index.js "$@"\n');
+            vfs.writeFile('/usr/share/applications/filemgr.desktop', '[Desktop Entry]\nName=File Manager\nExec=krypton-filemgr\nIcon=📁\nType=Application\nCategories=System;FileManager;\nComment=Virtual File System Browser\n');
+        }, 1100000);
+
+        // 5.1 Unpack Optional Recommended Applications (if selected)
+        if (downloadRecommendedApps) {
+            await executeStep('dpkg -i /var/cache/apt/archives/kryp-browser.deb (Web Navigator Alpha Legacy Edition)...', () => {
+                vfs.writeFile('/usr/bin/kryp-browser', '#!/bin/bash\nexec /usr/bin/krypton-browser-alpha "$@"\n');
+                vfs.writeFile('/usr/share/applications/browser.desktop', '[Desktop Entry]\nName=Web Navigator\nExec=krypton-browser\nIcon=🌐\nType=Application\nCategories=Network;WebBrowser;\nComment=Krypton Web Navigator Alpha\n');
+            }, 1400000);
+
+            await executeStep('dpkg -i /var/cache/apt/archives/clock.deb (Vintage Taskbar Clock & Panel Daemon)...', () => {
+                vfs.writeFile('/usr/bin/clock', '#!/bin/bash\ndate\n');
+                vfs.writeFile('/usr/share/applications/clock.desktop', '[Desktop Entry]\nName=System Clock\nExec=clock\nIcon=🕒\nType=Application\nCategories=Utility;Clock;\nComment=Vintage Taskbar Clock\n');
+            }, 500000);
+
+            await executeStep('dpkg -i /var/cache/apt/archives/krypton-notes.deb (Notes & Documentation Editor)...', () => {
+                vfs.writeFile('/usr/bin/krypton-notes', '#!/bin/bash\nexec /usr/lib/krypton-notes/index.js "$@"\n');
+                vfs.writeFile('/usr/share/applications/notes.desktop', '[Desktop Entry]\nName=Upgrade Notes\nExec=krypton-notes\nIcon=📝\nType=Application\nCategories=Utility;TextEditor;\nComment=System Upgrade Instructions\n');
+            }, 700000);
+
+            await executeStep('dpkg -i /var/cache/apt/archives/krypton-calculator.deb (Scientific Calculator)...', () => {
+                vfs.writeFile('/usr/bin/krypton-calculator', '#!/bin/bash\nexec /usr/lib/krypton-calculator/index.js "$@"\n');
+                vfs.writeFile('/usr/share/applications/calculator.desktop', '[Desktop Entry]\nName=Calculator\nExec=krypton-calculator\nIcon=🧮\nType=Application\nCategories=Utility;Calculator;\nComment=Scientific Calculator\n');
+            }, 800000);
+        }
 
         // 6. User Provisioning & Identity
         const effUser = userLogin.trim() || 'guest';
@@ -758,6 +885,8 @@ export function openInstallerWizard() {
             vfs.saveFileSystem();
 
             localStorage.setItem('krypton_primary_user', effUser);
+            localStorage.setItem('krypton_primary_password', userPassword);
+            localStorage.setItem('krypton_require_password', requirePassword ? 'true' : 'false');
             localStorage.setItem('krypton_hostname', effHost);
             localStorage.setItem('krypton_os_version', initialVersion);
             localStorage.setItem('krypton_os_installed', 'true');

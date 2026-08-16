@@ -1,0 +1,73 @@
+[BUG] When given password in installer, it doesnt asks for password in the main os (in both alpha and LTS)
+[FEATURE] Remove "Automatically log in" an instead say "Need password to log in?"
+[FEATURE] Passwords are nessescary in installer
+[FEATURE] sudo needs password (and make that password cached for 2 mins before the cache gets removed and password is again needed for sudo)
+[BUG] Some texts have very poor visibility,especially in installer
+[BUG] Wifi is automatically connected, dont do that
+[FEATURE] the guest wifi found out you snuck into his wifi, so he locked it. he also upgraded the wifi so his signal strenght is 100% bt you cant connect to it
+[FEATURE] make that after 3 consecutive failure in logging in to "pass-1234ABC" wifi, a "Hint: have you seen the name?" comes
+[FEATURE] another section in installer "Download Recommended apps?" which donloads optional-essentials: web browser, calculator, notes app and tats it
+[BUG] AYOOO, OS downloaded without settings?! make that hatever the option is for download recomended apps, apps like settings, task manager and system apps MST BE INSTALLED na dtheir logs shall be in the LOG and they should be actually installed not random bluff stuff.
+[BUG] After out put, visibility is crapy af, like in shrestangsudutta@krypton-devtest:~$ help, both becomes green, which make sit grappy. use different colors bro.
+[BUG] clock aint ticking bro, {possible reason: not downloaded, best fix: keep it as essential app}
+[FREATURE] poweroff in terminal softlocks you. instead in poweroff, play the plymouth and turn black screen, and after 2. secs a button comes which on pressing turns the system back on
+[BUG] typing && gives a visual bug where only one & is seen
+----------(gemini takes over the chat :skull:)--------------
+Here are the bugs and simulation logic discrepancies spotted in that terminal output:
+
+---
+
+**1. Contradictory Header / MOTD Instructions (UX Contradiction)**
+
+* Line 2 states: `Type 'help' for command list or 'man <command>' for documentation.`
+* The MOTD banner immediately contradicts it: `Restricted Shell: Only 'sudo apt update && sudo apt upgrade' supported.`
+* *Verdict:* If it's a strict upgrade sandbox shell, either remove the `help`/`man` prompt or allow `help` to display a restricted help guide.
+
+---
+
+**2. Premature Unpacking Log (`Fetched` vs `Unpacking` Phase)**
+
+* Line: `Fetched 78.9 kB in 1s (78.9 kB/s) - Verified SHA-256 and unpacked into VFS`
+* *The Bug:* In standard package managers (and in the lines right below it!), downloading and unpacking are separate phases.
+* Right after saying it already unpacked into the VFS, the terminal runs:
+```text
+(Reading database ... 200 files and directories currently installed.)
+Preparing to unpack .../base-files.deb ...
+Unpacking base-files (1.0.0) over (0.1.0-alpha) ...
+
+```
+
+
+* *Fix:* Change the fetch line to: `Fetched 78.9 kB in 1s (78.9 kB/s) - Verified SHA-256 integrity` (omit "and unpacked into VFS" until the `dpkg` unpack step actually executes).
+
+---
+
+**3. Archive Math Rounding Off by 0.1 kB**
+
+* Package downloads:
+* `base-files.deb`: **1.0 kB**
+* `linux-image-6.10.0-krypton-generic.deb`: **1.0 kB**
+* `krypton-browser.deb`: **73.9 kB**
+* `krypton-notes.deb`: **3.1 kB**
+* **Sum:** $1.0 + 1.0 + 73.9 + 3.1 = \mathbf{79.0\text{ kB}}$
+
+
+* The terminal reports: `Need to get 78.9 kB of archives.`
+* *Fix:* Ensure total archive size dynamically sums the exact float values before rounding.
+
+---
+
+**4. `0.0 kB of additional disk space will be used**`
+
+* You are replacing alpha stubs with full production payloads (`krypton-browser` jumps to 73.9 kB and `notes` to 3.1 kB).
+* Reporting `0.0 kB` delta across 4 upgraded packages looks like a hardcoded placeholder rather than a calculated uncompressed size delta (`Installed-Size` comparison).
+
+---
+
+**5. Sudo Authentication Was Bypassed**
+
+* Command executed: `sudo apt update && sudo apt upgrade`
+* No `[sudo] password for shrestangsudutta:` prompt was requested before escalating privileges.
+-------------------(gemini left the chat :skull:)--------------------
+[BUG] How the hell did the whole main os run in the pen drive, it should have prompted me to remove installation medium by the boot priority tweak to enter the ssd in order to access the installed os
+[BUG] when i was in the installed alpha os appraenty somehow on pen drive, when i rebooted, i went to bios, discarded changes, it played the lts plymouth but the old theme and the LITERALLY SAME state was preverve. what on the world is happened. this is bug cause by another bug apparently

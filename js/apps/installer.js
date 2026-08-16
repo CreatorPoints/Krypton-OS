@@ -5,7 +5,7 @@
 import { wm } from '../wm.js';
 import { sound } from '../sound.js';
 import { story } from '../story.js';
-import { vfs } from '../fs.js';
+import { vfs, idbStore, downloadWithMetrics } from '../fs.js';
 import { boot } from '../boot.js';
 
 export function openInstallerWizard() {
@@ -561,7 +561,7 @@ export function openInstallerWizard() {
     };
 
     // =========================================================================
-    // REAL STREAMING INSTALLATION ENGINE (FETCHES ROOTFS FROM KRYPTON-REPO)
+    // REAL STREAMING NETWORK INSTALLER (FETCHES MANIFEST & REAL PACKAGES)
     // =========================================================================
     const startDynamicOSInstallation = async () => {
         if (installInProgress) return;
@@ -576,6 +576,7 @@ export function openInstallerWizard() {
         const logBox = content.querySelector('#inst-term-logs');
 
         const startTime = Date.now();
+        let totalBytesDownloaded = 0;
 
         const appendLog = (msg, color = '#e2e8f0', isBold = false) => {
             if (!logBox) return;
@@ -589,70 +590,75 @@ export function openInstallerWizard() {
             logBox.scrollTop = logBox.scrollHeight;
         };
 
-        appendLog('Establishing TLS 1.3 socket to https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/Os/alpha/...', '#00e5ff');
+        appendLog('[ NET ] Initializing interface enp3s0 (IPv4: 192.168.1.142/24 via DHCP)...', '#00e5ff');
+        appendLog('[ NET ] DNS resolved raw.githubusercontent.com -> 185.199.108.133:443 (TLS 1.3)', '#00e5ff');
 
-        // Fetch genuine OS RootFS payload from Krypton-Repo/Os/alpha
+        // 1. Fetch genuine OS RootFS manifest from Krypton-Repo
+        appendLog('[ HTTP ] GET https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/Os/alpha/rootfs.json ...', '#cbd5e0');
         let rootfsPayload = null;
-        try {
-            const res = await fetch('https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/Os/alpha/rootfs.json');
-            if (res.ok) {
-                rootfsPayload = await res.json();
-                appendLog('HTTP/2 200 OK: Synchronized Os/alpha/rootfs.json image from Krypton-Repo.', '#48bb78');
-            }
-        } catch (err) {
-            appendLog('Warning: Upstream mirror offline/unreachable, failing over to local /Os/alpha/rootfs.json repository cache...', '#ecc94b');
-        }
+        let manifestMeta = null;
 
-        if (!rootfsPayload) {
+        try {
+            manifestMeta = await downloadWithMetrics(
+                'https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/Os/alpha/rootfs.json',
+                './Os/alpha/rootfs.json',
+                (chunk) => {
+                    totalBytesDownloaded += chunk.receivedBytes;
+                }
+            );
+            rootfsPayload = JSON.parse(manifestMeta.text);
+            await idbStore.put('manifests', { id: 'alpha_rootfs', payload: rootfsPayload, sha256: manifestMeta.sha256 });
+            appendLog(`[ HTTP ] 200 OK: Os/alpha/rootfs.json (${(manifestMeta.size / 1024).toFixed(1)} kB) [SHA256: ${manifestMeta.sha256.substring(0, 16)}...]`, '#48bb78', true);
+        } catch (err) {
+            appendLog('[ WARN ] Upstream repository unreachable. Falling back to local image archive...', '#ecc94b');
             try {
                 const localRes = await fetch('./Os/alpha/rootfs.json');
                 if (localRes.ok) {
                     rootfsPayload = await localRes.json();
-                    appendLog('Local archive verified: /Os/alpha/rootfs.json (Krypton OS 0.1 Alpha image loaded).', '#48bb78');
                 }
             } catch (e) {}
         }
 
         const filesToExtract = (rootfsPayload && rootfsPayload.files) ? Object.entries(rootfsPayload.files) : [
-            ['/boot/grub/grub.cfg', '# GRUB 2.06\nset default=0\nmenuentry "Krypton OS 0.1 Alpha" { linux /boot/vmlinuz-6.10.0-krypton-generic root=UUID=7f8a-99b2-krypton ro quiet splash\ninitrd /boot/initrd.img-6.10.0-krypton-generic\n}\n'],
-            ['/boot/vmlinuz-6.10.0-krypton-generic', 'ELF 64-bit LSB executable, x86-64, Linux 6.10.0-krypton-generic'],
-            ['/boot/initrd.img-6.10.0-krypton-generic', 'ASCII cpio archive (SVR4 with CRC), initial ramdisk rootfs image'],
+            ['/boot/grub/grub.cfg', '# GRUB 2.06\nset default=0\nmenuentry "Krypton OS 0.1 Alpha" { linux /boot/vmlinuz-2.0.0.14-generic-krypton root=UUID=7f8a-99b2-krypton ro quiet splash\ninitrd /boot/initrd.img-2.0.0.14-generic-krypton\n}\n'],
+            ['/boot/vmlinuz-2.0.0.14-generic-krypton', 'ELF 64-bit LSB executable, x86-64, Linux 2.0.0.14-generic-krypton'],
+            ['/boot/initrd.img-2.0.0.14-generic-krypton', 'ASCII cpio archive (SVR4 with CRC), initial ramdisk rootfs image'],
             ['/etc/os-release', 'NAME="KryptonOS"\nVERSION="0.1.0-alpha"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="Krypton OS 0.1 Alpha"\nVERSION_ID="0.1.0"\nVERSION_CODENAME=alpha\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n'],
             ['/etc/fstab', 'UUID=7f8a-99b2-krypton / ext4 errors=remount-ro 0 1\n'],
             ['/etc/apt/sources.list', 'deb https://deb.krypton-os.org/krypton beryllium main contrib non-free\ndeb https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/ beryllium main\n']
         ];
 
-        const totalSteps = filesToExtract.length + 12;
+        const totalSteps = filesToExtract.length + 14;
         let currentStepNum = 0;
-        let totalBytesCalculated = filesToExtract.reduce((acc, [, val]) => acc + (val ? val.length : 100), 0) + (1024 * 1024 * 38);
-        let transferredBytes = 0;
+        let simulatedTotalBytes = (manifestMeta ? manifestMeta.size : 50000) + (1024 * 1024 * 18);
+        let transferredBytes = manifestMeta ? manifestMeta.size : 5000;
 
         const updateMetrics = () => {
             const elapsed = Math.max(0.1, (Date.now() - startTime) / 1000);
             const pct = Math.min(100, (currentStepNum / totalSteps) * 100);
             const speedBytesPerSec = transferredBytes / elapsed;
             const speedMBs = speedBytesPerSec / (1024 * 1024);
-            const remainingBytes = Math.max(0, totalBytesCalculated - transferredBytes);
+            const remainingBytes = Math.max(0, simulatedTotalBytes - transferredBytes);
             const etaSec = speedBytesPerSec > 0 ? (remainingBytes / speedBytesPerSec) : 0;
 
             if (fillEl) fillEl.style.width = `${pct.toFixed(1)}%`;
             if (percentEl) percentEl.textContent = `${pct.toFixed(1)}% Completed`;
             if (timerEl) timerEl.textContent = `${elapsed.toFixed(1)}s`;
-            if (speedEl) speedEl.textContent = `⚡ ${(speedMBs + 85.0).toFixed(1)} MB/s`;
+            if (speedEl) speedEl.textContent = `⚡ ${(speedMBs + 12.4).toFixed(1)} MB/s`;
             if (etaEl) etaEl.textContent = pct >= 100 ? '✓ Completed' : `${etaSec.toFixed(1)}s remaining`;
         };
 
-        const executeStep = async (desc, action, byteCost = 500000) => {
+        const executeStep = async (desc, action, byteCost = 400000) => {
             currentStepNum++;
             transferredBytes += byteCost;
             if (statusLabel) statusLabel.textContent = desc;
             appendLog(desc, '#cbd5e0');
             updateMetrics();
             if (action) await action();
-            await new Promise(r => setTimeout(r, 90 + Math.random() * 80));
+            await new Promise(r => setTimeout(r, 80 + Math.random() * 60));
         };
 
-        // 1. Partition & Mount
+        // 2. Block Storage Partitioning & Format
         await executeStep('sfdisk /dev/nvme0n1: Writing GPT label (p1: EFI 512MB, p2: Root ext4 930GB, p3: Swap 4GB)...', () => {
             vfs.createDirectory('/boot');
             vfs.createDirectory('/boot/grub');
@@ -664,34 +670,62 @@ export function openInstallerWizard() {
             vfs.createDirectory('/var/lib/dpkg');
             vfs.createDirectory('/var/lib/apt');
             vfs.createDirectory('/var/lib/apt/lists');
+            vfs.createDirectory('/var/cache');
+            vfs.createDirectory('/var/cache/apt');
+            vfs.createDirectory('/var/cache/apt/archives');
             vfs.createDirectory('/usr');
             vfs.createDirectory('/usr/bin');
             vfs.createDirectory('/usr/share');
             vfs.createDirectory('/usr/share/applications');
-        }, 1000000);
-
-        await executeStep('mkfs.ext4 -F -O 64bit -L "krypton-root" /dev/nvme0n1p2 (blocksize=4096)...', null, 2000000);
-        await executeStep('mount -t ext4 /dev/nvme0n1p2 /mnt/target...', null, 500000);
-
-        // 2. Stream Extract each real file from Os/alpha
-        for (const [path, content] of filesToExtract) {
-            await executeStep(`GET Krypton-Repo/Os/alpha:${path} -> extract /mnt/target${path}`, () => {
-                vfs.writeFile(path, content);
-            }, (content ? content.length * 150 : 200000));
-        }
-
-        // 3. Install Deprecated Alpha Packages (/apt/deprecated/kryp-browser.deb, /apt/deprecated/clock.deb)
-        await executeStep('dpkg -i /apt/deprecated/kryp-browser.deb (Krypton Web Navigator 0.1 Alpha)...', () => {
-            vfs.writeFile('/usr/bin/kryp-browser', '#!/bin/bash\nexec /usr/bin/krypton-browser-alpha "$@"\n');
-            vfs.writeFile('/usr/share/applications/kryp-browser.desktop', '[Desktop Entry]\nName=Web Navigator\nExec=kryp-browser\nIcon=🌐\nType=Application\nCategories=Network;WebBrowser;\nComment=Krypton Alpha Web Browser\n');
-        }, 1200000);
-
-        await executeStep('dpkg -i /apt/deprecated/clock.deb (Vintage Taskbar Clock & Panel Daemon)...', () => {
-            vfs.writeFile('/usr/bin/clock', '#!/bin/bash\ndate\n');
-            vfs.writeFile('/usr/share/applications/clock.desktop', '[Desktop Entry]\nName=System Clock\nExec=clock\nIcon=🕒\nType=Application\nCategories=Utility;Clock;\nComment=Vintage Taskbar Clock\n');
         }, 800000);
 
-        // 4. User & Google Cloud Persistent Storage Account Provisioning
+        await executeStep('mkfs.ext4 -F -O 64bit,dir_index,sparse_super -L "krypton-root" /dev/nvme0n1p2 (blocksize=4096)...', null, 1500000);
+        await executeStep('mount -t ext4 -o rw,relatime,data=ordered /dev/nvme0n1p2 /mnt/target...', null, 400000);
+
+        // 3. Extract Filesystem Manifest Chunks
+        for (let i = 0; i < filesToExtract.length; i++) {
+            const [path, content] = filesToExtract[i];
+            await executeStep(`[${i + 1}/${filesToExtract.length}] Writing /mnt/target${path} (${(content ? content.length : 0)} B)...`, () => {
+                vfs.writeFile(path, content);
+            }, (content ? content.length * 100 : 80000));
+        }
+
+        // 4. Real Network Fetch of Deprecated Package Archives (.deb)
+        let browserDeb = null;
+        let clockDeb = null;
+
+        try {
+            appendLog('[ HTTP ] GET https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/deprecated/kryp-browser.deb ...', '#00e5ff');
+            browserDeb = await downloadWithMetrics(
+                'https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/deprecated/kryp-browser.deb',
+                './apt/deprecated/kryp-browser.deb'
+            );
+            await idbStore.put('packages', { name: 'kryp-browser', data: browserDeb.text, sha256: browserDeb.sha256, size: browserDeb.size });
+            appendLog(`[ HTTP ] 200 OK: kryp-browser.deb [SHA256: ${browserDeb.sha256.substring(0, 16)}...] cached in IndexedDB`, '#48bb78');
+        } catch (e) {}
+
+        try {
+            appendLog('[ HTTP ] GET https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/deprecated/clock.deb ...', '#00e5ff');
+            clockDeb = await downloadWithMetrics(
+                'https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/deprecated/clock.deb',
+                './apt/deprecated/clock.deb'
+            );
+            await idbStore.put('packages', { name: 'clock', data: clockDeb.text, sha256: clockDeb.sha256, size: clockDeb.size });
+            appendLog(`[ HTTP ] 200 OK: clock.deb [SHA256: ${clockDeb.sha256.substring(0, 16)}...] cached in IndexedDB`, '#48bb78');
+        } catch (e) {}
+
+        // 5. Unpack .deb packages into target system
+        await executeStep('dpkg -i /var/cache/apt/archives/kryp-browser.deb (Krypton Web Navigator 0.1 Alpha)...', () => {
+            vfs.writeFile('/usr/bin/kryp-browser', '#!/bin/bash\nexec /usr/bin/krypton-browser-alpha "$@"\n');
+            vfs.writeFile('/usr/share/applications/kryp-browser.desktop', '[Desktop Entry]\nName=Web Navigator\nExec=kryp-browser\nIcon=🌐\nType=Application\nCategories=Network;WebBrowser;\nComment=Krypton Alpha Web Browser\n');
+        }, 1000000);
+
+        await executeStep('dpkg -i /var/cache/apt/archives/clock.deb (Vintage Taskbar Clock & Panel Daemon)...', () => {
+            vfs.writeFile('/usr/bin/clock', '#!/bin/bash\ndate\n');
+            vfs.writeFile('/usr/share/applications/clock.desktop', '[Desktop Entry]\nName=System Clock\nExec=clock\nIcon=🕒\nType=Application\nCategories=Utility;Clock;\nComment=Vintage Taskbar Clock\n');
+        }, 600000);
+
+        // 6. User Provisioning & Identity
         const effUser = userLogin.trim() || 'guest';
         const effHost = userHostname.trim() || 'krypton-station';
 
@@ -709,18 +743,18 @@ export function openInstallerWizard() {
 
             vfs.writeFile(`/home/${effUser}/.bashrc`, `export PATH=$PATH:/usr/local/bin\nalias ll='ls -la'\nalias la='ls -A'\nalias cls='clear'\n`);
             vfs.writeFile(`/home/${effUser}/.profile`, `if [ -f ~/.bashrc ]; then . ~/.bashrc; fi\n`);
-            vfs.writeFile(`/home/${effUser}/Desktop/welcome_to_krypton.txt`, `=== Welcome to Krypton OS 0.1 Alpha ===\n\nUser: ${userName} (${effUser})\nWorkstation: ${effHost}\nStorage Target: Samsung SSD 980 PRO (/dev/nvme0n1p2)\n\nTo upgrade this system to the modern Krypton 1.0 LTS Desktop Suite:\nOpen Terminal and run:\n  sudo apt update && sudo apt upgrade\n`);
-        }, 1500000);
+            vfs.writeFile(`/home/${effUser}/Desktop/welcome_to_krypton.txt`, `=== Welcome to Krypton OS 0.1 Alpha ===\n\nUser: ${userName} (${effUser})\nWorkstation: ${effHost}\nStorage Target: Samsung SSD 980 PRO (/dev/nvme0n1p2)\nKernel: Linux 2.0.0.14-generic-krypton\n\nTo upgrade this system to the modern Linux 6.10 kernel and Krypton 1.0 LTS Desktop Suite:\nOpen Terminal and run:\n  sudo apt update && sudo apt upgrade\n`);
+        }, 1200000);
 
-        await executeStep('update-initramfs -c -k 6.10.0-krypton-generic (packing cpio modules)...', null, 3000000);
-        await executeStep('grub-install --target=x86_64-efi --efi-directory=/mnt/target/boot/efi /dev/nvme0n1...', null, 1200000);
-        await executeStep('sync: Flushing VFS dirty pages and unmounting /mnt/target...', () => {
+        await executeStep('update-initramfs -c -k 2.0.0.14-generic-krypton (packing cpio modules)...', null, 2500000);
+        await executeStep('grub-install --target=x86_64-efi --efi-directory=/mnt/target/boot/efi --bootloader-id=krypton /dev/nvme0n1...', null, 1000000);
+        await executeStep('sync: Flushing virtual dirty pages to IndexedDB / localStorage and unmounting /mnt/target...', () => {
             const initialVersion = "0.1.0-alpha";
             const initialPrettyName = "Krypton OS 0.1 Alpha";
 
             vfs.writeFile('/etc/os-release', `NAME="KryptonOS"\nVERSION="${initialVersion}"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="${initialPrettyName}"\nVERSION_ID="0.1.0"\nVERSION_CODENAME=alpha\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n`);
             vfs.writeFile('/etc/issue', `${initialPrettyName} \\n \\l\n`);
-            vfs.writeFile('/etc/motd', `\n=======================================================\n  Welcome to ${initialPrettyName} (Linux 6.10.0-generic)\n  * Base installation active on /dev/nvme0n1p2.\n  * To upgrade to modern Krypton 1.0 LTS Desktop Suite:\n    sudo apt update && sudo apt upgrade\n=======================================================\n`);
+            vfs.writeFile('/etc/motd', `\n=======================================================\n  Welcome to ${initialPrettyName} (Linux 2.0.0.14-generic-krypton)\n  * Base installation active on /dev/nvme0n1p2.\n  * Restricted Shell: Only 'sudo apt update && sudo apt upgrade' supported.\n  * Run 'sudo apt update && sudo apt upgrade' to upgrade to Linux 6.10.\n=======================================================\n`);
             vfs.saveFileSystem();
 
             localStorage.setItem('krypton_primary_user', effUser);
@@ -743,7 +777,7 @@ export function openInstallerWizard() {
         if (etaEl) etaEl.textContent = '0.0s (Finished)';
         if (statusLabel) statusLabel.textContent = `🎉 Krypton OS 0.1 Alpha Installed successfully!`;
 
-        appendLog(`[ SUCCESS ] Krypton OS 0.1 Alpha rootfs deployed! Unmounting /mnt/target...`, '#ffff55', true);
+        appendLog(`[ SUCCESS ] Krypton OS 0.1 Alpha rootfs deployed! Storage synchronized.`, '#ffff55', true);
         appendLog(`[ SYSTEM ] Invoking "sudo reboot" in 2.5 seconds...`, '#00e5ff', true);
 
         sound.playSuccess();

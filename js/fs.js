@@ -532,4 +532,172 @@ export class VirtualFileSystem {
     }
 }
 
+/* ==========================================================================
+   KryptonOS - IndexedDB Storage & Real Streaming Network Download Manager
+   ========================================================================== */
+export class IndexedDBStorage {
+    constructor() {
+        this.dbName = 'krypton_os_storage_db';
+        this.dbVersion = 1;
+        this.db = null;
+        this.initPromise = this.initDB();
+    }
+
+    async initDB() {
+        if (typeof window === 'undefined' || !('indexedDB' in window)) return null;
+        return new Promise((resolve) => {
+            try {
+                const request = indexedDB.open(this.dbName, this.dbVersion);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('packages')) {
+                        db.createObjectStore('packages', { keyPath: 'name' });
+                    }
+                    if (!db.objectStoreNames.contains('manifests')) {
+                        db.createObjectStore('manifests', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('block_ext4')) {
+                        db.createObjectStore('block_ext4', { keyPath: 'blockId' });
+                    }
+                };
+                request.onsuccess = (e) => {
+                    this.db = e.target.result;
+                    resolve(this.db);
+                };
+                request.onerror = () => resolve(null);
+            } catch (e) {
+                resolve(null);
+            }
+        });
+    }
+
+    async put(storeName, item) {
+        await this.initPromise;
+        if (!this.db) return false;
+        return new Promise((resolve) => {
+            try {
+                const tx = this.db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                const req = store.put(item);
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => resolve(false);
+            } catch (e) {
+                resolve(false);
+            }
+        });
+    }
+
+    async get(storeName, key) {
+        await this.initPromise;
+        if (!this.db) return null;
+        return new Promise((resolve) => {
+            try {
+                const tx = this.db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const req = store.get(key);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            } catch (e) {
+                resolve(null);
+            }
+        });
+    }
+
+    async computeSha256(contentStr) {
+        try {
+            if (typeof crypto !== 'undefined' && crypto.subtle) {
+                const buffer = new TextEncoder().encode(contentStr);
+                const digest = await crypto.subtle.digest('SHA-256', buffer);
+                const hashArray = Array.from(new Uint8Array(digest));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+        } catch (e) {}
+        // Fallback simple fast hash representation
+        let hash = 0;
+        for (let i = 0; i < contentStr.length; i++) {
+            hash = ((hash << 5) - hash) + contentStr.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash).toString(16).padStart(16, '0') + 'kryptonhash';
+    }
+}
+
+export const idbStore = new IndexedDBStorage();
+
+/**
+ * Real Streaming Network Download Client with Live Byte Counters & Progress
+ */
+export async function downloadWithMetrics(url, fallbackUrl = null, onChunk = null) {
+    const startTime = Date.now();
+    let response = null;
+    let usedUrl = url;
+
+    try {
+        response = await fetch(url);
+        if (!response.ok && fallbackUrl) {
+            response = await fetch(fallbackUrl);
+            usedUrl = fallbackUrl;
+        }
+    } catch (err) {
+        if (fallbackUrl) {
+            try {
+                response = await fetch(fallbackUrl);
+                usedUrl = fallbackUrl;
+            } catch (e2) {}
+        }
+    }
+
+    if (!response || !response.ok) {
+        throw new Error(`Failed to download from ${url} or ${fallbackUrl}`);
+    }
+
+    const contentLength = +(response.headers.get('Content-Length') || 0);
+    const reader = response.body && response.body.getReader ? response.body.getReader() : null;
+    let receivedBytes = 0;
+    let chunks = [];
+
+    if (reader) {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            receivedBytes += value.length;
+            if (onChunk) {
+                const elapsed = Math.max(0.01, (Date.now() - startTime) / 1000);
+                const speedBytesPerSec = receivedBytes / elapsed;
+                onChunk({
+                    receivedBytes,
+                    totalBytes: contentLength || receivedBytes,
+                    speedBytesPerSec,
+                    percent: contentLength ? Math.min(100, (receivedBytes / contentLength) * 100) : 100
+                });
+            }
+        }
+    } else {
+        const text = await response.text();
+        const textBytes = new TextEncoder().encode(text);
+        receivedBytes = textBytes.length;
+        chunks.push(textBytes);
+    }
+
+    const allBytes = new Uint8Array(receivedBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+        allBytes.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    const textContent = new TextDecoder().decode(allBytes);
+    const sha256 = await idbStore.computeSha256(textContent);
+
+    return {
+        url: usedUrl,
+        size: receivedBytes,
+        text: textContent,
+        bytes: allBytes,
+        sha256,
+        elapsedSec: (Date.now() - startTime) / 1000
+    };
+}
+
 export const vfs = new VirtualFileSystem();

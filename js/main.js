@@ -1,36 +1,25 @@
 /* ==========================================================================
-   Krypton-OS - Main System Desktop Bootstrap & Application Launcher
+   Krypton-OS - Main System Desktop Bootstrap & Dynamic Application Launcher
    ========================================================================== */
 
 import { wm } from './wm.js';
 import { vfs } from './fs.js';
 import { story } from './story.js';
 import { sound } from './sound.js';
-import { openBrowser } from './apps/browser.js';
-import { openTerminal } from './apps/terminal.js';
-import { openTaskManager } from './apps/taskmgr.js';
-import { openFileManager } from './apps/filemgr.js';
-import { openNotes } from './apps/notes.js';
-import { openCalculator } from './apps/calculator.js';
-import { openSettings, applyWallpaper } from './apps/settings.js';
-import { openMessages } from './apps/messages.js';
-import { openInstallerWizard } from './apps/installer.js';
 import { boot } from './boot.js';
+import { openTerminal } from './apps/terminal.js';
+import { openInstallerWizard } from './apps/installer.js';
+import { appLoader } from './loader.js';
 
-// Application Registry for Main OS
-const MAIN_APPS = [
-    { id: 'browser', title: 'Krypton Browser (WIP)', icon: '🌐', open: openBrowser },
-    { id: 'terminal', title: 'Terminal', icon: '💻', open: openTerminal },
-    { id: 'filemgr', title: 'File Explorer', icon: '📁', open: () => openFileManager() },
-    { id: 'notes', title: 'Text Editor', icon: '📝', open: () => {
-        const u = localStorage.getItem('krypton_primary_user') || 'guest';
-        openNotes('welcome_to_krypton.txt', vfs.readFile(`/home/${u}/Desktop/welcome_to_krypton.txt`) || vfs.readFile('/home/guest/Desktop/welcome_to_krypton.txt') || '=== Welcome to KryptonOS 1.0 LTS ===\n\nKryptonOS is installed and running on NVMe storage (/dev/nvme0n1p2)!');
-    } },
-    { id: 'taskmgr', title: 'System Monitor', icon: '📊', open: openTaskManager },
-    { id: 'calculator', title: 'Calculator', icon: '🧮', open: openCalculator },
-    { id: 'logs', title: 'System Logs', icon: '📋', open: openMessages },
-    { id: 'settings', title: 'Settings', icon: '⚙️', open: openSettings }
-];
+// Expose appLoader on window for global subsystem access
+window.appLoader = appLoader;
+
+// Register built-in core application launchers
+appLoader.registerBuiltin('terminal', openTerminal);
+appLoader.registerBuiltin('installer', openInstallerWizard);
+appLoader.registerBuiltin('clock', () => {
+    story.showToast('🕒 System Clock', new Date().toLocaleString(), 'info');
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     initWallpaper();
@@ -102,8 +91,8 @@ function initLiveSessionDesktop() {
     });
 
     const liveApps = [
-        { id: 'term', title: 'Terminal', icon: '💻', open: openTerminal },
-        { id: 'install', title: 'Install Krypton OS', icon: '💿', open: openInstallerWizard }
+        { id: 'terminal', title: 'Terminal', icon: '💻', open: openTerminal },
+        { id: 'installer', title: 'Install Krypton OS', icon: '💿', open: openInstallerWizard }
     ];
 
     setupStartMenu({
@@ -115,7 +104,7 @@ function initLiveSessionDesktop() {
 }
 
 /* --------------------------------------------------------------------------
-   2. Base Installed Desktop (Krypton Alpha OS: Buggy Browser + Terminal + APT)
+   2. Base Installed Desktop (Krypton Alpha OS: Vintage Navigator + Terminal + APT)
    -------------------------------------------------------------------------- */
 function initBaseInstalledDesktop() {
     document.body.className = 'theme-win98';
@@ -143,7 +132,7 @@ function initBaseInstalledDesktop() {
 
     document.getElementById('icon-browser')?.addEventListener('dblclick', () => {
         sound.playClick();
-        openBrowser();
+        appLoader.launch('browser');
     });
     document.getElementById('icon-terminal')?.addEventListener('dblclick', () => {
         sound.playClick();
@@ -151,7 +140,7 @@ function initBaseInstalledDesktop() {
     });
     document.getElementById('icon-readme')?.addEventListener('dblclick', () => {
         sound.playClick();
-        openNotes('upgrade_notes.txt', `=== Krypton OS 0.1 Alpha Base Installation ===\n\nKernel: Linux 2.0.0.14-generic-krypton (Vintage Alpha Subsystem)\nInstalled Packages: Base System, Web Navigator (Alpha), GNU Bash 2.0\n\nTo upgrade this system to the modern Linux 6.10 kernel and Krypton 1.0 LTS Desktop Suite:\n1. Open the Terminal\n2. Run the standard Debian upgrade command:\n     sudo apt update && sudo apt upgrade\n\nAll modern apps, Wayland compositor, and glass UI will be automatically unlocked!`);
+        appLoader.launch('notes', ['upgrade_notes.txt', `=== Krypton OS 0.1 Alpha Base Installation ===\n\nKernel: Linux 2.0.0.14-generic-krypton (Vintage Alpha Subsystem)\nInstalled Packages: Base System, Web Navigator (Alpha), GNU Bash 2.0\n\nTo upgrade this system to the modern Linux 6.10 kernel and Krypton 1.0 LTS Desktop Suite:\n1. Open the Terminal\n2. Run the standard Debian upgrade command:\n     sudo apt update && sudo apt upgrade\n\nAll modern apps, Wayland compositor, and glass UI will be automatically unlocked!`]);
     });
 
     document.querySelectorAll('.desktop-icon').forEach(icon => {
@@ -162,9 +151,9 @@ function initBaseInstalledDesktop() {
     });
 
     const baseApps = [
-        { id: 'nav', title: 'Web Navigator (Alpha)', icon: '🌐', open: openBrowser },
-        { id: 'term', title: 'Terminal', icon: '💻', open: openTerminal },
-        { id: 'notes', title: 'Upgrade Notes', icon: '📝', open: () => openNotes('upgrade_notes.txt', `=== Krypton OS 0.1 Alpha ===\nRun 'sudo apt update && sudo apt upgrade' in Terminal to upgrade to Linux 6.10 and Krypton 1.0 LTS.`) }
+        { id: 'browser', title: 'Web Navigator (Alpha)', icon: '🌐', open: () => appLoader.launch('browser') },
+        { id: 'terminal', title: 'Terminal', icon: '💻', open: openTerminal },
+        { id: 'notes', title: 'Upgrade Notes', icon: '📝', open: () => appLoader.launch('notes') }
     ];
 
     setupStartMenu({
@@ -201,48 +190,53 @@ function setupStartMenu({ title, subtitle, apps, showSearch = true }) {
         searchContainer.style.display = showSearch ? 'block' : 'none';
     }
 
-    const renderApps = (filter = '') => {
+    const renderAppList = (filterText = '') => {
         if (!startAppGrid) return;
         startAppGrid.innerHTML = '';
-        apps.filter(a => a.title.toLowerCase().includes(filter.toLowerCase())).forEach(app => {
+
+        const fLower = filterText.toLowerCase();
+        const filtered = apps.filter(a => a.title.toLowerCase().includes(fLower) || a.id.toLowerCase().includes(fLower));
+
+        if (filtered.length === 0) {
+            startAppGrid.innerHTML = `<div style="grid-column: span 2; padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">No applications found matching "${filterText}"</div>`;
+            return;
+        }
+
+        filtered.forEach(app => {
             const item = document.createElement('div');
-            item.className = 'start-app-item';
+            item.className = 'start-menu-item';
             item.innerHTML = `
-                <div class="start-app-icon">${app.icon}</div>
-                <div class="start-app-label">${app.title}</div>
+                <span class="start-item-icon">${app.icon}</span>
+                <span class="start-item-name">${app.title}</span>
             `;
+
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 sound.playClick();
-                app.open();
                 startMenu.classList.add('hidden');
+                app.open();
             });
+
             startAppGrid.appendChild(item);
         });
     };
 
-    renderApps();
+    renderAppList('');
 
     if (searchInput && showSearch) {
         searchInput.value = '';
-        searchInput.oninput = (e) => renderApps(e.target.value);
+        searchInput.oninput = (e) => renderAppList(e.target.value);
     }
 
-    // Bind action footer buttons
-    const btnSettings = document.getElementById('start-btn-settings');
-    const btnTerminal = document.getElementById('start-btn-terminal');
-    const btnRestart = document.getElementById('start-btn-restart');
+    const btnSettings = startMenu.querySelector('#start-btn-settings');
+    const btnTerminal = startMenu.querySelector('#start-btn-terminal');
+    const btnRestart = startMenu.querySelector('#start-btn-restart');
 
     if (btnSettings) {
         btnSettings.onclick = (e) => {
             e.stopPropagation();
             startMenu.classList.add('hidden');
-            const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true';
-            if (isUpgraded) {
-                openSettings();
-            } else {
-                story.showToast('⚠️ Alpha Notice', "Settings control center requires Krypton 1.0 LTS. Run 'sudo apt update && sudo apt upgrade' to install.", 'warning');
-            }
+            appLoader.launch('settings');
         };
     }
 
@@ -288,20 +282,8 @@ function setupStartMenu({ title, subtitle, apps, showSearch = true }) {
 }
 
 /* --------------------------------------------------------------------------
-   3. Main Installed Desktop Environment (Full Modern 1.0 LTS OS)
+   4. Main Installed Desktop Environment (Full Modern 1.0 LTS OS)
    -------------------------------------------------------------------------- */
-function getInstalledDesktopApps() {
-    return MAIN_APPS.filter(app => {
-        // Core tools always available in Modern LTS
-        if (app.id === 'terminal' || app.id === 'settings' || app.id === 'logs') return true;
-        // Check for desktop launcher or binary in VFS
-        const desktopPath = `/usr/share/applications/${app.id}.desktop`;
-        const binPath = `/usr/bin/${app.id}`;
-        const altBin = `/usr/bin/krypton-${app.id}`;
-        return vfs.exists(desktopPath) || vfs.exists(binPath) || vfs.exists(altBin);
-    });
-}
-
 function initMainInstalledDesktop() {
     const savedTheme = localStorage.getItem('krypton_theme') || 'theme-cyberpunk';
     document.body.className = savedTheme;
@@ -314,9 +296,20 @@ function initMainInstalledDesktop() {
 
     grid.innerHTML = '';
 
-    const installedApps = getInstalledDesktopApps();
+    // Discover installed applications dynamically from /usr/share/applications/
+    let installedApps = appLoader.getInstalledApps();
 
-    // Render Installed App Shortcuts Only
+    // Ensure Terminal is always available as built-in core tool
+    if (!installedApps.some(a => a.id === 'terminal')) {
+        installedApps.unshift({
+            id: 'terminal',
+            title: 'Terminal',
+            icon: '💻',
+            open: () => openTerminal()
+        });
+    }
+
+    // Render Installed App Shortcuts Dynamically
     installedApps.forEach(app => {
         const iconEl = document.createElement('div');
         iconEl.className = 'desktop-icon';
@@ -341,7 +334,7 @@ function initMainInstalledDesktop() {
 
     const u = localStorage.getItem('krypton_primary_user') || 'guest';
 
-    // Initialize Start Menu with Installed App Suite
+    // Initialize Start Menu with Dynamically Discovered Applications
     setupStartMenu({
         title: `${u}@krypton-station`,
         subtitle: 'Krypton 1.0.0.0 LTS (Linux 6.10.0-krypton-generic)',
@@ -360,10 +353,42 @@ window.addEventListener('krypton_packages_changed', () => {
 });
 
 /* --------------------------------------------------------------------------
-   4. Animated Wallpaper Canvas (CPU-Efficient & Visibility-Aware) & Clock
+   5. Animated Wallpaper Canvas (CPU-Efficient & Visibility-Aware) & Clock
    -------------------------------------------------------------------------- */
 let wallpaperAnimId = null;
 let isWallpaperRunning = false;
+
+export function applyWallpaper(wallId, customUrl = '') {
+    localStorage.setItem('krypton_wallpaper', wallId);
+    const desktop = document.getElementById('desktop-environment');
+    const canvas = document.getElementById('wallpaper-canvas');
+
+    if (!desktop) return;
+
+    if (wallId === 'custom') {
+        const effUrl = customUrl || localStorage.getItem('krypton_custom_wallpaper_url') || '';
+        if (effUrl) {
+            desktop.style.background = `url("${effUrl}") no-repeat center center / cover`;
+            if (canvas) canvas.style.display = 'none';
+        }
+        return;
+    }
+
+    if (canvas) canvas.style.display = 'block';
+
+    switch (wallId) {
+        case 'geometric':
+            desktop.style.background = '#0c0e18 url("assets/wallpapers/krypton_geometric.svg") no-repeat center center / cover';
+            break;
+        case 'topographic':
+            desktop.style.background = '#05070c url("assets/wallpapers/krypton_topographic.svg") no-repeat center center / cover';
+            break;
+        case 'aurora':
+        default:
+            desktop.style.background = '#080a14 url("assets/wallpapers/krypton_aurora.svg") no-repeat center center / cover';
+            break;
+    }
+}
 
 function initWallpaper() {
     const savedWall = localStorage.getItem('krypton_wallpaper') || 'aurora';
@@ -399,12 +424,11 @@ function initWallpaper() {
     }));
 
     let lastDraw = 0;
-    const TARGET_FPS_INTERVAL = 1000 / 25; // Smooth 25 FPS saves >60% CPU vs 60/120Hz unthrottled loop
+    const TARGET_FPS_INTERVAL = 1000 / 25; // Smooth 25 FPS saves >60% CPU vs unthrottled loop
 
     function draw(timestamp) {
         if (!isWallpaperRunning) return;
 
-        // Skip render if tab is hidden, canvas is hidden, or desktop is not active
         if (document.hidden || canvas.style.display === 'none' || (desktopEnv && desktopEnv.classList.contains('hidden'))) {
             isWallpaperRunning = false;
             return;
@@ -453,13 +477,9 @@ function initWallpaper() {
         }
     }
 
-    // Pause canvas completely when browser tab is inactive
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            stopLoop();
-        } else {
-            startLoop();
-        }
+        if (document.hidden) stopLoop();
+        else startLoop();
     });
 
     startLoop();
@@ -467,139 +487,99 @@ function initWallpaper() {
 
 function initDragAndDropWallpaper() {
     const desktopEnv = document.getElementById('desktop-environment');
-    const dropIndicator = document.getElementById('desktop-drop-indicator');
     if (!desktopEnv) return;
 
-    let dragCounter = 0;
-
-    window.addEventListener('dragenter', (e) => {
-        e.preventDefault();
-        dragCounter++;
-        if (dropIndicator) dropIndicator.classList.add('active');
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        desktopEnv.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
     });
 
-    window.addEventListener('dragover', (e) => {
-        e.preventDefault();
-    });
-
-    window.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dragCounter--;
-        if (dragCounter <= 0) {
-            dragCounter = 0;
-            if (dropIndicator) dropIndicator.classList.remove('active');
-        }
-    });
-
-    window.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dragCounter = 0;
-        if (dropIndicator) dropIndicator.classList.remove('active');
-
-        const files = e.dataTransfer?.files;
+    desktopEnv.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
         if (files && files.length > 0) {
             const file = files[0];
             if (file.type.startsWith('image/')) {
                 const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const dataUrl = evt.target.result;
-                    localStorage.setItem('krypton_custom_wallpaper_url', dataUrl);
-                    applyWallpaper('custom', dataUrl);
-                    sound.playSuccess();
-                    story.showToast('🖼️ Wallpaper Dropped', `Applied '${file.name}' as desktop background picture.`, 'success');
+                reader.onload = (event) => {
+                    const customDataUrl = event.target.result;
+                    localStorage.setItem('krypton_custom_wallpaper_url', customDataUrl);
+                    applyWallpaper('custom', customDataUrl);
+                    story.showToast('🖼️ Custom Wallpaper Applied', `Applied "${file.name}" as desktop background.`, 'success');
                 };
                 reader.readAsDataURL(file);
-            } else {
-                story.showToast('⚠️ Unsupported File', 'Please drop an image file (PNG, JPG, SVG, WebP).', 'warning');
             }
         }
-    });
-}
-
-function initSystemTrayControls() {
-    document.getElementById('tray-clock')?.addEventListener('click', () => {
-        sound.playClick();
-        openSettings('datetime');
-    });
-
-    document.getElementById('tray-sound-toggle')?.addEventListener('click', () => {
-        sound.enabled = !sound.enabled;
-        const iconEl = document.getElementById('tray-sound-toggle');
-        if (iconEl) iconEl.textContent = sound.enabled ? '🔊' : '🔇';
-        if (sound.enabled) sound.playClick();
-        story.showToast('🔊 Audio Feedback', `System sound ${sound.enabled ? 'enabled' : 'muted'}.`, 'info');
-    });
-
-    document.getElementById('tray-adblock-status')?.addEventListener('click', () => {
-        sound.playClick();
-        story.setAdblock(!story.adblockEnabled);
     });
 }
 
 function initClock() {
-    const timeEl = document.getElementById('clock-time');
-    const dateEl = document.getElementById('clock-date');
-    if (!timeEl) return;
+    const timeEl = document.getElementById('tray-time');
+    const dateEl = document.getElementById('tray-date');
+    if (!timeEl || !dateEl) return;
 
-    // Cache settings in memory to eliminate repeated localStorage reads every second
-    let cachedTz = 'UTC';
-    let cached24Hour = true;
-    let cachedShowSeconds = true;
-    let cachedShowDate = true;
-
-    const reloadConfig = () => {
-        cachedTz = localStorage.getItem('krypton_tz') || vfs.readFile('/etc/timezone')?.trim() || 'UTC';
-        cached24Hour = localStorage.getItem('krypton_24h') !== 'false';
-        cachedShowSeconds = localStorage.getItem('krypton_show_sec') !== 'false';
-        cachedShowDate = localStorage.getItem('krypton_show_date') !== 'false';
-    };
-
-    reloadConfig();
-
-    const updateClock = () => {
-        // Skip clock DOM calculation when tab is hidden
-        if (document.hidden) return;
-
+    const update = () => {
         const now = new Date();
-        try {
-            const timeStr = now.toLocaleTimeString('en-US', {
-                timeZone: cachedTz,
-                hour12: !cached24Hour,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: cachedShowSeconds ? '2-digit' : undefined
-            });
-
-            if (timeEl.textContent !== timeStr) {
-                timeEl.textContent = timeStr;
-            }
-
-            if (dateEl) {
-                if (cachedShowDate) {
-                    if (dateEl.style.display !== 'block') dateEl.style.display = 'block';
-                    const dateStr = now.toLocaleDateString('en-US', {
-                        timeZone: cachedTz,
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    });
-                    if (dateEl.textContent !== dateStr) {
-                        dateEl.textContent = dateStr;
-                    }
-                } else {
-                    if (dateEl.style.display !== 'none') dateEl.style.display = 'none';
-                }
-            }
-        } catch (e) {
-            const fallbackStr = now.toLocaleTimeString([], { hour12: false });
-            if (timeEl.textContent !== fallbackStr) timeEl.textContent = fallbackStr;
-        }
+        timeEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        dateEl.textContent = now.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
-    updateClock();
-    setInterval(updateClock, 1000);
-    window.addEventListener('krypton_clock_updated', () => {
-        reloadConfig();
-        updateClock();
-    });
+    update();
+    setInterval(update, 1000);
+}
+
+function initSystemTrayControls() {
+    const quickSettingsBtn = document.getElementById('tray-quick-settings');
+    const quickPanel = document.getElementById('quick-settings-panel');
+    const volSlider = document.getElementById('qs-vol-slider');
+    const volVal = document.getElementById('qs-vol-val');
+    const brightSlider = document.getElementById('qs-bright-slider');
+    const brightVal = document.getElementById('qs-bright-val');
+
+    if (quickSettingsBtn && quickPanel) {
+        quickSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            quickPanel.classList.toggle('hidden');
+            sound.playClick();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!quickPanel.contains(e.target) && !quickSettingsBtn.contains(e.target)) {
+                quickPanel.classList.add('hidden');
+            }
+        });
+    }
+
+    if (volSlider && volVal) {
+        const savedVol = localStorage.getItem('krypton_volume') || '80';
+        volSlider.value = savedVol;
+        volVal.textContent = `${savedVol}%`;
+        volSlider.addEventListener('input', (e) => {
+            const v = e.target.value;
+            volVal.textContent = `${v}%`;
+            localStorage.setItem('krypton_volume', v);
+        });
+    }
+
+    if (brightSlider && brightVal) {
+        const savedBright = localStorage.getItem('krypton_brightness') || '100';
+        brightSlider.value = savedBright;
+        brightVal.textContent = `${savedBright}%`;
+        const applyBrightness = (val) => {
+            const overlay = document.getElementById('brightness-overlay');
+            if (overlay) {
+                overlay.style.opacity = (1 - (val / 100)) * 0.75;
+            }
+        };
+        applyBrightness(savedBright);
+
+        brightSlider.addEventListener('input', (e) => {
+            const b = e.target.value;
+            brightVal.textContent = `${b}%`;
+            localStorage.setItem('krypton_brightness', b);
+            applyBrightness(b);
+        });
+    }
 }

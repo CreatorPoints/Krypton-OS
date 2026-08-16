@@ -1,11 +1,12 @@
-Package: neofetch
-Version: 7.1.0-2
-Architecture: all
-Section: utils/system
-Priority: optional
-Maintainer: Dylan Araps <dylan.araps@gmail.com>
-Installed-Size: 340
-Depends: bash (>= 5.0)
-Homepage: https://github.com/dylanaraps/neofetch
-Description: Fast, highly customizable CLI system information tool
- Displays your KryptonOS hardware specs, memory usage, kernel, uptime, DE, and resolution alongside ASCII art.
+{
+  "format": "krypton-deb-1.0",
+  "package": "neofetch",
+  "version": "7.1.0-2",
+  "architecture": "all",
+  "maintainer": "Krypton Core Team <packages@krypton-os.org>",
+  "section": "utils/system",
+  "description": "Fast, highly customizable CLI system info diagnostic tool",
+  "files": {
+    "/usr/bin/neofetch": "#!/bin/bash\n# neofetch system info fetcher\n"
+  }
+}

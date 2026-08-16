@@ -1,11 +1,13 @@
-Package: cmatrix
-Version: 2.0-3
-Architecture: amd64
-Section: utils/console
-Priority: optional
-Maintainer: KryptonOS Maintainers <packages@krypton-os.org>
-Installed-Size: 128
-Depends: libc6 (>= 2.38), libncurses6 (>= 6.4)
-Homepage: https://github.com/abishekvashok/cmatrix
-Description: Matrix Digital Rain Terminal Screensaver
- Displays animated streams of scrolling Matrix green characters in your terminal session.
+{
+  "format": "krypton-deb-1.0",
+  "package": "cmatrix",
+  "version": "2.0-3",
+  "architecture": "amd64",
+  "maintainer": "Krypton Core Team <packages@krypton-os.org>",
+  "section": "utils/console",
+  "description": "Matrix Digital Rain Terminal Screensaver",
+  "files": {
+    "/usr/bin/cmatrix": "#!/bin/bash\n# cmatrix binary executable\n",
+    "/usr/share/man/man1/cmatrix.1.gz": "man page for cmatrix"
+  }
+}

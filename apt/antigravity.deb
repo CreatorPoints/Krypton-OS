@@ -1,0 +1,12 @@
+{
+  "format": "krypton-deb-1.0",
+  "package": "antigravity",
+  "version": "4.2.0-beryllium",
+  "architecture": "all",
+  "maintainer": "Krypton Core Team <packages@krypton-os.org>",
+  "section": "utils/fun",
+  "description": "Physics modifier setting gravitational constant to 0.0 for floating windows",
+  "files": {
+    "/usr/bin/antigravity": "#!/bin/bash\necho \"[ OK ] Gravity constant set to 0.0 m/s^2. Windows floating!\"\n"
+  }
+}

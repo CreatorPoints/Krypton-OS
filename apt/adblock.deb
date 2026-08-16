@@ -1,0 +1,13 @@
+{
+  "format": "krypton-deb-1.0",
+  "package": "krypton-adblock",
+  "version": "2.4.0-beryllium",
+  "architecture": "all",
+  "maintainer": "Krypton Core Team <packages@krypton-os.org>",
+  "section": "net/security",
+  "description": "System-wide DNS sinkhole & tracker blocker for Krypton Web Browser",
+  "files": {
+    "/usr/bin/adblock": "#!/bin/bash\ncase \"$1\" in\n  enable|on) echo \"enabled=true\" > /etc/adblock.conf && echo \"[ OK ] AdBlocker ENABLED\" ;;\n  disable|off) echo \"enabled=false\" > /etc/adblock.conf && echo \"[ OK ] AdBlocker DISABLED\" ;;\n  status) cat /etc/adblock.conf ;;\n  *) echo \"Usage: adblock {enable|disable|status}\" ;;\nesac\n",
+    "/etc/adblock.conf": "enabled=true\n"
+  }
+}

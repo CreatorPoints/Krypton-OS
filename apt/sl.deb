@@ -1,11 +1,13 @@
-Package: sl
-Version: 5.02-1
-Architecture: amd64
-Section: games/toys
-Priority: optional
-Maintainer: Toyoda Masashi <toyoda@dandelion.org>
-Installed-Size: 48
-Depends: libc6 (>= 2.38), libncurses6 (>= 6.4)
-Homepage: https://github.com/mtoyoda/sl
-Description: Steam Locomotive animator for typo prevention
- Runs an animated ASCII steam locomotive train across the terminal when you accidentally type 'sl' instead of 'ls'.
+{
+  "format": "krypton-deb-1.0",
+  "package": "sl",
+  "version": "5.02-1",
+  "architecture": "amd64",
+  "maintainer": "Krypton Core Team <packages@krypton-os.org>",
+  "section": "games/toys",
+  "description": "Steam Locomotive animator for typo correction",
+  "files": {
+    "/usr/games/sl": "#!/bin/bash\n# sl steam locomotive executable\n",
+    "/usr/bin/sl": "#!/bin/bash\nexec /usr/games/sl \"$@\"\n"
+  }
+}

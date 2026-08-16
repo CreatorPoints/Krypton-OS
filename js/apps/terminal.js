@@ -3186,6 +3186,11 @@ async function executeAptCommand(args, isRoot, callback) {
                 vfs.writeFile('/var/run/reboot-required', '*** System restart required ***\n');
                 vfs.saveFileSystem();
 
+                if (window.appLoader) {
+                    window.appLoader.clearCache();
+                }
+                window.dispatchEvent(new CustomEvent('krypton_packages_changed'));
+
                 story.showToast('🚀 System Upgraded', `Krypton 1.0 LTS packages staged. Run 'sudo reboot' in Terminal to restart.`, 'info');
             }
         });
@@ -3345,6 +3350,9 @@ async function executeAptCommand(args, isRoot, callback) {
                 }
 
                 vfs.saveFileSystem();
+                if (window.appLoader) {
+                    window.appLoader.invalidateCache(found.id);
+                }
                 window.dispatchEvent(new CustomEvent('krypton_packages_changed', { detail: { action: 'install', package: found.id } }));
 
                 const cacheNotice = downloadedFresh ? `Get:1 ${debUrl} [${sizeKb} kB]` : `Get:1 [Cached in /var/cache/apt/archives/] ${found.id} [${sizeKb} kB]`;

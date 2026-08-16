@@ -65,6 +65,19 @@
     "maintainer": "Krypton Maintainers <packages@krypton-os.org>"
   },
   {
+    "id": "krypton-clock",
+    "name": "krypton-clock",
+    "version": "1.0.0-release",
+    "architecture": "amd64",
+    "section": "utils/clock",
+    "size": 30112,
+    "installed_size": 8192,
+    "sha256": "383a03fefd9106f620ea730517412b58d4cb680d2072b3eae93d9939eb093421",
+    "file": "krypton-clock.deb",
+    "summary": "World Clock, Stopwatch, Countdown Timer and System Alarms",
+    "maintainer": "Krypton Maintainers <packages@krypton-os.org>"
+  },
+  {
     "id": "krypton-filemgr",
     "name": "krypton-filemgr",
     "version": "1.0.4-release",

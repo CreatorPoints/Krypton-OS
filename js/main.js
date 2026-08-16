@@ -8,6 +8,7 @@ import { story } from './story.js';
 import { sound } from './sound.js';
 import { openTerminal } from './apps/terminal.js';
 import { openInstallerWizard } from './apps/installer.js';
+import { openClockWindow } from './apps/clock.js';
 import { appLoader } from './loader.js';
 
 // Expose core subsystem singletons on window for dynamic apps & plugins
@@ -16,13 +17,12 @@ window.vfs = vfs;
 window.story = story;
 window.sound = sound;
 window.appLoader = appLoader;
+window.openClockWindow = openClockWindow;
 
 // Register built-in core application launchers
 appLoader.registerBuiltin('terminal', openTerminal);
 appLoader.registerBuiltin('installer', openInstallerWizard);
-appLoader.registerBuiltin('clock', () => {
-    story.showToast('🕒 System Clock', new Date().toLocaleString(), 'info');
-});
+appLoader.registerBuiltin('clock', (args) => openClockWindow(args || 'world'));
 
 document.addEventListener('DOMContentLoaded', () => {
     initWallpaper();
@@ -529,6 +529,7 @@ function initDragAndDropWallpaper() {
 function initClock() {
     const timeEl = document.getElementById('clock-time') || document.getElementById('tray-time');
     const dateEl = document.getElementById('clock-date') || document.getElementById('tray-date');
+    const trayClockEl = document.getElementById('tray-clock') || timeEl?.parentElement;
     if (!timeEl) return;
 
     const update = () => {
@@ -541,6 +542,15 @@ function initClock() {
 
     update();
     setInterval(update, 1000);
+
+    if (trayClockEl) {
+        trayClockEl.style.cursor = 'pointer';
+        trayClockEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sound.playClick();
+            openClockWindow('world');
+        });
+    }
 }
 
 function initSystemTrayControls() {

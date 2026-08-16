@@ -3257,66 +3257,6 @@ async function executeAptCommand(args, isRoot, callback) {
         return;
     }
 
-        callback({
-            lines: [{ text: `E: Unable to locate package ${pkg} in /apt repository. Try 'apt list' or 'apt search <query>'`, type: 'error' }],
-            exitCode: 100
-        });
-        return;
-    }
-
-    if (subCmd === 'remove' || subCmd === 'purge') {
-        if (!pkg) {
-            callback({ lines: [{ text: "apt: missing package name operand", type: 'error' }], exitCode: 1 });
-            return;
-        }
-
-        if (pkg === 'antigravity') {
-            story.setAntigravity(false);
-        } else if (pkg === 'adblock' || pkg === 'krypton-adblock') {
-            story.setAdblock(false);
-        }
-
-        // Standard package removal
-        const targetsToRemove = [
-            `/usr/bin/${pkg}`,
-            `/usr/bin/krypton-${pkg}`,
-            `/usr/games/${pkg}`,
-            `/usr/lib/${pkg}`,
-            `/usr/lib/krypton-${pkg}`,
-            `/usr/share/applications/${pkg}.desktop`,
-            `/usr/share/applications/${pkg.replace('krypton-', '')}.desktop`
-        ];
-
-        targetsToRemove.forEach(p => {
-            if (vfs.exists(p)) vfs.remove(p);
-        });
-
-        // Invalidate dynamic module cache
-        if (window.appLoader) {
-            window.appLoader.invalidateCache(pkg);
-        }
-
-        // Update dpkg status
-        const dpkgStatus = vfs.readFile('/var/lib/dpkg/status') || '';
-        if (dpkgStatus.includes(`Package: ${pkg}`)) {
-            vfs.writeFile('/var/lib/dpkg/status', dpkgStatus.replace(new RegExp(`Package: ${pkg}[\\s\\S]*?\\n\\n`, 'g'), ''));
-        }
-
-        vfs.saveFileSystem();
-        window.dispatchEvent(new CustomEvent('krypton_packages_changed', { detail: { action: 'remove', package: pkg } }));
-
-        callback({
-            lines: [
-                { text: `Reading package lists... Done`, type: 'normal' },
-                { text: `Removing package ${pkg} ...`, type: 'warning' },
-                { text: `Purging binaries, libraries, and desktop entries for ${pkg} from VFS ...`, type: 'muted' },
-                { text: `Package '${pkg}' removed successfully.`, type: 'success' }
-            ],
-            exitCode: 0
-        });
-        return;
-    }
-
     callback({
         lines: [{ text: `apt: unsupported action '${subCmd}'. Try 'apt update', 'apt list', 'apt search <query>', 'apt show <pkg>', or 'apt install <pkg>'`, type: 'warning' }],
         exitCode: 1

@@ -1,6 +1,6 @@
 /* ==========================================================================
-   KryptonOS Application - Universal Sandboxed Web Browser Engine
-   Supports: Live Search, YouTube Player Engine, Wikipedia, Proxy & Web Frames
+   KryptonOS Application - Universal Web Browser Engine with Google Integration
+   Supports: Google Engine, Live Search, YouTube Player, Wikipedia, Proxy & VFS
    ========================================================================== */
 
 import { wm } from '../wm.js';
@@ -8,40 +8,101 @@ import { vfs } from '../fs.js';
 import { story } from '../story.js';
 import { sound } from '../sound.js';
 
-export function openBrowser(initialUrl = 'krypton://home') {
+export function openBrowser(initialUrl = 'google://home') {
+    if (wm.windows.has('browser')) {
+        wm.focusWindow('browser');
+        return;
+    }
+
     const content = document.createElement('div');
     content.className = 'browser-app';
 
+    // Retrieve active Google Identity if authorized
+    const getActiveGoogleUser = () => {
+        try {
+            const raw = localStorage.getItem('krypton_google_account');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    };
+
+    let currentGoogleUser = getActiveGoogleUser();
+
     content.innerHTML = `
-        <div class="browser-toolbar">
-            <button class="browser-nav-btn" id="b-back" title="Back">◄</button>
-            <button class="browser-nav-btn" id="b-forward" title="Forward">►</button>
-            <button class="browser-nav-btn" id="b-reload" title="Reload">🔄</button>
-            <button class="browser-nav-btn" id="b-home" title="Home">🏠</button>
-            <div class="browser-address-bar">
-                <input type="text" id="b-url-input" value="${initialUrl}" placeholder="Search with DuckDuckGo or enter any URL (e.g., youtube.com, wikipedia.org)...">
+        <div class="browser-toolbar" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #0f131f; border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <div style="display: flex; gap: 4px;">
+                <button class="browser-nav-btn" id="b-back" title="Back" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">◄</button>
+                <button class="browser-nav-btn" id="b-forward" title="Forward" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">►</button>
+                <button class="browser-nav-btn" id="b-reload" title="Reload" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🔄</button>
+                <button class="browser-nav-btn" id="b-home" title="Google Home" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🏠</button>
             </div>
-            <button class="browser-nav-btn" id="b-go" title="Go / Search" style="background: var(--accent-primary); color: #000; font-weight: bold; border-radius: 4px; padding: 4px 12px; cursor: pointer;">Go</button>
-            <div class="browser-adblock-indicator" id="b-adblock-tag" title="AdBlock status managed via APT (/apt/adblock.dpkg)">
-                🛡️ <span id="b-adblock-state" style="color: ${story.adblockEnabled ? 'var(--accent-success)' : 'var(--accent-danger)'}; font-weight: bold;">
-                    ${story.adblockEnabled ? 'SHIELD: ON' : 'SHIELD: OFF'}
-                </span>
+
+            <div class="browser-address-bar" style="flex: 1; display: flex; align-items: center; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 2px 14px; gap: 8px;">
+                <span style="font-size: 13px; color: #4285F4;">🔍</span>
+                <input type="text" id="b-url-input" value="${initialUrl}" placeholder="Search with Google or enter any URL (e.g. youtube.com, wikipedia.org, github.com)..." style="flex: 1; background: transparent; border: none; color: #fff; font-size: 13px; outline: none; padding: 6px 0; font-family: 'Outfit', sans-serif;">
             </div>
+
+            <button class="browser-nav-btn" id="b-go" title="Go / Search" style="background: #4285F4; color: #fff; font-weight: bold; border-radius: 20px; padding: 6px 16px; border: none; cursor: pointer; font-size: 12px; box-shadow: 0 2px 6px rgba(66,133,244,0.3);">Go</button>
+
+            <!-- Google Account Badge in Toolbar -->
+            <div id="b-google-auth-badge" style="display: flex; align-items: center; cursor: pointer;"></div>
         </div>
-        <div class="browser-viewport" id="b-viewport">
-            <!-- Live Web Content, YouTube Engine, or Live Search -->
+
+        <div class="browser-viewport" id="b-viewport" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #121520;">
+            <!-- Live Web Engine Viewport -->
         </div>
     `;
 
     const urlInput = content.querySelector('#b-url-input');
     const viewport = content.querySelector('#b-viewport');
     const goBtn = content.querySelector('#b-go');
+    const googleBadge = content.querySelector('#b-google-auth-badge');
 
     const historyStack = [initialUrl];
     let historyIndex = 0;
 
+    const updateGoogleBadge = () => {
+        currentGoogleUser = getActiveGoogleUser();
+        if (currentGoogleUser) {
+            const initial = (currentGoogleUser.name || currentGoogleUser.email || 'G')[0].toUpperCase();
+            googleBadge.innerHTML = `
+                <div title="Google Account: ${currentGoogleUser.email} (15 GB Storage Linked)" style="display: flex; align-items: center; gap: 6px; background: rgba(66, 133, 244, 0.12); border: 1px solid #4285F4; border-radius: 20px; padding: 3px 10px; font-size: 11px; color: #fff;">
+                    <div style="width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #4285F4, #34A853); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px;">
+                        ${initial}
+                    </div>
+                    <span style="font-weight: 600; color: #e2e8f0;">${currentGoogleUser.name ? currentGoogleUser.name.split(' ')[0] : 'Google'}</span>
+                    <span style="background: #34A853; color: #fff; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: bold;">15 GB</span>
+                </div>
+            `;
+        } else {
+            googleBadge.innerHTML = `
+                <button id="b-signin-quick-btn" style="display: flex; align-items: center; gap: 6px; background: #ffffff; color: #3c4043; font-weight: 600; font-size: 11px; padding: 4px 10px; border-radius: 16px; border: 1px solid #dadce0; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+                    <svg width="12" height="12" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                    Sign in
+                </button>
+            `;
+            googleBadge.querySelector('#b-signin-quick-btn')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                promptGoogleBrowserAuth(() => {
+                    updateGoogleBadge();
+                    navigateTo(historyStack[historyIndex] || 'google://home', false);
+                });
+            });
+        }
+    };
+
+    googleBadge.addEventListener('click', () => {
+        if (getActiveGoogleUser()) {
+            showGoogleAccountManagerDialog(() => {
+                updateGoogleBadge();
+                navigateTo(historyStack[historyIndex] || 'google://home', false);
+            });
+        }
+    });
+
     const navigateTo = (url, pushHistory = true) => {
-        if (!url) url = 'krypton://home';
+        if (!url) url = 'google://home';
         url = url.trim();
 
         if (urlInput) urlInput.value = url;
@@ -54,7 +115,7 @@ export function openBrowser(initialUrl = 'krypton://home') {
             historyIndex = historyStack.length - 1;
         }
 
-        renderPage(url, viewport, navigateTo);
+        renderPage(url, viewport, navigateTo, updateGoogleBadge);
     };
 
     content.querySelector('#b-back').addEventListener('click', () => {
@@ -73,12 +134,12 @@ export function openBrowser(initialUrl = 'krypton://home') {
 
     content.querySelector('#b-reload').addEventListener('click', () => {
         sound.playClick();
-        navigateTo(historyStack[historyIndex] || 'krypton://home', false);
+        navigateTo(historyStack[historyIndex] || 'google://home', false);
     });
 
     content.querySelector('#b-home').addEventListener('click', () => {
         sound.playClick();
-        navigateTo('krypton://home');
+        navigateTo('google://home');
     });
 
     goBtn.addEventListener('click', () => {
@@ -93,22 +154,24 @@ export function openBrowser(initialUrl = 'krypton://home') {
         }
     });
 
+    updateGoogleBadge();
     navigateTo(initialUrl, false);
 
     wm.createWindow({
         id: 'browser',
-        title: 'Krypton Browser',
+        title: 'Krypton Web Browser (Google Engine)',
         icon: '🌐',
-        width: 900,
-        height: 600,
+        width: 960,
+        height: 640,
         content: content
     });
 }
 
-function renderPage(rawUrl, viewport, navigateTo) {
+function renderPage(rawUrl, viewport, navigateTo, updateBadgeCallback) {
     const lowerUrl = rawUrl.toLowerCase().trim();
+    const user = getActiveGoogleUser();
 
-    // 1. Check /etc/hosts mappings for experimental sandbox virtual host routing
+    // 1. Virtual Host routing via /etc/hosts
     let isLocalhostMapped = false;
     let isHostBlocked = false;
     const cleanHost = lowerUrl.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
@@ -123,168 +186,376 @@ function renderPage(rawUrl, viewport, navigateTo) {
             const ip = parts[0];
             const hostnames = parts.slice(1);
             if (hostnames.includes(cleanHost)) {
-                if (ip === '127.0.0.1' || ip === '127.0.1.1' || ip === '::1') {
-                    isLocalhostMapped = true;
-                } else if (ip === '0.0.0.0') {
-                    isHostBlocked = true;
-                }
+                if (ip === '127.0.0.1' || ip === '127.0.1.1' || ip === '::1') isLocalhostMapped = true;
+                else if (ip === '0.0.0.0') isHostBlocked = true;
             }
         }
     }
 
-    // 2. Localhost & /var/www/html/index.html Web Server
-    if (cleanHost === 'localhost' || cleanHost === '127.0.0.1' || cleanHost === 'localweb.test' || isLocalhostMapped) {
+    if (cleanHost === 'localhost' || cleanHost === '127.0.0.1' || isLocalhostMapped) {
         const webHtml = vfs.readFile('/var/www/html/index.html') || '<!DOCTYPE html><html><body><h1>Localhost</h1><p>Welcome to KryptonOS local HTTP server!</p></body></html>';
         viewport.innerHTML = `
             <div style="background: rgba(0,229,255,0.08); padding: 8px 16px; border-bottom: 1px solid rgba(0,229,255,0.2); font-family: monospace; font-size: 12px; color: #00e5ff; display: flex; justify-content: space-between; align-items: center;">
                 <span>● LOCAL VIRTUAL HOST: ${cleanHost} &rarr; 127.0.0.1:80 (/var/www/html/index.html)</span>
                 <span style="color: #55ff55;">HTTP/1.1 200 OK</span>
             </div>
-            <div class="browser-inner-content">
+            <div class="browser-inner-content" style="padding: 20px;">
                 ${webHtml}
             </div>
         `;
         return;
     }
 
-    // 3. Blocked Host via /etc/hosts sinkhole
     if (isHostBlocked) {
         viewport.innerHTML = `
-            <div class="browser-inner-content">
-                <div class="fake-website" style="text-align: center; padding: 50px;">
-                    <h1 style="color: #ff5555; font-size: 28px;">🛡️ Host Blocked by /etc/hosts</h1>
-                    <p style="color: var(--text-secondary); margin: 15px 0;">The domain <code>${cleanHost}</code> is sinkholed to <code>0.0.0.0</code> in your virtual <code>/etc/hosts</code> database.</p>
-                    <small style="color: var(--text-muted);">To unblock, edit /etc/hosts via terminal: sudo nano /etc/hosts</small>
-                </div>
+            <div class="browser-inner-content" style="text-align: center; padding: 60px 20px;">
+                <h1 style="color: #ff5555; font-size: 28px;">🛡️ Host Blocked by /etc/hosts</h1>
+                <p style="color: #94a3b8; margin: 15px 0;">The domain <code>${cleanHost}</code> is mapped to <code>0.0.0.0</code> in <code>/etc/hosts</code>.</p>
+                <small style="color: #64748b;">To modify, run: sudo nano /etc/hosts</small>
             </div>
         `;
         return;
     }
 
-    // 4. Browser Home Portal
-    if (lowerUrl === 'krypton://home' || lowerUrl === 'home' || lowerUrl === '' || lowerUrl === 'about:blank') {
-        viewport.innerHTML = `
-            <div class="browser-inner-content">
-                <div class="fake-website">
-                    <div style="text-align: center; margin: 25px 0 20px 0;">
-                        <h1 style="font-size: 36px; color: var(--accent-primary); font-weight: 800; letter-spacing: 1px;">Krypton Browser 🌐</h1>
-                        <p style="color: var(--text-secondary); font-size: 14px;">Universal Web Engine • Live Video Player • Sandbox Frames</p>
-                    </div>
-                    <div style="max-width: 580px; margin: 0 auto 28px auto; display: flex; gap: 8px;">
-                        <input type="text" id="b-home-search-input" placeholder="Search the web or paste any URL (e.g. youtube.com, wikipedia)..." style="flex: 1; padding: 12px 14px; border-radius: 8px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-color); color: #fff; outline: none; font-size: 14px;">
-                        <button id="b-home-search-btn" style="padding: 12px 24px; background: var(--accent-primary); color: #000; font-weight: 700; border-radius: 8px; cursor: pointer; border: none; font-size: 14px;">Search / Go</button>
-                    </div>
-                    
-                    <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 15px; font-size: 15px; color: #cfd8dc;">🌐 Featured Web Apps & Media</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
-                        <div class="b-card" style="background: rgba(255,255,255,0.04); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <span style="font-size: 11px; color: #ff3333; font-weight: 700;">VIDEO & STREAMING</span>
-                            <h4 style="margin: 6px 0; font-size: 14px;"><a href="#" class="b-link" data-url="https://youtube.com" style="color: var(--accent-primary);">YouTube Player (Live)</a></h4>
-                            <p style="font-size: 12px; color: var(--text-secondary);">Watch any video, search channels, or play music.</p>
-                        </div>
-                        <div class="b-card" style="background: rgba(255,255,255,0.04); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <span style="font-size: 11px; color: #00e5ff; font-weight: 700;">SEARCH ENGINE</span>
-                            <h4 style="margin: 6px 0; font-size: 14px;"><a href="#" class="b-link" data-url="duckduckgo:linux kernel" style="color: var(--accent-primary);">DuckDuckGo Live</a></h4>
-                            <p style="font-size: 12px; color: var(--text-secondary);">Real-time knowledge graph & privacy search.</p>
-                        </div>
-                        <div class="b-card" style="background: rgba(255,255,255,0.04); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <span style="font-size: 11px; color: #55ff55; font-weight: 700;">ENCYCLOPEDIA</span>
-                            <h4 style="margin: 6px 0; font-size: 14px;"><a href="#" class="b-link" data-url="https://en.m.wikipedia.org" style="color: var(--accent-primary);">Wikipedia (Live Mobile)</a></h4>
-                            <p style="font-size: 12px; color: var(--text-secondary);">Browse millions of free encyclopedia articles.</p>
-                        </div>
-                        <div class="b-card" style="background: rgba(255,255,255,0.04); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <span style="font-size: 11px; color: #ffaa00; font-weight: 700;">LOCAL SERVER</span>
-                            <h4 style="margin: 6px 0; font-size: 14px;"><a href="#" class="b-link" data-url="http://localhost" style="color: var(--accent-primary);">Local Web Server (/var/www/html)</a></h4>
-                            <p style="font-size: 12px; color: var(--text-secondary);">Your editable local website inside KryptonOS.</p>
-                        </div>
-                        <div class="b-card" style="background: rgba(255,255,255,0.04); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <span style="font-size: 11px; color: #ff007f; font-weight: 700;">TECH NEWS</span>
-                            <h4 style="margin: 6px 0; font-size: 14px;"><a href="#" class="b-link" data-url="https://news.ycombinator.com" style="color: var(--accent-primary);">Hacker News (Live)</a></h4>
-                            <p style="font-size: 12px; color: var(--text-secondary);">Live programming and technology discussions.</p>
-                        </div>
-                        <div class="b-card" style="background: rgba(255,255,255,0.04); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <span style="font-size: 11px; color: #38bdf8; font-weight: 700;">KERNEL</span>
-                            <h4 style="margin: 6px 0; font-size: 14px;"><a href="#" class="b-link" data-url="https://www.kernel.org" style="color: var(--accent-primary);">The Linux Kernel Archives</a></h4>
-                            <p style="font-size: 12px; color: var(--text-secondary);">Official Linux kernel source repositories.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        const homeSearchInput = viewport.querySelector('#b-home-search-input');
-        const homeSearchBtn = viewport.querySelector('#b-home-search-btn');
-        if (homeSearchBtn && homeSearchInput) {
-            const doSearch = () => {
-                const query = homeSearchInput.value.trim();
-                if (query) navigateTo(query);
-            };
-            homeSearchBtn.addEventListener('click', doSearch);
-            homeSearchInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') doSearch();
-            });
-        }
-
-        viewport.querySelectorAll('.b-link').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetUrl = link.getAttribute('data-url');
-                if (targetUrl) navigateTo(targetUrl);
-            });
-        });
+    // 2. Google Homepage Engine
+    if (lowerUrl === 'google://home' || lowerUrl === 'krypton://home' || lowerUrl === 'https://google.com' || lowerUrl === 'https://www.google.com' || lowerUrl === 'google.com' || lowerUrl === '' || lowerUrl === 'about:blank') {
+        renderGoogleHomepage(viewport, navigateTo, updateBadgeCallback);
         return;
     }
 
-    // 5. Check for YouTube URLs & Embeds
+    // 3. YouTube Embed & Player View
     if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
         renderYouTubeView(rawUrl, viewport, navigateTo);
         return;
     }
 
-    // 6. Wikipedia Mobile Auto-Fix (Enables unrestricted iframe framing)
+    // 4. Wikipedia Mobile Auto-Fix
     if (lowerUrl.includes('wikipedia.org') && !lowerUrl.includes('.m.wikipedia.org')) {
         const fixedWikiUrl = rawUrl.replace(/([a-zA-Z0-9]+)\.wikipedia\.org/, '$1.m.wikipedia.org');
         renderUniversalWebFrame(fixedWikiUrl, viewport, navigateTo);
         return;
     }
 
-    // 7. Check if query is a Search Query vs Direct URL
+    // 5. Query Routing: Google Search vs Direct Live Web Page
     const isDomain = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/.test(rawUrl);
     const isFullUrl = /^https?:\/\//i.test(rawUrl);
-    const isDuckSearch = lowerUrl.startsWith('duckduckgo:') || lowerUrl.startsWith('ddg:');
+    const isGooglePrefix = lowerUrl.startsWith('google:') || lowerUrl.startsWith('g:');
 
-    // If query is a search term
-    if (isDuckSearch || (!isFullUrl && !isDomain)) {
-        const query = isDuckSearch ? rawUrl.replace(/^(duckduckgo|ddg):/i, '').trim() : rawUrl.trim();
-        renderLiveSearchResults(query, viewport, navigateTo);
+    if (isGooglePrefix || (!isFullUrl && !isDomain)) {
+        const query = isGooglePrefix ? rawUrl.replace(/^(google|g):/i, '').trim() : rawUrl.trim();
+        renderGoogleSearchResults(query, viewport, navigateTo);
         return;
     }
 
-    // 8. General Web Framing with Universal Proxy & Fallback Engine
+    // 6. Live Universal Web Engine (Can open any site)
     const targetLiveUrl = isFullUrl ? rawUrl : `https://${rawUrl}`;
     renderUniversalWebFrame(targetLiveUrl, viewport, navigateTo);
 }
 
 /* --------------------------------------------------------------------------
-   YouTube Player & Video Portal Engine (No X-Frame-Options Blocks)
+   Google Homepage Portal & Authenticated Apps
+   -------------------------------------------------------------------------- */
+function renderGoogleHomepage(viewport, navigateTo, updateBadgeCallback) {
+    const user = getActiveGoogleUser();
+
+    viewport.innerHTML = `
+        <div class="browser-inner-content" style="display: flex; flex-direction: column; height: 100%; box-sizing: border-box; background: #202124; color: #e8eaed; font-family: 'Outfit', -apple-system, Roboto, sans-serif; overflow-y: auto;">
+            <!-- Top Google Navbar -->
+            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding: 16px 24px;">
+                <a href="#" class="b-link" data-url="https://mail.google.com" style="color: #bdc1c6; text-decoration: none; font-size: 13px;">Gmail</a>
+                <a href="#" class="b-link" data-url="https://images.google.com" style="color: #bdc1c6; text-decoration: none; font-size: 13px;">Images</a>
+                <div style="font-size: 16px; cursor: pointer; color: #bdc1c6;">⠿</div>
+
+                ${user ? `
+                    <div id="hp-user-chip" style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06); padding: 4px 10px 4px 6px; border-radius: 20px; cursor: pointer; border: 1px solid rgba(255,255,255,0.12);">
+                        <div style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #4285F4, #34A853); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 14px;">
+                            ${user.picture ? `<img src="${user.picture}" style="width:100%;height:100%;border-radius:50%;">` : (user.name ? user.name[0].toUpperCase() : 'G')}
+                        </div>
+                        <div style="display: flex; flex-direction: column; text-align: left;">
+                            <span style="font-size: 12px; font-weight: 600; color: #fff;">${user.name || 'Google User'}</span>
+                            <span style="font-size: 10px; color: #34A853; font-weight: bold;">15 GB Storage Active</span>
+                        </div>
+                    </div>
+                ` : `
+                    <button id="hp-signin-btn" style="background: #1a73e8; color: #fff; font-weight: 600; font-size: 13px; padding: 8px 18px; border-radius: 4px; border: none; cursor: pointer;">Sign in</button>
+                `}
+            </div>
+
+            <!-- Center Google Hero & Search Box -->
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+                <!-- Authentic Multi-color Google Logo -->
+                <div style="margin-bottom: 26px; user-select: none;">
+                    <span style="font-size: 68px; font-weight: 700; color: #4285F4; letter-spacing: -2px;">G</span>
+                    <span style="font-size: 68px; font-weight: 700; color: #EA4335; letter-spacing: -2px;">o</span>
+                    <span style="font-size: 68px; font-weight: 700; color: #FBBC05; letter-spacing: -2px;">o</span>
+                    <span style="font-size: 68px; font-weight: 700; color: #4285F4; letter-spacing: -2px;">g</span>
+                    <span style="font-size: 68px; font-weight: 700; color: #34A853; letter-spacing: -2px;">l</span>
+                    <span style="font-size: 68px; font-weight: 700; color: #EA4335; letter-spacing: -2px;">e</span>
+                </div>
+
+                <!-- Google Search Bar -->
+                <div style="width: 100%; max-width: 580px; position: relative; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; background: #303134; border: 1px solid #5f6368; border-radius: 24px; padding: 10px 18px; gap: 12px; box-shadow: 0 1px 6px rgba(0,0,0,0.3);">
+                        <span style="color: #9aa0a6; font-size: 16px;">🔍</span>
+                        <input type="text" id="g-home-input" placeholder="Search Google or type a URL" style="flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; outline: none; font-family: inherit;">
+                        <span style="color: #4285F4; font-size: 16px; cursor: pointer;" title="Google Voice Search">🎙️</span>
+                        <span style="color: #FBBC05; font-size: 16px; cursor: pointer;" title="Google Lens">📷</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 12px; margin-bottom: 36px;">
+                    <button id="g-btn-search" style="padding: 10px 18px; background: #303134; color: #e8eaed; border: 1px solid #5f6368; border-radius: 4px; font-size: 13px; cursor: pointer;">Google Search</button>
+                    <button id="g-btn-lucky" style="padding: 10px 18px; background: #303134; color: #e8eaed; border: 1px solid #5f6368; border-radius: 4px; font-size: 13px; cursor: pointer;">I'm Feeling Lucky</button>
+                </div>
+
+                <!-- Top Visited Shortcuts Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); max-width: 540px; width: 100%; gap: 16px; justify-items: center;">
+                    <div class="g-shortcut b-link" data-url="https://youtube.com" style="display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; text-decoration: none;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; background: #ff0000; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">▶</div>
+                        <span style="font-size: 12px; color: #bdc1c6;">YouTube</span>
+                    </div>
+                    <div class="g-shortcut b-link" data-url="https://en.m.wikipedia.org" style="display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; text-decoration: none;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #000; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">W</div>
+                        <span style="font-size: 12px; color: #bdc1c6;">Wikipedia</span>
+                    </div>
+                    <div class="g-shortcut b-link" data-url="https://github.com" style="display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; text-decoration: none;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; background: #181717; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; border: 1px solid rgba(255,255,255,0.2);">🐙</div>
+                        <span style="font-size: 12px; color: #bdc1c6;">GitHub</span>
+                    </div>
+                    <div class="g-shortcut b-link" data-url="https://news.ycombinator.com" style="display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; text-decoration: none;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; background: #ff6600; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; font-weight: bold;">Y</div>
+                        <span style="font-size: 12px; color: #bdc1c6;">Hacker News</span>
+                    </div>
+                    <div class="g-shortcut b-link" data-url="https://www.kernel.org" style="display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; text-decoration: none;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; background: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff;">🐧</div>
+                        <span style="font-size: 12px; color: #bdc1c6;">Linux Kernel</span>
+                    </div>
+                    <div class="g-shortcut b-link" data-url="http://localhost" style="display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; text-decoration: none;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff;">🌐</div>
+                        <span style="font-size: 12px; color: #bdc1c6;">Localhost</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const gInput = viewport.querySelector('#g-home-input');
+    const gSearchBtn = viewport.querySelector('#g-btn-search');
+    const gLuckyBtn = viewport.querySelector('#g-btn-lucky');
+
+    const executeSearch = () => {
+        const query = gInput.value.trim();
+        if (query) navigateTo(query);
+    };
+
+    gSearchBtn?.addEventListener('click', executeSearch);
+    gLuckyBtn?.addEventListener('click', () => {
+        const query = gInput.value.trim();
+        if (query) navigateTo(`https://www.google.com/search?btnI=1&q=${encodeURIComponent(query)}`);
+    });
+
+    gInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') executeSearch();
+    });
+
+    viewport.querySelectorAll('.b-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetUrl = link.getAttribute('data-url');
+            if (targetUrl) navigateTo(targetUrl);
+        });
+    });
+
+    viewport.querySelector('#hp-signin-btn')?.addEventListener('click', () => {
+        promptGoogleBrowserAuth(() => {
+            updateBadgeCallback();
+            renderGoogleHomepage(viewport, navigateTo, updateBadgeCallback);
+        });
+    });
+
+    viewport.querySelector('#hp-user-chip')?.addEventListener('click', () => {
+        showGoogleAccountManagerDialog(() => {
+            updateBadgeCallback();
+            renderGoogleHomepage(viewport, navigateTo, updateBadgeCallback);
+        });
+    });
+}
+
+/* --------------------------------------------------------------------------
+   Google Live Search Engine Results View
+   -------------------------------------------------------------------------- */
+async function renderGoogleSearchResults(query, viewport, navigateTo) {
+    const user = getActiveGoogleUser();
+
+    viewport.innerHTML = `
+        <div class="browser-inner-content" style="background: #202124; color: #bdc1c6; font-family: 'Outfit', -apple-system, Roboto, sans-serif; display: flex; flex-direction: column; height: 100%; overflow-y: auto;">
+            <!-- Google Search Top Bar -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid #3c4043; gap: 16px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 20px; flex: 1; max-width: 720px;">
+                    <div style="font-size: 26px; font-weight: 700; cursor: pointer; user-select: none;" id="g-res-logo">
+                        <span style="color: #4285F4;">G</span><span style="color: #EA4335;">o</span><span style="color: #FBBC05;">o</span><span style="color: #4285F4;">g</span><span style="color: #34A853;">l</span><span style="color: #EA4335;">e</span>
+                    </div>
+                    <div style="flex: 1; display: flex; align-items: center; background: #303134; border: 1px solid #5f6368; border-radius: 24px; padding: 8px 16px; gap: 10px;">
+                        <input type="text" id="g-res-input" value="${escapeHtml(query)}" style="flex: 1; background: transparent; border: none; color: #fff; font-size: 14px; outline: none; font-family: inherit;">
+                        <span style="color: #4285F4; cursor: pointer;" id="g-res-search-icon">🔍</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    ${user ? `
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8ab4f8;">
+                            <div style="width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #4285F4, #34A853); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 11px;">
+                                ${(user.name || user.email)[0].toUpperCase()}
+                            </div>
+                            <span>${user.email}</span>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            <!-- Search Tabs -->
+            <div style="display: flex; gap: 20px; padding: 10px 24px; font-size: 13px; border-bottom: 1px solid #3c4043; color: #9aa0a6;">
+                <span style="color: #8ab4f8; border-bottom: 3px solid #8ab4f8; padding-bottom: 6px; font-weight: 600;">All</span>
+                <span style="cursor: pointer;" class="g-tab-link" data-url="https://images.google.com/search?q=${encodeURIComponent(query)}">Images</span>
+                <span style="cursor: pointer;" class="g-tab-link" data-url="https://youtube.com/results?search_query=${encodeURIComponent(query)}">Videos</span>
+                <span style="cursor: pointer;" class="g-tab-link" data-url="https://news.google.com/search?q=${encodeURIComponent(query)}">News</span>
+            </div>
+
+            <!-- Results Content Container -->
+            <div style="padding: 20px 24px; max-width: 820px;" id="g-results-box">
+                <div id="g-loading-tag" style="color: #8ab4f8; font-size: 13px; margin: 12px 0;">⚡ Fetching Google Knowledge Cards & Live Results for "${escapeHtml(query)}"...</div>
+            </div>
+        </div>
+    `;
+
+    viewport.querySelector('#g-res-logo')?.addEventListener('click', () => navigateTo('google://home'));
+
+    const resInput = viewport.querySelector('#g-res-input');
+    const resIcon = viewport.querySelector('#g-res-search-icon');
+    const handleNewSearch = () => {
+        const q = resInput.value.trim();
+        if (q) navigateTo(q);
+    };
+
+    resIcon?.addEventListener('click', handleNewSearch);
+    resInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleNewSearch(); });
+
+    viewport.querySelectorAll('.g-tab-link').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const u = tab.getAttribute('data-url');
+            if (u) navigateTo(u);
+        });
+    });
+
+    const resultsBox = viewport.querySelector('#g-results-box');
+    const loadingTag = viewport.querySelector('#g-loading-tag');
+
+    try {
+        const ddgPromise = fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=1`)
+            .then(res => res.json()).catch(() => null);
+
+        const wikiPromise = fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=6&namespace=0&format=json&origin=*`)
+            .then(res => res.json()).catch(() => null);
+
+        const [ddgData, wikiData] = await Promise.all([ddgPromise, wikiPromise]);
+
+        if (loadingTag) loadingTag.remove();
+
+        let out = '';
+
+        // Google Knowledge Graph Card
+        if (ddgData && (ddgData.AbstractText || ddgData.Heading || ddgData.Answer)) {
+            const heading = ddgData.Heading || query;
+            const abstract = ddgData.AbstractText || ddgData.Answer || '';
+            const sourceUrl = ddgData.AbstractURL || '';
+            const imgUrl = ddgData.Image ? (ddgData.Image.startsWith('http') ? ddgData.Image : `https://duckduckgo.com${ddgData.Image}`) : '';
+
+            out += `
+                <div style="background: #303134; border: 1px solid #3c4043; border-radius: 8px; padding: 18px; margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <span style="font-size: 11px; color: #8ab4f8; text-transform: uppercase; font-weight: bold;">Google Knowledge Panel</span>
+                            <h2 style="font-size: 22px; color: #e8eaed; margin: 4px 0 10px 0;">${escapeHtml(heading)}</h2>
+                            <p style="font-size: 14px; color: #bdc1c6; line-height: 1.6; margin-bottom: 12px;">${escapeHtml(abstract)}</p>
+                            ${sourceUrl ? `<a href="${sourceUrl}" class="b-res-link" data-url="${sourceUrl}" style="color: #8ab4f8; font-size: 13px; text-decoration: none;">View full documentation &rarr;</a>` : ''}
+                        </div>
+                        ${imgUrl ? `<img src="${imgUrl}" alt="${escapeHtml(heading)}" style="max-width: 120px; max-height: 120px; border-radius: 6px; object-fit: cover;">` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Live Web Search Results
+        if (wikiData && Array.isArray(wikiData) && wikiData[1] && wikiData[1].length > 0) {
+            const titles = wikiData[1];
+            const snippets = wikiData[2] || [];
+            const urls = wikiData[3] || [];
+
+            out += `<div style="font-size: 12px; color: #9aa0a6; margin-bottom: 16px;">About ${titles.length * 1420000} results (0.24 seconds)</div>`;
+            out += `<div style="display: flex; flex-direction: column; gap: 20px;">`;
+
+            titles.forEach((title, idx) => {
+                const snip = snippets[idx] || 'Read full web article, technical documentation, and overview.';
+                const target = urls[idx] || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+                const hostStr = target.replace(/^https?:\/\//, '').split('/')[0];
+
+                out += `
+                    <div>
+                        <div style="font-size: 12px; color: #bdc1c6; margin-bottom: 2px;">
+                            <span>${escapeHtml(hostStr)}</span> &rsaquo; <span>${escapeHtml(title)}</span>
+                        </div>
+                        <h3 style="margin: 0 0 4px 0; font-size: 18px;">
+                            <a href="${target}" class="b-res-link" data-url="${target}" style="color: #8ab4f8; text-decoration: none; font-weight: 500;">${escapeHtml(title)}</a>
+                        </h3>
+                        <p style="margin: 0; font-size: 13px; color: #bdc1c6; line-height: 1.5;">${escapeHtml(snip)}</p>
+                    </div>
+                `;
+            });
+            out += `</div>`;
+        } else {
+            out += `
+                <div style="background: #303134; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #e8eaed; margin-bottom: 8px;">No direct search cards found for "${escapeHtml(query)}"</h3>
+                    <p style="font-size: 13px; color: #9aa0a6; margin-bottom: 14px;">Try opening it directly as a live web URL or querying YouTube.</p>
+                    <button class="b-res-link" data-url="https://youtube.com/results?search_query=${encodeURIComponent(query)}" style="padding: 8px 16px; background: #ff0000; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                        ▶ Search YouTube for "${escapeHtml(query)}"
+                    </button>
+                </div>
+            `;
+        }
+
+        resultsBox.innerHTML = out;
+
+        resultsBox.querySelectorAll('.b-res-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const u = link.getAttribute('data-url');
+                if (u) navigateTo(u);
+            });
+        });
+    } catch (e) {
+        if (loadingTag) loadingTag.textContent = `Search error: ${e.message}. You can navigate to any URL directly.`;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   YouTube Player View Engine (Embedded + Unrestricted Playback)
    -------------------------------------------------------------------------- */
 function renderYouTubeView(url, viewport, navigateTo) {
     let videoId = extractYouTubeVideoId(url);
-    const defaultVideoId = 'dQw4w9WgXcQ'; // Fallback / demo video ID
-    const activeVideoId = videoId || 'jfKfPfyJRdk'; // lofi girl coding stream as default hub video
+    const activeVideoId = videoId || 'jfKfPfyJRdk';
 
     const curatedVideos = [
         { id: 'jfKfPfyJRdk', title: 'Lofi Hip Hop Radio - Beats to Relax/Study to', creator: 'Lofi Girl', tag: 'MUSIC' },
         { id: 'RRuz4hU2WpE', title: 'How The Linux Kernel Actually Works', creator: 'Low Level JavaScript', tag: 'LINUX' },
         { id: 'z1kWX_v8p3k', title: 'Linux from Scratch - The Ultimate Guide', creator: 'Mental Outlaw', tag: 'SYSTEMS' },
         { id: 'kO_QYpQ0r3E', title: 'Cyberpunk Synthwave 24/7 Neon Coding Stream', creator: 'Nightride FM', tag: 'MUSIC' },
-        { id: 'kJQP7kiw5Fk', title: 'Luis Fonsi - Despacito ft. Daddy Yankee', creator: 'Luis Fonsi', tag: 'POP' },
         { id: 'dQw4w9WgXcQ', title: 'Rick Astley - Never Gonna Give You Up (Official Music Video)', creator: 'Rick Astley', tag: 'CLASSIC' }
     ];
 
     viewport.innerHTML = `
         <div class="browser-inner-content" style="padding: 16px; display: flex; flex-direction: column; height: 100%; box-sizing: border-box; background: #0a0b10;">
-            <!-- YouTube Header & Search -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <div style="background: #ff0000; color: #fff; font-weight: 900; font-size: 14px; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px;">
@@ -293,15 +564,13 @@ function renderYouTubeView(url, viewport, navigateTo) {
                     <span style="color: #94a3b8; font-size: 12px;">Universal Media Player (X-Frame Unblocked)</span>
                 </div>
                 <div style="display: flex; gap: 8px; flex: 1; max-width: 480px;">
-                    <input type="text" id="yt-search-input" placeholder="Paste YouTube link or enter video ID / title..." style="flex: 1; padding: 8px 12px; border-radius: 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 13px; outline: none;">
+                    <input type="text" id="yt-search-input" placeholder="Paste YouTube link or enter video title..." style="flex: 1; padding: 8px 12px; border-radius: 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 13px; outline: none;">
                     <button id="yt-search-btn" style="padding: 8px 16px; background: #ff0000; color: #fff; font-weight: bold; border: none; border-radius: 6px; cursor: pointer;">Play</button>
                 </div>
                 <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #64748b; font-size: 12px; text-decoration: none; padding: 4px 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;">↗️ Direct Tab</a>
             </div>
 
-            <!-- Player & Playlist Split View -->
             <div style="display: flex; flex: 1; gap: 16px; flex-direction: column; overflow-y: auto;">
-                <!-- Main Embedded Player -->
                 <div style="position: relative; width: 100%; min-height: 380px; background: #000; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 24px rgba(0,0,0,0.6);">
                     <iframe 
                         id="yt-active-iframe"
@@ -313,15 +582,11 @@ function renderYouTubeView(url, viewport, navigateTo) {
                     ></iframe>
                 </div>
 
-                <!-- Video Recommendations Grid -->
                 <div style="margin-top: 6px;">
-                    <div style="font-size: 13px; font-weight: bold; color: #cbd5e1; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>📺 Featured Videos & Channels</span>
-                        <span style="font-size: 11px; color: #64748b;">Click any video to play instantly</span>
-                    </div>
+                    <div style="font-size: 13px; font-weight: bold; color: #cbd5e1; margin-bottom: 10px;">📺 Featured Channels & Streams</div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
                         ${curatedVideos.map(v => `
-                            <div class="yt-card" data-id="${v.id}" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; cursor: pointer; transition: background 0.2s, transform 0.15s;">
+                            <div class="yt-card" data-id="${v.id}" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; cursor: pointer; transition: all 0.2s;">
                                 <div style="position: relative; height: 110px; background: #181a24; border-radius: 6px; overflow: hidden; margin-bottom: 8px; display: flex; align-items: center; justify-content: center;">
                                     <img src="https://img.youtube.com/vi/${v.id}/mqdefault.jpg" alt="${escapeHtml(v.title)}" style="width: 100%; height: 100%; object-fit: cover;">
                                     <div style="position: absolute; width: 34px; height: 34px; background: rgba(255,0,0,0.85); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px;">▶</div>
@@ -347,15 +612,12 @@ function renderYouTubeView(url, viewport, navigateTo) {
         if (parsedId) {
             navigateTo(`https://youtube.com/watch?v=${parsedId}`);
         } else {
-            // Search query -> DuckDuckGo video search / in-app
-            navigateTo(`duckduckgo:site:youtube.com ${val}`);
+            navigateTo(`google:${val} youtube`);
         }
     };
 
     ytBtn?.addEventListener('click', handleYtSearch);
-    ytInput?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleYtSearch();
-    });
+    ytInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleYtSearch(); });
 
     viewport.querySelectorAll('.yt-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -373,19 +635,19 @@ function extractYouTubeVideoId(url) {
 }
 
 /* --------------------------------------------------------------------------
-   Universal Web Frame with CORS Proxy & Reader Mode Fallback
+   Universal Web Engine (Opens Any Website with Smart Proxy Fallback)
    -------------------------------------------------------------------------- */
 function renderUniversalWebFrame(url, viewport, navigateTo) {
     viewport.innerHTML = `
         <div style="background: #111422; padding: 6px 14px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: #8892b0;">
             <div style="display: flex; gap: 8px; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
-                <span style="color: #00e5ff;">🔒</span>
+                <span style="color: #4285F4;">🔒</span>
                 <span style="color: #cbd5e1; font-family: monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(url)}</span>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-                <button id="wb-btn-direct" style="padding: 3px 8px; background: rgba(0,229,255,0.15); border: 1px solid #00e5ff; border-radius: 4px; color: #00e5ff; font-size: 11px; cursor: pointer;">🌐 Live Frame</button>
+                <button id="wb-btn-direct" style="padding: 3px 8px; background: rgba(66,133,244,0.15); border: 1px solid #4285F4; border-radius: 4px; color: #4285F4; font-size: 11px; cursor: pointer;">🌐 Live Frame</button>
                 <button id="wb-btn-reader" style="padding: 3px 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #cbd5e1; font-size: 11px; cursor: pointer;">⚡ Reader Proxy</button>
-                <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #55ff55; text-decoration: none; font-size: 11px; padding: 3px 8px; background: rgba(85,255,85,0.1); border: 1px solid #55ff55; border-radius: 4px;">↗️ Direct Tab</a>
+                <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-size: 11px; padding: 3px 8px; background: rgba(52,168,83,0.1); border: 1px solid #34A853; border-radius: 4px;">↗️ Direct Tab</a>
             </div>
         </div>
         <div id="wb-content-host" style="flex: 1; width: 100%; height: 100%; position: relative;">
@@ -396,6 +658,7 @@ function renderUniversalWebFrame(url, viewport, navigateTo) {
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
                 allow="fullscreen; clipboard-read; clipboard-write;"
                 loading="lazy"
+                style="width: 100%; height: 100%; border: none; background: #fff;"
             ></iframe>
         </div>
     `;
@@ -414,6 +677,7 @@ function renderUniversalWebFrame(url, viewport, navigateTo) {
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
                     allow="fullscreen; clipboard-read; clipboard-write;"
                     loading="lazy"
+                    style="width: 100%; height: 100%; border: none; background: #fff;"
                 ></iframe>
             `;
         }
@@ -428,7 +692,7 @@ function renderUniversalWebFrame(url, viewport, navigateTo) {
 async function loadReaderProxy(url, container) {
     if (!container) return;
     container.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #00e5ff; font-family: monospace; font-size: 14px;">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #4285F4; font-family: monospace; font-size: 14px;">
             <div style="font-size: 24px; margin-bottom: 12px; animation: spin 1s infinite linear;">⚡</div>
             <div>Rendering Unrestricted Reader Proxy for ${escapeHtml(url)}...</div>
         </div>
@@ -442,9 +706,9 @@ async function loadReaderProxy(url, container) {
 
         container.innerHTML = `
             <div class="browser-inner-content" style="padding: 24px; max-width: 800px; margin: 0 auto; color: #cbd5e1; font-family: system-ui, sans-serif; line-height: 1.7;">
-                <div style="padding: 10px 14px; background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.25); border-radius: 8px; margin-bottom: 20px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="padding: 10px 14px; background: rgba(66,133,244,0.08); border: 1px solid rgba(66,133,244,0.25); border-radius: 8px; margin-bottom: 20px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
                     <span>⚡ Rendered via Reader Engine (Bypassing X-Frame-Options)</span>
-                    <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #00e5ff; text-decoration: none;">Open Original Site &rarr;</a>
+                    <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #4285F4; text-decoration: none;">Open Original Site &rarr;</a>
                 </div>
                 <div style="white-space: pre-wrap; font-family: monospace; font-size: 13px; background: rgba(0,0,0,0.3); padding: 18px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">${escapeHtml(markdown)}</div>
             </div>
@@ -456,7 +720,7 @@ async function loadReaderProxy(url, container) {
                 <p style="color: #94a3b8; font-size: 14px; max-width: 500px; margin: 0 auto 20px auto;">
                     This website enforces strict <code>X-Frame-Options: SAMEORIGIN</code>. You can open it in a direct sandboxed window below:
                 </p>
-                <a href="${url}" target="_blank" rel="noopener noreferrer" style="padding: 10px 20px; background: var(--accent-primary); color: #000; font-weight: bold; border-radius: 8px; text-decoration: none; display: inline-block;">
+                <a href="${url}" target="_blank" rel="noopener noreferrer" style="padding: 10px 20px; background: #4285F4; color: #fff; font-weight: bold; border-radius: 8px; text-decoration: none; display: inline-block;">
                     Open ${escapeHtml(url)} in Direct Tab &rarr;
                 </a>
             </div>
@@ -465,163 +729,118 @@ async function loadReaderProxy(url, container) {
 }
 
 /* --------------------------------------------------------------------------
-   Live Real-Time Web Search Engine (DuckDuckGo Instant Answers + Wikipedia)
+   Google Auth Dialogs & Account Helpers
    -------------------------------------------------------------------------- */
-async function renderLiveSearchResults(query, viewport, navigateTo) {
-    viewport.innerHTML = `
-        <div class="browser-inner-content" style="padding: 24px; max-width: 860px; margin: 0 auto;">
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
-                <input type="text" id="srch-query-input" value="${escapeHtml(query)}" style="flex: 1; padding: 10px 14px; border-radius: 8px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-color); color: #fff; font-size: 14px; outline: none;">
-                <button id="srch-query-btn" style="padding: 10px 20px; background: var(--accent-primary); color: #000; font-weight: 700; border-radius: 8px; border: none; cursor: pointer;">Search</button>
-            </div>
-            <div id="srch-loading-indicator" style="color: var(--accent-primary); font-family: monospace; font-size: 13px; margin: 20px 0;">
-                ⚡ Querying DuckDuckGo & Live Knowledge Graph for "${escapeHtml(query)}"...
-            </div>
-            <div id="srch-results-container"></div>
+function getActiveGoogleUser() {
+    try {
+        const raw = localStorage.getItem('krypton_google_account');
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function promptGoogleBrowserAuth(onSuccess) {
+    const dialog = document.createElement('div');
+    dialog.style.cssText = 'display: flex; flex-direction: column; gap: 14px; color: #000; font-family: "Outfit", sans-serif;';
+
+    dialog.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+            <svg width="24" height="24" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+            <div style="font-weight: 700; font-size: 15px; color: #1a202c;">Sign in to Google</div>
+        </div>
+        <div style="font-size: 12px; color: #4a5568;">
+            Connect your Google account to unlock 15 GB of persistent cloud storage across KryptonOS:
+        </div>
+        <input type="email" id="g-browser-email" value="shrestangsu.dutta@gmail.com" placeholder="name@gmail.com" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
+        <input type="text" id="g-browser-name" value="Shrestangsu Dutta" placeholder="Display Name" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+            <button id="g-browser-cancel" style="padding: 6px 14px; background: #edf2f7; border: 1px solid #cbd5e0; border-radius: 6px; cursor: pointer; font-size: 12px;">Cancel</button>
+            <button id="g-browser-confirm" style="padding: 6px 16px; background: #4285F4; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px;">Sign in</button>
         </div>
     `;
 
-    const qInput = viewport.querySelector('#srch-query-input');
-    const qBtn = viewport.querySelector('#srch-query-btn');
-    const resultsContainer = viewport.querySelector('#srch-results-container');
-    const loadingEl = viewport.querySelector('#srch-loading-indicator');
-
-    const handleNewSearch = () => {
-        const nextQ = qInput.value.trim();
-        if (nextQ) navigateTo(nextQ);
-    };
-
-    qBtn?.addEventListener('click', handleNewSearch);
-    qInput?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleNewSearch();
+    wm.createWindow({
+        id: 'browser-google-auth-dialog',
+        title: 'Google Account Authentication',
+        icon: '🔒',
+        width: 390,
+        height: 260,
+        content: dialog
     });
 
-    try {
-        const ddgPromise = fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=1`)
-            .then(res => res.json())
-            .catch(() => null);
+    dialog.querySelector('#g-browser-cancel').addEventListener('click', () => wm.closeWindow('browser-google-auth-dialog'));
+    dialog.querySelector('#g-browser-confirm').addEventListener('click', () => {
+        const email = dialog.querySelector('#g-browser-email').value.trim();
+        const name = dialog.querySelector('#g-browser-name').value.trim() || 'Google User';
 
-        const wikiPromise = fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=6&namespace=0&format=json&origin=*`)
-            .then(res => res.json())
-            .catch(() => null);
-
-        const [ddgData, wikiData] = await Promise.all([ddgPromise, wikiPromise]);
-
-        if (loadingEl) loadingEl.remove();
-
-        let html = '';
-
-        // DuckDuckGo Abstract / Knowledge Box
-        if (ddgData && (ddgData.AbstractText || ddgData.Heading || ddgData.Answer)) {
-            const heading = ddgData.Heading || query;
-            const abstract = ddgData.AbstractText || ddgData.Answer || '';
-            const sourceUrl = ddgData.AbstractURL || '';
-            const sourceName = ddgData.AbstractSource || 'DuckDuckGo Instant Answer';
-            const imgUrl = ddgData.Image ? (ddgData.Image.startsWith('http') ? ddgData.Image : `https://duckduckgo.com${ddgData.Image}`) : '';
-
-            html += `
-                <div style="background: rgba(0, 229, 255, 0.06); border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 10px; padding: 18px; margin-bottom: 22px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;">
-                        <div style="flex: 1;">
-                            <span style="font-size: 11px; font-weight: bold; color: #00e5ff; text-transform: uppercase;">Instant Knowledge Card • ${sourceName}</span>
-                            <h2 style="margin: 6px 0 10px 0; font-size: 20px; color: #ffffff;">${escapeHtml(heading)}</h2>
-                            <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin-bottom: 12px;">${escapeHtml(abstract)}</p>
-                            ${sourceUrl ? `<a href="${sourceUrl}" target="_blank" class="search-nav-link" data-url="${sourceUrl}" style="color: #00e5ff; font-size: 13px; text-decoration: none; font-weight: 600;">Read more on ${sourceName} &rarr;</a>` : ''}
-                        </div>
-                        ${imgUrl ? `<img src="${imgUrl}" alt="${escapeHtml(heading)}" style="max-width: 110px; max-height: 110px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); object-fit: cover;">` : ''}
-                    </div>
-                </div>
-            `;
+        if (!email || !email.includes('@')) {
+            story.showToast('Validation Error', 'Please enter a valid Google Account email.', 'error');
+            return;
         }
 
-        // Wikipedia Live Search Results
-        if (wikiData && Array.isArray(wikiData) && wikiData[1] && wikiData[1].length > 0) {
-            const titles = wikiData[1];
-            const snippets = wikiData[2] || [];
-            const urls = wikiData[3] || [];
+        const account = {
+            email,
+            name,
+            uid: `google_oauth2_${Math.random().toString(36).substring(2, 12)}`,
+            linked_at: new Date().toISOString()
+        };
 
-            html += `<h3 style="font-size: 15px; color: #94a3b8; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;">Web & Encyclopedia Results for "${escapeHtml(query)}"</h3>`;
-            html += `<div style="display: flex; flex-direction: column; gap: 16px;">`;
+        localStorage.setItem('krypton_google_account', JSON.stringify(account));
+        localStorage.setItem('krypton_google_email', email);
 
-            titles.forEach((title, i) => {
-                const snippet = snippets[i] || 'Explore encyclopedia documentation and details.';
-                const url = urls[i] || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+        wm.closeWindow('browser-google-auth-dialog');
+        story.showToast('✓ Google Account Connected', `Signed in as ${email} (15 GB Cloud Storage Active).`, 'success');
+        if (onSuccess) onSuccess();
+    });
+}
 
-                html += `
-                    <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px;">
-                        <div style="font-size: 11px; color: #38bdf8; font-family: monospace; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${url}</div>
-                        <h4 style="margin: 0 0 6px 0; font-size: 16px;"><a href="#" class="search-nav-link" data-url="${url}" style="color: var(--accent-primary); text-decoration: none;">${escapeHtml(title)}</a></h4>
-                        <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 8px 0;">${escapeHtml(snippet)}</p>
-                        <div style="display: flex; gap: 10px;">
-                            <a href="#" class="search-nav-link" data-url="${url}" style="font-size: 12px; color: #55ffff; text-decoration: none;">Browse inside Krypton &rarr;</a>
-                            <a href="${url}" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: #64748b; text-decoration: none;">↗️ Open Direct</a>
-                        </div>
-                    </div>
-                `;
-            });
+function showGoogleAccountManagerDialog(onChange) {
+    const user = getActiveGoogleUser();
+    if (!user) return;
 
-            html += `</div>`;
-        }
+    const dialog = document.createElement('div');
+    dialog.style.cssText = 'display: flex; flex-direction: column; gap: 14px; color: #000; font-family: "Outfit", sans-serif;';
 
-        // DuckDuckGo Related Topics
-        if (ddgData && Array.isArray(ddgData.RelatedTopics) && ddgData.RelatedTopics.length > 0) {
-            const validTopics = ddgData.RelatedTopics.filter(t => t.Text && t.FirstURL).slice(0, 5);
-            if (validTopics.length > 0) {
-                html += `<h3 style="font-size: 15px; color: #94a3b8; margin: 24px 0 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;">Related Topics</h3>`;
-                html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px;">`;
-                validTopics.forEach(t => {
-                    html += `
-                        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 10px;">
-                            <p style="color: #cbd5e1; font-size: 12px; line-height: 1.4; margin: 0 0 6px 0;">${escapeHtml(t.Text)}</p>
-                            <a href="#" class="search-nav-link" data-url="${t.FirstURL}" style="color: #00e5ff; font-size: 11px; text-decoration: none;">Explore Topic &rarr;</a>
-                        </div>
-                    `;
-                });
-                html += `</div>`;
-            }
-        }
-
-        // External Search Hub Links
-        const ddgLiteUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
-        const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-        const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
-        const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-
-        html += `
-            <div style="margin-top: 30px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-                <span style="color: #64748b; font-size: 12px;">Search elsewhere:</span>
-                <a href="${ytSearchUrl}" class="search-nav-link" data-url="${ytSearchUrl}" style="padding: 6px 12px; background: rgba(255,0,0,0.15); border: 1px solid #ff0000; border-radius: 6px; color: #ff5555; font-size: 12px; text-decoration: none;">▶ YouTube</a>
-                <a href="${ddgLiteUrl}" target="_blank" rel="noopener noreferrer" style="padding: 6px 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 12px; text-decoration: none;">🦆 DuckDuckGo Lite</a>
-                <a href="${googleUrl}" target="_blank" rel="noopener noreferrer" style="padding: 6px 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 12px; text-decoration: none;">🔍 Google</a>
-                <a href="${bingUrl}" target="_blank" rel="noopener noreferrer" style="padding: 6px 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 12px; text-decoration: none;">🌐 Bing</a>
+    dialog.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #4285F4, #34A853); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 20px;">
+                ${(user.name || user.email)[0].toUpperCase()}
             </div>
-        `;
+            <div>
+                <div style="font-weight: 700; font-size: 15px; color: #1a202c;">${user.name || 'Google User'}</div>
+                <div style="font-size: 12px; color: #4a5568;">${user.email}</div>
+            </div>
+        </div>
 
-        if (resultsContainer) {
-            resultsContainer.innerHTML = html;
-            resultsContainer.querySelectorAll('.search-nav-link').forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const target = link.getAttribute('data-url');
-                    if (target) navigateTo(target);
-                });
-            });
-        }
-    } catch (err) {
-        if (loadingEl) loadingEl.remove();
-        if (resultsContainer) {
-            resultsContainer.innerHTML = `
-                <div style="background: rgba(255,0,0,0.08); border: 1px solid rgba(255,0,0,0.2); border-radius: 8px; padding: 20px; text-align: center;">
-                    <h3 style="color: #ff5555; margin-bottom: 8px;">Network Search Gateway</h3>
-                    <p style="color: #94a3b8; font-size: 13px; margin-bottom: 14px;">Open external search directly below:</p>
-                    <div style="display: flex; gap: 10px; justify-content: center;">
-                        <a href="https://duckduckgo.com/?q=${encodeURIComponent(query)}" target="_blank" style="padding: 8px 16px; background: var(--accent-primary); color: #000; font-weight: bold; border-radius: 6px; text-decoration: none;">Open DuckDuckGo</a>
-                        <a href="https://en.wikipedia.org/wiki/${encodeURIComponent(query)}" target="_blank" style="padding: 8px 16px; background: rgba(255,255,255,0.1); color: #fff; border-radius: 6px; text-decoration: none;">Search Wikipedia</a>
-                    </div>
-                </div>
-            `;
-        }
-    }
+        <div style="background: rgba(52, 168, 83, 0.08); border: 1px solid #34A853; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #2d3748;">
+            <div style="font-weight: 700; color: #2f855a; margin-bottom: 2px;">✓ 15 GB Cloud Storage Bucket Linked</div>
+            <div>Your files are automatically backed up to secure persistent cloud storage.</div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+            <button id="g-mgr-signout" style="padding: 6px 14px; background: #fee2e2; border: 1px solid #ef4444; color: #dc2626; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px;">Sign out</button>
+            <button id="g-mgr-close" style="padding: 6px 16px; background: #4285F4; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px;">Done</button>
+        </div>
+    `;
+
+    wm.createWindow({
+        id: 'google-account-manager-dialog',
+        title: 'Manage Google Account',
+        icon: '⚙️',
+        width: 380,
+        height: 250,
+        content: dialog
+    });
+
+    dialog.querySelector('#g-mgr-close').addEventListener('click', () => wm.closeWindow('google-account-manager-dialog'));
+    dialog.querySelector('#g-mgr-signout').addEventListener('click', () => {
+        localStorage.removeItem('krypton_google_account');
+        localStorage.removeItem('krypton_google_email');
+        wm.closeWindow('google-account-manager-dialog');
+        story.showToast('Signed Out', 'Google account disconnected from browser and persistent storage.', 'info');
+        if (onChange) onChange();
+    });
 }
 
 function escapeHtml(str) {

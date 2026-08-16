@@ -850,9 +850,9 @@ function extractYouTubeVideoId(url) {
 }
 
 /* --------------------------------------------------------------------------
-   Universal Web Engine (Bypasses X-Frame-Options & Opens Any Webpage)
+   Universal Web Engine (Live Iframe + Reader Mode + Direct Tab)
    -------------------------------------------------------------------------- */
-async function renderUniversalWebFrame(url, viewport, navigateTo) {
+function renderUniversalWebFrame(url, viewport, navigateTo) {
     viewport.innerHTML = `
         <div style="background: #111422; padding: 6px 14px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: #8892b0;">
             <div style="display: flex; gap: 8px; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
@@ -860,67 +860,49 @@ async function renderUniversalWebFrame(url, viewport, navigateTo) {
                 <span style="color: #cbd5e1; font-family: monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(url)}</span>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-                <button id="wb-btn-proxy" style="padding: 3px 8px; background: rgba(66,133,244,0.15); border: 1px solid #4285F4; border-radius: 4px; color: #4285F4; font-size: 11px; cursor: pointer;">🌐 Unblocked Proxy</button>
+                <button id="wb-btn-direct-frame" style="padding: 3px 8px; background: rgba(66,133,244,0.15); border: 1px solid #4285F4; border-radius: 4px; color: #4285F4; font-size: 11px; cursor: pointer;">🌐 Live Frame</button>
                 <button id="wb-btn-reader" style="padding: 3px 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #cbd5e1; font-size: 11px; cursor: pointer;">⚡ Reader Mode</button>
                 <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-size: 11px; padding: 3px 8px; background: rgba(52,168,83,0.1); border: 1px solid #34A853; border-radius: 4px;">↗️ Direct Tab</a>
             </div>
         </div>
         <div id="wb-content-host" style="flex: 1; width: 100%; height: 100%; position: relative;">
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #8ab4f8; font-family: monospace; font-size: 13px;">
-                <div style="font-size: 24px; margin-bottom: 12px; animation: spin 1s infinite linear;">⚡</div>
-                <div>Connecting to ${escapeHtml(url)} via Universal Proxy...</div>
-            </div>
+            <iframe 
+                id="wb-live-iframe"
+                class="browser-iframe" 
+                src="${url}" 
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                loading="lazy"
+                style="width: 100%; height: 100%; border: none; background: #fff;"
+            ></iframe>
         </div>
     `;
 
     const host = viewport.querySelector('#wb-content-host');
-    const btnProxy = viewport.querySelector('#wb-btn-proxy');
+    const btnDirectFrame = viewport.querySelector('#wb-btn-direct-frame');
     const btnReader = viewport.querySelector('#wb-btn-reader');
 
-    const loadProxyView = async () => {
-        if (!host) return;
-        try {
-            const proxyEndpoint = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-            const res = await fetch(proxyEndpoint);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            let html = await res.text();
-
-            // Inject base href so relative images, scripts, and CSS load
-            const baseTag = `<base href="${url}">`;
-            if (html.includes('<head>')) {
-                html = html.replace('<head>', `<head>${baseTag}`);
-            } else if (html.includes('<html>')) {
-                html = html.replace('<html>', `<html><head>${baseTag}</head>`);
-            } else {
-                html = `${baseTag}${html}`;
-            }
-
-            const iframe = document.createElement('iframe');
-            iframe.className = 'browser-iframe';
-            iframe.style.cssText = 'width: 100%; height: 100%; border: none; background: #fff;';
-            iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-modals';
-            iframe.srcdoc = html;
-
-            host.innerHTML = '';
-            host.appendChild(iframe);
-        } catch (err) {
-            // Fallback to Reader mode
-            loadReaderProxy(url, host);
-        }
-    };
-
-    btnProxy?.addEventListener('click', () => {
+    btnDirectFrame?.addEventListener('click', () => {
         sound.playClick();
-        loadProxyView();
+        if (host) {
+            host.innerHTML = `
+                <iframe 
+                    id="wb-live-iframe"
+                    class="browser-iframe" 
+                    src="${url}" 
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    loading="lazy"
+                    style="width: 100%; height: 100%; border: none; background: #fff;"
+                ></iframe>
+            `;
+        }
     });
 
     btnReader?.addEventListener('click', () => {
         sound.playClick();
         loadReaderProxy(url, host);
     });
-
-    // Auto-load proxy HTML
-    loadProxyView();
 }
 
 async function loadReaderProxy(url, container) {

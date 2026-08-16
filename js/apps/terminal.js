@@ -1390,6 +1390,11 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
                 }
                 vfs.root.children = {};
                 vfs.saveFileSystem();
+                localStorage.removeItem('krypton_upgraded_lts');
+                localStorage.removeItem('krypton_os_version');
+                localStorage.removeItem('krypton_os_installed');
+                localStorage.removeItem('krypton_primary_user');
+                localStorage.removeItem('krypton_hostname');
                 lines.push({ text: "rm: it is dangerous to operate recursively on '/'", type: 'warning' });
                 lines.push({ text: "rm: use --no-preserve-root to override this failsafe (proceeding anyway...)", type: 'muted' });
                 lines.push({ text: "[ OK ] Destroyed /boot (Kernel binary and GRUB images wiped)", type: 'error' });
@@ -1414,6 +1419,7 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
             if (targetPath === '/boot') {
                 vfs.remove(targetPath, true);
+                localStorage.removeItem('krypton_upgraded_lts');
                 lines.push({ text: "[ OK ] Deleted /boot (GRUB configuration and vmlinuz image wiped)", type: 'warning' });
                 lines.push({ text: "⚠️ WARNING: Bootloader corrupted. Reboot will trigger GRUB Rescue Shell.", type: 'error' });
                 continue;

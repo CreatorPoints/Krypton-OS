@@ -88,8 +88,8 @@ export function openInstallerWizard() {
         if (stepIdx === 0) {
             const languages = ['English (US)', 'Español (España)', 'Deutsch (Deutschland)', 'Français (France)', '日本語 (Japanese)', 'Italiano (Italia)', 'Português (Brasil)'];
             return `
-                <div class="step-title">Welcome to KryptonOS 1.0</div>
-                <div class="step-subtitle">Select your preferred system language for installation.</div>
+                <div class="step-title">Welcome to Krypton OS Installer</div>
+                <div class="step-subtitle">Install Krypton OS 0.1 Alpha to your storage drive.</div>
                 <div class="lang-list-container">
                     ${languages.map(lang => `
                         <div class="lang-item ${selectedLang === lang ? 'selected' : ''}" data-lang="${lang}">
@@ -234,12 +234,12 @@ export function openInstallerWizard() {
                 </div>
 
                 <div style="background: rgba(239,68,68,0.15); border: 1px solid #ef4444; border-radius: 6px; padding: 12px; font-size: 12px; color: #fca5a5;">
-                    ⚠️ <strong>Warning:</strong> Installation will format target partition <code>/dev/nvme0n1p2</code> and install genuine upstream KryptonOS 1.0 LTS.
+                    ⚠️ <strong>Warning:</strong> Installation will format target partition <code>/dev/nvme0n1p2</code> and install genuine upstream Krypton OS 0.1 Alpha.
                 </div>
             `;
         } else if (stepIdx === 5) {
             return `
-                <div class="step-title">Installing KryptonOS 1.0 LTS (Real Stream from Repo)</div>
+                <div class="step-title">Installing Krypton OS 0.1 Alpha (Real Stream from Repo)</div>
                 <div class="step-subtitle" id="installer-status-label">Connecting to upstream https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo...</div>
 
                 <div class="installer-progress-container">
@@ -794,7 +794,7 @@ export function openInstallerWizard() {
 
     wm.createWindow({
         id: 'installer',
-        title: 'KryptonOS 1.0 Installer (Ubiquity / Calamares)',
+        title: 'Install Krypton OS (Calamares Installer)',
         icon: '💿',
         width: 720,
         height: 540,

@@ -31,14 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 export function checkEnvironmentState() {
     const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
-    const osVersion = localStorage.getItem('krypton_os_version') || '0.1.0-alpha';
-    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' || osVersion === '1.0.0.0';
+    const osRel = vfs.readFile('/etc/os-release') || '';
+    const isAlphaInVfs = osRel.includes('0.1.0-alpha') || vfs.exists('/boot/vmlinuz-2.0.0.14-generic-krypton');
+    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' && !isAlphaInVfs && osRel.includes('1.0.0.0');
 
-    if (!isInstalled) {
+    if (!isInstalled || !vfs.exists('/etc/os-release')) {
         // 1. Live USB Mode: Windows 98 styled Krypton Alpha OS with Terminal & Installer ONLY
         initLiveSessionDesktop();
     } else if (!isUpgraded) {
-        // 2. Base Installed OS: Downloaded base Krypton Alpha OS with Buggy Web Navigator + Linux 6.10 Terminal + APT
+        // 2. Base Installed OS: Krypton Alpha OS (theme-win98) with Vintage Navigator + Terminal + Upgrade Notes
         initBaseInstalledDesktop();
     } else {
         // 3. Upgraded Modern OS: Full modern Krypton 1.0 LTS desktop suite

@@ -761,7 +761,7 @@ export class MasterBootEngine {
 
         const osRel = vfs.readFile('/etc/os-release') || '';
         const prettyMatch = osRel.match(/PRETTY_NAME="([^"]+)"/);
-        const osTitle = prettyMatch ? prettyMatch[1] : 'Krypton 1.0 LTS';
+        const osTitle = prettyMatch ? prettyMatch[1] : 'Krypton OS 0.1 Alpha';
         const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
         const hostname = localStorage.getItem('krypton_hostname') || 'krypton-station';
 

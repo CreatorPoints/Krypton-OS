@@ -567,7 +567,7 @@ function renderAboutTab(container) {
 
     const osRel = vfs.readFile('/etc/os-release') || '';
     const prettyMatch = osRel.match(/PRETTY_NAME="([^"]+)"/);
-    const osTitle = prettyMatch ? prettyMatch[1] : 'Krypton 0.1.0.2';
+    const osTitle = prettyMatch ? prettyMatch[1] : 'Krypton 1.0.0.0 LTS';
 
     container.innerHTML = `
         <div class="settings-header">

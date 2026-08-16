@@ -1754,7 +1754,7 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
         const osReleaseStr = vfs.readFile('/etc/os-release') || '';
         const prettyMatch = osReleaseStr.match(/PRETTY_NAME="([^"]+)"/);
-        const osName = prettyMatch ? prettyMatch[1] : 'Krypton 0.1.0.2';
+        const osName = prettyMatch ? prettyMatch[1] : 'Krypton 1.0.0.0 LTS';
 
         callback({
             lines: [

@@ -11,16 +11,16 @@ import { openNotes } from './notes.js';
 
 export const REPO_DPKG_PACKAGES = [
     { id: 'krypton-desktop-core', file: 'krypton-desktop-core_0.1.0.2_amd64.deb', name: 'krypton-desktop-core', version: '0.1.0.2', arch: 'amd64', section: 'x11/desktop', size: 4820, maintainer: 'KryptonOS Core Team <core@krypton-os.org>', summary: 'KryptonOS Desktop Shell, Wayland Compositor, and System Utilities' },
-    { id: 'cmatrix', file: 'cmatrix.dpkg', name: 'cmatrix', version: '2.0-3', arch: 'amd64', section: 'utils/console', size: 128, maintainer: 'KryptonOS Maintainers <packages@krypton-os.org>', summary: 'Matrix Digital Rain Terminal Screensaver' },
-    { id: 'cowsay', file: 'cowsay.dpkg', name: 'cowsay', version: '3.03+dfsg2-8', arch: 'all', section: 'games/toys', size: 96, maintainer: 'Debian QA Group <packages@debian.org>', summary: 'Configurable talking and thinking ASCII cow' },
-    { id: 'neofetch', file: 'neofetch.dpkg', name: 'neofetch', version: '7.1.0-2', arch: 'all', section: 'utils/system', size: 340, maintainer: 'Dylan Araps <dylan.araps@gmail.com>', summary: 'Fast, highly customizable CLI system info tool' },
-    { id: 'sl', file: 'sl.dpkg', name: 'sl', version: '5.02-1', arch: 'amd64', section: 'games/toys', size: 48, maintainer: 'Toyoda Masashi <toyoda@dandelion.org>', summary: 'Steam Locomotive animator for typo prevention' },
-    { id: 'krypton-desktop', file: 'krypton-desktop.dpkg', name: 'krypton-desktop', version: '0.1.0.2', arch: 'amd64', section: 'x11/desktop', size: 84200, maintainer: 'KryptonOS Desktop Team <desktop@krypton-os.org>', summary: 'Next-generation modern Wayland desktop environment' },
-    { id: 'krypton-browser', file: 'krypton-browser.dpkg', name: 'krypton-browser', version: '1.4.2-release', arch: 'amd64', section: 'web/browsers', size: 42100, maintainer: 'Krypton Web Team <browser@krypton-os.org>', summary: 'Quantum Sandboxed Web Browser' },
-    { id: 'krypton-taskmgr', file: 'krypton-taskmgr.dpkg', name: 'krypton-taskmgr', version: '1.2.0-release', arch: 'amd64', section: 'admin/monitoring', size: 3200, maintainer: 'Krypton System Team <sysadmin@krypton-os.org>', summary: 'GUI System Task Manager and Performance Monitor' },
-    { id: 'krypton-filemgr', file: 'krypton-filemgr.dpkg', name: 'krypton-filemgr', version: '1.3.0-release', arch: 'amd64', section: 'utils/files', size: 5600, maintainer: 'Krypton System Team <sysadmin@krypton-os.org>', summary: 'Graphical File Explorer and Storage Navigator' },
-    { id: 'krypton-notes', file: 'krypton-notes.dpkg', name: 'krypton-notes', version: '1.1.0-release', arch: 'amd64', section: 'editors/text', size: 1800, maintainer: 'Krypton Applications <apps@krypton-os.org>', summary: 'Fast lightweight text and code editor' },
-    { id: 'krypton-calculator', file: 'krypton-calculator.dpkg', name: 'krypton-calculator', version: '1.0.2-release', arch: 'amd64', section: 'math/calculators', size: 950, maintainer: 'Krypton Applications <apps@krypton-os.org>', summary: 'Scientific and standard desktop calculator' }
+    { id: 'cmatrix', file: 'cmatrix.deb', name: 'cmatrix', version: '2.0-3', arch: 'amd64', section: 'utils/console', size: 128, maintainer: 'KryptonOS Maintainers <packages@krypton-os.org>', summary: 'Matrix Digital Rain Terminal Screensaver' },
+    { id: 'cowsay', file: 'cowsay.deb', name: 'cowsay', version: '3.03+dfsg2-8', arch: 'all', section: 'games/toys', size: 96, maintainer: 'Debian QA Group <packages@debian.org>', summary: 'Configurable talking and thinking ASCII cow' },
+    { id: 'neofetch', file: 'neofetch.deb', name: 'neofetch', version: '7.1.0-2', arch: 'all', section: 'utils/system', size: 340, maintainer: 'Dylan Araps <dylan.araps@gmail.com>', summary: 'Fast, highly customizable CLI system info tool' },
+    { id: 'sl', file: 'sl.deb', name: 'sl', version: '5.02-1', arch: 'amd64', section: 'games/toys', size: 48, maintainer: 'Toyoda Masashi <toyoda@dandelion.org>', summary: 'Steam Locomotive animator for typo prevention' },
+    { id: 'krypton-desktop', file: 'krypton-desktop.deb', name: 'krypton-desktop', version: '0.1.0.2', arch: 'amd64', section: 'x11/desktop', size: 84200, maintainer: 'KryptonOS Desktop Team <desktop@krypton-os.org>', summary: 'Next-generation modern Wayland desktop environment' },
+    { id: 'krypton-browser', file: 'krypton-browser.deb', name: 'krypton-browser', version: '1.4.2-release', arch: 'amd64', section: 'web/browsers', size: 42100, maintainer: 'Krypton Web Team <browser@krypton-os.org>', summary: 'Quantum Sandboxed Web Browser' },
+    { id: 'krypton-taskmgr', file: 'krypton-taskmgr.deb', name: 'krypton-taskmgr', version: '1.2.0-release', arch: 'amd64', section: 'admin/monitoring', size: 3200, maintainer: 'Krypton System Team <sysadmin@krypton-os.org>', summary: 'GUI System Task Manager and Performance Monitor' },
+    { id: 'krypton-filemgr', file: 'krypton-filemgr.deb', name: 'krypton-filemgr', version: '1.3.0-release', arch: 'amd64', section: 'utils/files', size: 5600, maintainer: 'Krypton System Team <sysadmin@krypton-os.org>', summary: 'Graphical File Explorer and Storage Navigator' },
+    { id: 'krypton-notes', file: 'krypton-notes.deb', name: 'krypton-notes', version: '1.1.0-release', arch: 'amd64', section: 'editors/text', size: 1800, maintainer: 'Krypton Applications <apps@krypton-os.org>', summary: 'Fast lightweight text and code editor' },
+    { id: 'krypton-calculator', file: 'krypton-calculator.deb', name: 'krypton-calculator', version: '1.0.2-release', arch: 'amd64', section: 'math/calculators', size: 950, maintainer: 'Krypton Applications <apps@krypton-os.org>', summary: 'Scientific and standard desktop calculator' }
 ];
 
 export const PARROT_FRAMES = [
@@ -2260,7 +2260,7 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
                 callback({ lines: [{ text: "dpkg: error: --install needs at least one package archive file", type: 'error' }], exitCode: 1 });
                 return;
             }
-            const cleanName = target.split('/').pop().replace(/\.dpkg$/, '');
+            const cleanName = target.split('/').pop().replace(/\.(deb|dpkg)$/, '');
             if (cleanName === 'antigravity') {
                 story.setAntigravity(true);
             }
@@ -2274,7 +2274,7 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
                 lines: [
                     { text: `(Reading database ... 42180 files and directories currently installed.)`, type: 'muted' },
                     { text: `Preparing to unpack ${target} ...`, type: 'normal' },
-                    { text: `Unpacking ${cleanName} from /apt/${cleanName}.dpkg ...`, type: 'normal' },
+                    { text: `Unpacking ${cleanName} from /apt/${cleanName}.deb ...`, type: 'normal' },
                     { text: `Setting up ${cleanName} ...`, type: 'success' },
                     { text: `Processing triggers for krypton-desktop (1.0.4) ...`, type: 'info' }
                 ],
@@ -2606,7 +2606,7 @@ async function executeAptCommand(args, isRoot, callback) {
                     { text: `Maintainer: ${found.maintainer || 'Krypton Maintainers <pkg@krypton-os.org>'}`, type: 'normal' },
                     { text: `Installed-Size: ${found.size || 512} kB`, type: 'normal' },
                     { text: `Architecture: ${found.architecture || found.arch || 'amd64'}`, type: 'normal' },
-                    { text: `Archive-File: /apt/${found.file || (found.id + '.dpkg')}`, type: 'muted' },
+                    { text: `Archive-File: /apt/${found.file || (found.id + '.deb')}`, type: 'muted' },
                     { text: `Description: ${found.summary || found.description}`, type: 'normal' }
                 ],
                 exitCode: 0
@@ -2644,7 +2644,7 @@ async function executeAptCommand(args, isRoot, callback) {
         ];
         packages.forEach(p => {
             lines.push({
-                text: `${p.name}/${p.section || 'universe'} ${p.version} ${p.architecture || p.arch || 'amd64'} [installed: ${p.file || p.id + '.dpkg'}]`,
+                text: `${p.name}/${p.section || 'universe'} ${p.version} ${p.architecture || p.arch || 'amd64'} [installed: ${p.file || p.id + '.deb'}]`,
                 type: p.id === 'antigravity' ? 'cyan' : 'normal'
             });
         });
@@ -2670,7 +2670,7 @@ async function executeAptCommand(args, isRoot, callback) {
         const lines = [{ text: `Sorting... Done\nFull Text Search... Done`, type: 'muted' }];
         results.forEach(p => {
             lines.push({ text: `${p.name}/${p.section || 'universe'} ${p.version} ${p.architecture || p.arch || 'amd64'}`, type: 'cyan' });
-            lines.push({ text: `  ${p.summary || p.description} (from /apt/${p.file || p.id + '.dpkg'})`, type: 'normal' });
+            lines.push({ text: `  ${p.summary || p.description} (from /apt/${p.file || p.id + '.deb'})`, type: 'normal' });
         });
         callback({ lines, exitCode: 0 });
         return;
@@ -2692,11 +2692,11 @@ async function executeAptCommand(args, isRoot, callback) {
                     { text: "Building dependency tree... Done", type: 'normal' },
                     { text: `Reading state information... Done`, type: 'normal' },
                     { text: `The following NEW packages will be installed:\n  antigravity`, type: 'info' },
-                    { text: `Get:1 https://deb.krypton-os.org/apt/ antigravity.dpkg [1024 kB]`, type: 'normal' },
+                    { text: `Get:1 https://deb.krypton-os.org/apt/ antigravity.deb [1024 kB]`, type: 'normal' },
                     { text: `Fetched 1024 kB in 0s (4.2 MB/s)`, type: 'muted' },
                     { text: "Selecting previously unselected package antigravity.", type: 'muted' },
                     { text: "(Reading database ... 42180 files and directories currently installed.)", type: 'muted' },
-                    { text: "Preparing to unpack /apt/antigravity.dpkg ...", type: 'normal' },
+                    { text: "Preparing to unpack /apt/antigravity.deb ...", type: 'normal' },
                     { text: "Unpacking antigravity (4.2.0-beryllium) ...", type: 'normal' },
                     { text: "Setting up antigravity (4.2.0-beryllium) ...", type: 'normal' },
                     { text: "⚠️ WARNING: Gravity constant set to 0.0. Floating Zero-G mode active!", type: 'warning' },
@@ -2718,10 +2718,10 @@ async function executeAptCommand(args, isRoot, callback) {
                     { text: "Reading package lists... Done", type: 'normal' },
                     { text: "Building dependency tree... Done", type: 'normal' },
                     { text: "The following NEW packages will be installed:\n  krypton-adblock", type: 'info' },
-                    { text: "Get:1 https://deb.krypton-os.org/apt/ adblock.dpkg [512 kB]", type: 'normal' },
+                    { text: "Get:1 https://deb.krypton-os.org/apt/ adblock.deb [512 kB]", type: 'normal' },
                     { text: "Fetched 512 kB in 0s (3.8 MB/s)", type: 'muted' },
                     { text: "Selecting previously unselected package krypton-adblock.", type: 'muted' },
-                    { text: "Preparing to unpack /apt/adblock.dpkg ...", type: 'normal' },
+                    { text: "Preparing to unpack /apt/adblock.deb ...", type: 'normal' },
                     { text: "Unpacking krypton-adblock (2.4.0-beryllium) ...", type: 'normal' },
                     { text: "Setting up krypton-adblock (2.4.0-beryllium) ...", type: 'normal' },
                     { text: "Installed binary: /usr/bin/adblock", type: 'cyan' },
@@ -2738,10 +2738,10 @@ async function executeAptCommand(args, isRoot, callback) {
                 lines: [
                     { text: `Reading package lists... Done`, type: 'normal' },
                     { text: `Building dependency tree... Done`, type: 'normal' },
-                    { text: `Get:1 https://deb.krypton-os.org/apt/ ${found.file || (found.id + '.dpkg')} [${found.size || 512} kB]`, type: 'normal' },
-                    { text: `Unpacking ${found.name} from /apt/${found.file || (found.id + '.dpkg')} ...`, type: 'normal' },
+                    { text: `Get:1 https://deb.krypton-os.org/apt/ ${found.file || (found.id + '.deb')} [${found.size || 512} kB]`, type: 'normal' },
+                    { text: `Unpacking ${found.name} from /apt/${found.file || (found.id + '.deb')} ...`, type: 'normal' },
                     { text: `Setting up ${found.name} (${found.version}) ...`, type: 'success' },
-                    { text: `Package '${found.name}' installed successfully from /apt/${found.file || (found.id + '.dpkg')}.`, type: 'info' }
+                    { text: `Package '${found.name}' installed successfully from /apt/${found.file || (found.id + '.deb')}.`, type: 'info' }
                 ],
                 exitCode: 0
             });

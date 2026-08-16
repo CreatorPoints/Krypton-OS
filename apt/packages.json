@@ -21,7 +21,7 @@
     "size": 128,
     "maintainer": "KryptonOS Maintainers <packages@krypton-os.org>",
     "summary": "Matrix Digital Rain Terminal Screensaver",
-    "file": "cmatrix.dpkg",
+    "file": "cmatrix.deb",
     "command": "/usr/bin/cmatrix",
     "description": "Simulates the digital rain effect from The Matrix movie in terminal consoles with green fluorescent cascades."
   },
@@ -34,7 +34,7 @@
     "size": 96,
     "maintainer": "Debian QA Group <packages@debian.org>",
     "summary": "Configurable talking and thinking ASCII cow",
-    "file": "cowsay.dpkg",
+    "file": "cowsay.deb",
     "command": "/usr/bin/cowsay",
     "description": "Generates ASCII pictures of a cow saying or thinking something provided by the user."
   },
@@ -47,7 +47,7 @@
     "size": 340,
     "maintainer": "Dylan Araps <dylan.araps@gmail.com>",
     "summary": "Fast, highly customizable CLI system information tool",
-    "file": "neofetch.dpkg",
+    "file": "neofetch.deb",
     "command": "/usr/bin/neofetch",
     "description": "Neofetch displays system information alongside your operating system logo in an aesthetically pleasing terminal layout."
   },
@@ -60,9 +60,9 @@
     "size": 48,
     "maintainer": "Toyoda Masashi <toyoda@dandelion.org>",
     "summary": "Steam Locomotive animator for typo prevention",
-    "file": "sl.dpkg",
-    "command": "/usr/bin/sl",
-    "description": "Displays a steam locomotive driving across your terminal screen whenever you accidentally mistype ls as sl."
+    "file": "sl.deb",
+    "command": "/usr/games/sl",
+    "description": "SL (Steam Locomotive) runs across your screen if you accidentally type 'sl' instead of 'ls'."
   },
   {
     "id": "krypton-browser",
@@ -72,11 +72,10 @@
     "section": "web/browsers",
     "size": 42100,
     "maintainer": "Krypton Web Team <browser@krypton-os.org>",
-    "summary": "Quantum Sandboxed Web Browser with Live Search & YouTube Player",
-    "file": "krypton-browser.dpkg",
+    "summary": "Quantum Sandboxed Web Browser",
+    "file": "krypton-browser.deb",
     "command": "/usr/bin/krypton-browser",
-    "desktop": true,
-    "description": "Full-featured sandboxed Web browser with DuckDuckGo Instant Search, Wikipedia API lookup, YouTube player engine, and history bookmarks."
+    "description": "Full-featured web browser with Google engine, real organic web search, YouTube integration, and CORS proxy bypass."
   },
   {
     "id": "krypton-taskmgr",
@@ -87,10 +86,9 @@
     "size": 3200,
     "maintainer": "Krypton System Team <sysadmin@krypton-os.org>",
     "summary": "GUI System Task Manager and Performance Monitor",
-    "file": "krypton-taskmgr.dpkg",
+    "file": "krypton-taskmgr.deb",
     "command": "/usr/bin/krypton-taskmgr",
-    "desktop": true,
-    "description": "Graphical process monitor displaying live CPU load, RAM allocation, process termination controls, and thread diagnostics."
+    "description": "Process viewer, kill signal transmitter, real-time memory and CPU resource utilization graphs."
   },
   {
     "id": "krypton-filemgr",
@@ -101,10 +99,9 @@
     "size": 5600,
     "maintainer": "Krypton System Team <sysadmin@krypton-os.org>",
     "summary": "Graphical File Explorer and Storage Navigator",
-    "file": "krypton-filemgr.dpkg",
+    "file": "krypton-filemgr.deb",
     "command": "/usr/bin/krypton-filemgr",
-    "desktop": true,
-    "description": "Desktop file manager supporting folder browsing, file previews, creation, deletion, and path navigation across the Linux VFS."
+    "description": "Visual file manager for exploring virtual filesystems, copying paths, viewing properties, and managing directories."
   },
   {
     "id": "krypton-notes",
@@ -115,10 +112,9 @@
     "size": 1800,
     "maintainer": "Krypton Applications <apps@krypton-os.org>",
     "summary": "Fast lightweight text and code editor",
-    "file": "krypton-notes.dpkg",
+    "file": "krypton-notes.deb",
     "command": "/usr/bin/krypton-notes",
-    "desktop": true,
-    "description": "Lightweight code and text editor with line numbers, syntax recognition, and direct VFS file saving."
+    "description": "Desktop text editor supporting markdown preview, configuration editing, and scratchpad note-taking."
   },
   {
     "id": "krypton-calculator",
@@ -129,9 +125,8 @@
     "size": 950,
     "maintainer": "Krypton Applications <apps@krypton-os.org>",
     "summary": "Scientific and standard desktop calculator",
-    "file": "krypton-calculator.dpkg",
+    "file": "krypton-calculator.deb",
     "command": "/usr/bin/krypton-calculator",
-    "desktop": true,
-    "description": "Desktop calculator supporting arithmetic operations, percentages, square roots, and decimal calculations."
+    "description": "Desktop arithmetic and algebraic expression solver."
   }
 ]

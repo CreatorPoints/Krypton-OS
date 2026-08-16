@@ -70,13 +70,13 @@ Step-by-step graphical operating system installation wizard:
 ---
 
 ### 📦 5. APT & dpkg Package Management
-- **Debian Control Packages**: Stored in `/apt/*.dpkg` with standard package control metadata.
+- **Debian Control Packages**: Stored in `/apt/*.deb` with standard package control metadata.
 - **Commands**:
   ```bash
   sudo apt update
   sudo apt install <pkg>
   sudo apt remove <pkg>
-  sudo dpkg -i /apt/<pkg>.dpkg
+  sudo dpkg -i /apt/<pkg>.deb
   dpkg -s <pkg>
   dpkg -l
   ```

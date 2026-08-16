@@ -51,8 +51,8 @@ You are acting as a Senior Systems Architect, Linux Kernel Engineer, and Fronten
 4. PACKAGE MANAGER ARCHITECTURE (APT & DPKG)
 ================================================================================
 - Realistic APT workflow:
-  * Repository storage mapped to `/apt/<appname>.dpkg` or structured JSON packages.
-  * Commands: `sudo apt update`, `sudo apt install <pkg>`, `sudo apt remove <pkg>`, `dpkg -s <pkg>`, `dpkg -l`, `dpkg -i <archive.dpkg>`.
+  * Repository storage mapped to `/apt/<appname>.deb` or structured JSON packages.
+  * Commands: `sudo apt update`, `sudo apt install <pkg>`, `sudo apt remove <pkg>`, `dpkg -s <pkg>`, `dpkg -l`, `dpkg -i <archive.deb>`.
   * Authentic terminal spinners and progress bars (`Reading package lists... Done`, `Unpacking...`, `Setting up...`).
   * App deployment: Unpacks binaries into `/bin` or `/usr/bin`, registers control metadata, and creates Desktop `.desktop` launcher shortcuts if GUI-enabled.
 

@@ -814,14 +814,17 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     // 0.0 Legacy Kernel 2.0.0.14 Feature Gate (Alpha Mode)
-    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true' || (localStorage.getItem('krypton_os_version') === '1.0.0.0');
+    const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+    const osRel = vfs.readFile('/etc/os-release') || '';
+    const isUpgraded = isInstalled && localStorage.getItem('krypton_upgraded_lts') === 'true' && osRel.includes('1.0.0.0');
     if (!isUpgraded) {
         const allowedAlphaCommands = [
             'apt', 'apt-get', 'dpkg', 'sudo', 'su',
-            'cd', 'pwd', 'ls', 'cat', 'echo', 'clear', 'cls', 'help',
+            'cd', 'pwd', 'ls', 'cat', 'echo', 'clear', 'cls', 'help', 'man',
             'reboot', 'shutdown', 'poweroff', 'exit', 'logout',
             'uname', 'neofetch', 'date', 'whoami', 'hostname',
-            'df', 'free', 'ps', 'history', 'alias', 'export'
+            'df', 'free', 'ps', 'history', 'alias', 'export',
+            'installer', 'krypton-installer', 'calamares', 'ubiquity'
         ];
         if (!allowedAlphaCommands.includes(cmd) && !cmd.startsWith('./')) {
             callback({
@@ -1173,10 +1176,53 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         return;
     }
 
+    if (cmd === 'installer' || cmd === 'krypton-installer' || cmd === 'calamares' || cmd === 'ubiquity') {
+        if (window.appLoader) {
+            window.appLoader.launch('installer');
+            callback({ lines: [{ text: "Launching Krypton OS Live Installer (Calamares)...", type: 'info' }], exitCode: 0 });
+        } else {
+            callback({ lines: [{ text: "Installer not found.", type: 'error' }], exitCode: 1 });
+        }
+        return;
+    }
+
     if (cmd === 'help') {
+        const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+        const osRel = vfs.readFile('/etc/os-release') || '';
+        const isUpgraded = isInstalled && localStorage.getItem('krypton_upgraded_lts') === 'true' && osRel.includes('1.0.0.0');
+
+        if (!isInstalled) {
+            callback({
+                lines: [
+                    { text: "=== KRYPTON OS LIVE INSTALLATION MEDIA (LINUX 2.0.0.14-ALPHA) ===", type: 'info' },
+                    { text: "  Installer:       krypton-installer (or double-click 'Install Krypton OS' on desktop)", type: 'success' },
+                    { text: "  Live Shell:      ls, cd, pwd, cat, echo, clear, date, whoami, hostname, uname, neofetch, help", type: 'normal' },
+                    { text: "  System Control:  reboot, shutdown, poweroff, exit", type: 'normal' },
+                    { text: "  Target Storage:  Samsung SSD 980 PRO (/dev/nvme0n1p2)", type: 'muted' }
+                ],
+                exitCode: 0
+            });
+            return;
+        }
+
+        if (!isUpgraded) {
+            callback({
+                lines: [
+                    { text: "=== KRYPTON OS 0.1 ALPHA (MINIMAL VINTAGE SHELL) ===", type: 'info' },
+                    { text: "  Base Shell:      ls, cd, pwd, cat, echo, clear, date, whoami, hostname, uname, neofetch, help", type: 'normal' },
+                    { text: "  Package Manager: sudo apt update && sudo apt upgrade, apt list, dpkg", type: 'success' },
+                    { text: "  System Control:  reboot, shutdown, poweroff, exit", type: 'normal' },
+                    { text: "  ℹ️  To upgrade kernel to Linux 6.10 & unlock full modern POSIX tools, run:", type: 'warning' },
+                    { text: "      sudo apt update && sudo apt upgrade", type: 'cyan' }
+                ],
+                exitCode: 0
+            });
+            return;
+        }
+
         callback({
             lines: [
-                { text: "=== KRYPTON OS LINUX CORE UTILITIES ===", type: 'info' },
+                { text: "=== KRYPTON OS LINUX CORE UTILITIES (LINUX 6.10.0-GENERIC) ===", type: 'info' },
                 { text: "  Filesystem:  ls, cd, pwd, mkdir, rmdir, touch, rm, cp, mv, cat, head, tail, tree, stat, diff, find", type: 'normal' },
                 { text: "  Text Ops:    grep, echo, sed, awk, cut, tr, sort, uniq, rev, wc, base64, md5sum, sha256sum", type: 'normal' },
                 { text: "  System:      uname, neofetch, hostname, date, cal, uptime, free, df, du, lscpu, lspci, lsusb, lsblk", type: 'normal' },

@@ -167,7 +167,11 @@ function initBaseInstalledDesktop() {
     });
 
     setTimeout(() => {
-        story.showToast('ℹ️ Krypton Alpha Base OS', "Base OS active (Linux 2.0.0.14). Run 'sudo apt update && sudo apt upgrade' to upgrade to Linux 6.10 & Krypton 1.0 LTS.", 'info');
+        const hasRec = localStorage.getItem('krypton_selected_recommended_apps') !== 'false';
+        const msg = hasRec 
+            ? "Base Alpha active (Linux 2.0.0.14). Recommended apps are staged for Krypton 1.0 LTS! Run 'sudo apt update && sudo apt upgrade' in Terminal to deploy."
+            : "Base OS active (Linux 2.0.0.14). Run 'sudo apt update && sudo apt upgrade' to upgrade to Linux 6.10 & Krypton 1.0 LTS.";
+        story.showToast('ℹ️ Krypton Alpha Base OS', msg, 'info');
     }, 600);
 }
 

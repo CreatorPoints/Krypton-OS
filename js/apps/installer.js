@@ -867,6 +867,17 @@ export function openInstallerWizard() {
             vfs.writeFile('/etc/os-release', `NAME="KryptonOS"\nVERSION="${initialVersion}"\nID=krypton\nID_LIKE=debian\nPRETTY_NAME="${initialPrettyName}"\nVERSION_ID="0.1.0"\nVERSION_CODENAME=alpha\nHOME_URL="https://krypton-os.org/"\nSUPPORT_URL="https://krypton-os.org/support"\nBUG_REPORT_URL="https://bugs.krypton-os.org/"\n`);
             vfs.writeFile('/etc/issue', `${initialPrettyName} \\n \\l\n`);
             vfs.writeFile('/etc/motd', `\n=======================================================\n  Welcome to ${initialPrettyName} (Linux 2.0.0.14-generic-krypton)\n  * Base installation active on /dev/nvme0n1p2.\n  * Restricted Shell: Only 'sudo apt update && sudo apt upgrade' supported.\n  * Run 'sudo apt update && sudo apt upgrade' to upgrade to Linux 6.10.\n=======================================================\n`);
+            
+            if (!vfs.exists('/var/lib/dpkg')) {
+                vfs.createDirectory('/var/lib');
+                vfs.createDirectory('/var/lib/dpkg');
+            }
+            let initialDpkgStatus = `Package: base-files\nStatus: install ok installed\nPriority: required\nSection: admin\nInstalled-Size: 603\nMaintainer: Krypton Core Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: KryptonOS Core System Files & OS Identity Manifest\n\nPackage: linux-image-2.0.0.14-generic-krypton\nStatus: install ok installed\nPriority: optional\nSection: kernel\nInstalled-Size: 512\nMaintainer: Krypton Kernel Team <kernel@krypton-os.org>\nArchitecture: amd64\nVersion: 2.0.0.14-1\nDescription: Linux Kernel Image 2.0.0.14 Vintage Subsystem\n\nPackage: krypton-browser\nStatus: install ok installed\nPriority: optional\nSection: web/browsers\nInstalled-Size: 1024\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Web Navigator Alpha Edition\n\nPackage: krypton-notes\nStatus: install ok installed\nPriority: optional\nSection: editors/text\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Upgrade Notes & System Documentation\n\n`;
+
+            if (downloadRecommendedApps) {
+                initialDpkgStatus += `Package: krypton-calculator\nStatus: install ok installed\nPriority: optional\nSection: math/calculators\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Scientific Calculator\n\nPackage: krypton-filemgr\nStatus: install ok installed\nPriority: optional\nSection: utils\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Virtual File Manager\n\nPackage: krypton-taskmgr\nStatus: install ok installed\nPriority: optional\nSection: admin\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: System Task Manager\n\nPackage: krypton-settings\nStatus: install ok installed\nPriority: optional\nSection: admin\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Control Center Settings\n\n`;
+            }
+            vfs.writeFile('/var/lib/dpkg/status', initialDpkgStatus);
             vfs.saveFileSystem();
 
             localStorage.setItem('krypton_primary_user', effUser);
@@ -875,6 +886,7 @@ export function openInstallerWizard() {
             localStorage.setItem('krypton_hostname', effHost);
             localStorage.setItem('krypton_os_version', initialVersion);
             localStorage.setItem('krypton_os_installed', 'true');
+            localStorage.setItem('krypton_selected_recommended_apps', downloadRecommendedApps ? 'true' : 'false');
             localStorage.removeItem('krypton_upgraded_lts');
             if (googleAccount) {
                 localStorage.setItem('krypton_google_account', JSON.stringify(googleAccount));

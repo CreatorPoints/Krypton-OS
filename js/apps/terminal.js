@@ -2899,7 +2899,19 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
    -------------------------------------------------------------------------- */
 
 function parseDpkgStatus() {
-    const raw = vfs.readFile('/var/lib/dpkg/status') || '';
+    let raw = vfs.readFile('/var/lib/dpkg/status');
+    if (!raw) {
+        const recAppsEnabled = localStorage.getItem('krypton_selected_recommended_apps') !== 'false';
+        raw = `Package: base-files\nStatus: install ok installed\nPriority: required\nSection: admin\nInstalled-Size: 603\nMaintainer: Krypton Core Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: KryptonOS Core System Files & OS Identity Manifest\n\nPackage: linux-image-2.0.0.14-generic-krypton\nStatus: install ok installed\nPriority: optional\nSection: kernel\nInstalled-Size: 512\nMaintainer: Krypton Kernel Team <kernel@krypton-os.org>\nArchitecture: amd64\nVersion: 2.0.0.14-1\nDescription: Linux Kernel Image 2.0.0.14 Vintage Subsystem\n\nPackage: krypton-browser\nStatus: install ok installed\nPriority: optional\nSection: web/browsers\nInstalled-Size: 1024\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Web Navigator Alpha Edition\n\nPackage: krypton-notes\nStatus: install ok installed\nPriority: optional\nSection: editors/text\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Upgrade Notes & System Documentation\n\n`;
+        if (recAppsEnabled) {
+            raw += `Package: krypton-calculator\nStatus: install ok installed\nPriority: optional\nSection: math/calculators\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Scientific Calculator\n\nPackage: krypton-filemgr\nStatus: install ok installed\nPriority: optional\nSection: utils\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Virtual File Manager\n\nPackage: krypton-taskmgr\nStatus: install ok installed\nPriority: optional\nSection: admin\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: System Task Manager\n\nPackage: krypton-settings\nStatus: install ok installed\nPriority: optional\nSection: admin\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Control Center Settings\n\n`;
+        }
+        if (!vfs.exists('/var/lib/dpkg')) {
+            vfs.createDirectory('/var/lib');
+            vfs.createDirectory('/var/lib/dpkg');
+        }
+        vfs.writeFile('/var/lib/dpkg/status', raw);
+    }
     const entries = raw.split(/\n\s*\n/).filter(b => b.trim().length > 0);
     const installed = [];
 

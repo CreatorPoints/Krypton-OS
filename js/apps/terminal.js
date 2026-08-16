@@ -1868,16 +1868,121 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'df') {
-        const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+        const human = args.includes('-h') || args.includes('-H');
+        const mounts = vfs.getMounts ? vfs.getMounts() : [
+            { device: 'udev', mountPoint: '/dev' },
+            { device: 'tmpfs', mountPoint: '/run' },
+            { device: '/dev/nvme0n1p2', mountPoint: '/' },
+            { device: 'tmpfs', mountPoint: '/dev/shm' },
+            { device: '/dev/nvme0n1p1', mountPoint: '/boot/efi' },
+            { device: '/dev/sda1', mountPoint: '/cdrom' }
+        ];
+
+        const lines = [
+            { text: human ? "Filesystem      Size  Used Avail Use% Mounted on" : "Filesystem     1K-blocks      Used Available Use% Mounted on", type: 'muted' }
+        ];
+
+        mounts.forEach(m => {
+            let totalKb = 982142016, usedKb = 24120140, availKb = 908021876, pct = '3%';
+            if (m.device === '/dev/sda1' || m.device === '/dev/sda') {
+                totalKb = 31265792; usedKb = 4120400; availKb = 27145392; pct = '14%';
+            } else if (m.device === '/dev/nvme0n1p1') {
+                totalKb = 523248; usedKb = 6240; availKb = 517008; pct = '2%';
+            } else if (m.device === 'udev' || m.device === 'tmpfs') {
+                totalKb = 8150642; usedKb = 4; availKb = 8150638; pct = '1%';
+            }
+
+            if (human) {
+                const toHuman = (kb) => kb >= 1048576 ? `${(kb / 1048576).toFixed(1)}G` : `${(kb / 1024).toFixed(0)}M`;
+                lines.push({
+                    text: `${m.device.padEnd(14)} ${toHuman(totalKb).padStart(5)} ${toHuman(usedKb).padStart(5)} ${toHuman(availKb).padStart(5)} ${pct.padStart(4)} ${m.mountPoint}`,
+                    type: m.mountPoint === '/' ? 'success' : (m.device.includes('sda') ? 'warning' : 'normal')
+                });
+            } else {
+                lines.push({
+                    text: `${m.device.padEnd(14)} ${String(totalKb).padStart(10)} ${String(usedKb).padStart(9)} ${String(availKb).padStart(10)} ${pct.padStart(4)} ${m.mountPoint}`,
+                    type: m.mountPoint === '/' ? 'success' : (m.device.includes('sda') ? 'warning' : 'normal')
+                });
+            }
+        });
+
+        callback({ lines, exitCode: 0 });
+        return;
+    }
+
+    if (cmd === 'mount') {
+        const mounts = vfs.getMounts ? vfs.getMounts() : [];
+        if (args.length === 0) {
+            const lines = mounts.map(m => ({
+                text: `${m.device} on ${m.mountPoint} type ${m.fsType || 'ext4'} (${m.options || 'rw,relatime'})`,
+                type: m.mountPoint === '/' ? 'cyan' : (m.device.includes('sda') ? 'warning' : 'normal')
+            }));
+            callback({ lines, exitCode: 0 });
+            return;
+        }
+
+        if (currentUser !== 'root') {
+            callback({ lines: [{ text: "mount: only root can use \"--types\" or specify device and mountpoint options", type: 'error' }], exitCode: 1 });
+            return;
+        }
+
+        let fsType = 'ext4';
+        let device = '';
+        let target = '';
+
+        for (let i = 0; i < args.length; i++) {
+            if (args[i] === '-t' && args[i + 1]) {
+                fsType = args[i + 1];
+                i++;
+            } else if (!device && !args[i].startsWith('-')) {
+                device = args[i];
+            } else if (!target && !args[i].startsWith('-')) {
+                target = args[i];
+            }
+        }
+
+        if (!device || !target) {
+            callback({ lines: [{ text: "mount: bad usage. Usage: mount [-t fstype] <device> <dir>", type: 'error' }], exitCode: 1 });
+            return;
+        }
+
+        const normTarget = resolvePath(currentDir, target);
+        const res = vfs.mount ? vfs.mount(device, normTarget, fsType, 'rw,relatime') : { success: false, error: 'VFS mount driver unavailable' };
+        if (!res.success) {
+            callback({ lines: [{ text: res.error, type: 'error' }], exitCode: 32 });
+            return;
+        }
+
         callback({
             lines: [
-                { text: "Filesystem     1K-blocks      Used Available Use% Mounted on", type: 'muted' },
-                { text: `udev             8150642         0   8150642   0% /dev`, type: 'normal' },
-                { text: `tmpfs            1630128      1844   1628284   1% /run`, type: 'normal' },
-                { text: `/dev/nvme0n1p2 982142016  24120140 908021876   3% /`, type: isInstalled ? 'success' : 'normal' },
-                { text: `tmpfs            8150642         4   8150638   1% /dev/shm`, type: 'normal' },
-                { text: `/dev/nvme0n1p1    523248      6240    517008   2% /boot/efi`, type: 'normal' },
-                { text: `/dev/sda1       31265792   4120400  27145392  14% /cdrom`, type: 'normal' }
+                { text: `[ OK ] Mounted ${device} on ${normTarget} (type ${fsType}, rw,relatime)`, type: 'success' }
+            ],
+            exitCode: 0
+        });
+        return;
+    }
+
+    if (cmd === 'umount' || cmd === 'unmount') {
+        if (!args[0]) {
+            callback({ lines: [{ text: "umount: missing operand. Usage: umount <mountpoint|device>", type: 'error' }], exitCode: 1 });
+            return;
+        }
+
+        if (currentUser !== 'root') {
+            callback({ lines: [{ text: "umount: only root can unmount partitions", type: 'error' }], exitCode: 1 });
+            return;
+        }
+
+        const target = resolvePath(currentDir, args[0]);
+        const res = vfs.umount ? vfs.umount(target) : { success: false, error: 'VFS umount driver unavailable' };
+        if (!res.success) {
+            callback({ lines: [{ text: res.error, type: 'error' }], exitCode: 32 });
+            return;
+        }
+
+        callback({
+            lines: [
+                { text: `[ OK ] Unmounted ${target}`, type: 'success' }
             ],
             exitCode: 0
         });
@@ -1961,14 +2066,19 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'lsblk' || cmd === 'fdisk') {
+        const mounts = vfs.getMounts ? vfs.getMounts() : [];
+        const sdaMount = mounts.find(m => m.device.startsWith('/dev/sda1') || m.device === '/dev/sda')?.mountPoint || '';
+        const nvmeMount = mounts.find(m => m.device.startsWith('/dev/nvme0n1p2'))?.mountPoint || '';
+        const efiMount = mounts.find(m => m.device.startsWith('/dev/nvme0n1p1'))?.mountPoint || '';
+
         callback({
             lines: [
                 { text: "NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS", type: 'muted' },
                 { text: "sda           8:0    1  29.8G  0 disk ", type: 'normal' },
-                { text: "└─sda1        8:1    1  29.8G  0 part /cdrom", type: 'normal' },
+                { text: `└─sda1        8:1    1  29.8G  0 part ${sdaMount}`, type: sdaMount ? 'warning' : 'normal' },
                 { text: "nvme0n1     259:0    0 931.5G  0 disk ", type: 'cyan' },
-                { text: "├─nvme0n1p1 259:1    0   512M  0 part /boot/efi", type: 'normal' },
-                { text: "├─nvme0n1p2 259:2    0 930.0G  0 part /", type: 'success' },
+                { text: `├─nvme0n1p1 259:1    0   512M  0 part ${efiMount}`, type: 'normal' },
+                { text: `├─nvme0n1p2 259:2    0 930.0G  0 part ${nvmeMount}`, type: nvmeMount ? 'success' : 'normal' },
                 { text: "└─nvme0n1p3 259:3    0   1.0G  0 part [SWAP]", type: 'normal' }
             ],
             exitCode: 0

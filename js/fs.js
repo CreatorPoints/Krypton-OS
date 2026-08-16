@@ -5,7 +5,34 @@
 export class VirtualFileSystem {
     constructor() {
         this.storageKey = 'krypton_os_vfs_v2';
+        this.sdaStorageKey = 'krypton_block_sda1';
+        this.mountTable = [
+            { device: '/dev/nvme0n1p2', mountPoint: '/', fsType: 'ext4', options: 'rw,relatime,errors=remount-ro', storageKey: this.storageKey },
+            { device: 'udev', mountPoint: '/dev', fsType: 'devtmpfs', options: 'rw,nosuid,relatime,size=8150642k,nr_inodes=2037660,mode=755' },
+            { device: 'tmpfs', mountPoint: '/run', fsType: 'tmpfs', options: 'rw,nosuid,nodev,noexec,relatime,size=1630128k,mode=755' },
+            { device: 'tmpfs', mountPoint: '/dev/shm', fsType: 'tmpfs', options: 'rw,nosuid,nodev' },
+            { device: '/dev/nvme0n1p1', mountPoint: '/boot/efi', fsType: 'vfat', options: 'rw,relatime,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro' },
+            { device: '/dev/sda1', mountPoint: '/cdrom', fsType: 'iso9660', options: 'ro,nosuid,nodev,relatime,joliet,check=s,map=n,blocksize=2048', storageKey: this.sdaStorageKey }
+        ];
         this.root = this.loadFileSystem() || this.getDefaultFileSystem();
+        this.initPersistentSdaStorage();
+    }
+
+    initPersistentSdaStorage() {
+        try {
+            if (!localStorage.getItem(this.sdaStorageKey)) {
+                const sdaInitial = {
+                    name: 'sda1',
+                    type: 'dir',
+                    children: {
+                        'README_USB.txt': { name: 'README_USB.txt', type: 'file', content: '=== SanDisk Ultra USB 3.0 Live Installation Media (/dev/sda1) ===\n\nThis partition represents persistent block storage on /dev/sda1 in localStorage.\nFiles written here persist across reboots in local persistent storage.\n' },
+                        'krypton_live.iso': { name: 'krypton_live.iso', type: 'file', content: 'KRYPTON_OS_LIVE_ISO_IMAGE_v1.0.0.0_LTS\n' },
+                        'md5sum.txt': { name: 'md5sum.txt', type: 'file', content: 'e2fc714c4727ee9395f324cd2e7f331f  krypton_live.iso\n' }
+                    }
+                };
+                localStorage.setItem(this.sdaStorageKey, JSON.stringify(sdaInitial));
+            }
+        } catch (e) {}
     }
 
     getDefaultFileSystem() {
@@ -225,6 +252,16 @@ export class VirtualFileSystem {
     saveFileSystem() {
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(this.root));
+
+            // Synchronize any active mounts that have dedicated persistent storage keys
+            this.mountTable.forEach(m => {
+                if (m.storageKey && m.storageKey !== this.storageKey && m.mountPoint !== '/') {
+                    const node = this.getNode(m.mountPoint);
+                    if (node && node.type === 'dir') {
+                        localStorage.setItem(m.storageKey, JSON.stringify({ name: node.name, type: 'dir', children: node.children || {} }));
+                    }
+                }
+            });
         } catch (e) {
             console.warn('VFS save failed', e);
         }
@@ -237,6 +274,81 @@ export class VirtualFileSystem {
         } catch (e) {
             return null;
         }
+    }
+
+    mount(device, target, fsType = 'ext4', options = 'rw,relatime') {
+        const normTarget = this.normalizePath(target);
+        const targetNode = this.getNode(normTarget);
+        if (!targetNode || targetNode.type !== 'dir') {
+            return { success: false, error: `mount: mount point ${target} does not exist` };
+        }
+
+        let storageKey = null;
+        if (device === '/dev/sda1' || device === '/dev/sda' || device === 'sda1') {
+            storageKey = this.sdaStorageKey;
+        } else if (device === '/dev/nvme0n1p2' || device === '/dev/nvme0n1') {
+            storageKey = this.storageKey;
+        }
+
+        let mountedTree = null;
+        if (storageKey) {
+            try {
+                const raw = localStorage.getItem(storageKey);
+                if (raw) mountedTree = JSON.parse(raw);
+            } catch (e) {}
+        }
+
+        if (!mountedTree) {
+            mountedTree = { name: targetNode.name, type: 'dir', children: {} };
+        }
+
+        targetNode.children = mountedTree.children || {};
+        targetNode._mountedDevice = device;
+        targetNode._storageKey = storageKey;
+
+        const existingIdx = this.mountTable.findIndex(m => m.mountPoint === normTarget);
+        const mountEntry = { device, mountPoint: normTarget, fsType, options, storageKey };
+        if (existingIdx !== -1) {
+            this.mountTable[existingIdx] = mountEntry;
+        } else {
+            this.mountTable.push(mountEntry);
+        }
+
+        this.saveFileSystem();
+        return { success: true, mountEntry };
+    }
+
+    umount(target) {
+        const normTarget = this.normalizePath(target);
+        if (normTarget === '/') {
+            return { success: false, error: "umount: /: target is busy" };
+        }
+
+        const idx = this.mountTable.findIndex(m => m.mountPoint === normTarget || m.device === target);
+        if (idx === -1) {
+            return { success: false, error: `umount: ${target}: not mounted` };
+        }
+
+        const mountEntry = this.mountTable[idx];
+        const targetNode = this.getNode(mountEntry.mountPoint);
+        if (targetNode) {
+            if (mountEntry.storageKey && mountEntry.storageKey !== this.storageKey) {
+                try {
+                    localStorage.setItem(mountEntry.storageKey, JSON.stringify({ name: targetNode.name, type: 'dir', children: targetNode.children || {} }));
+                } catch (e) {}
+            }
+            targetNode.children = {};
+            delete targetNode._mountedDevice;
+            delete targetNode._storageKey;
+        }
+
+        this.mountTable.splice(idx, 1);
+        this.saveFileSystem();
+        return { success: true };
+    }
+
+    getMounts() {
+        return [...this.mountTable];
     }
 
     reset() {
@@ -277,7 +389,19 @@ export class VirtualFileSystem {
     }
 
     readFile(pathStr) {
-        const node = this.getNode(pathStr);
+        const normalized = this.normalizePath(pathStr);
+        if (normalized === '/proc/mounts') {
+            return this.mountTable.map(m => `${m.device} ${m.mountPoint} ${m.fsType} ${m.options} 0 0`).join('\n') + '\n';
+        }
+        if (normalized === '/etc/fstab') {
+            const fstabHeader = '# /etc/fstab: static file system information.\n# <file system> <mount point>   <type>  <options>       <dump>  <pass>\n';
+            const fstabBody = this.mountTable
+                .filter(m => m.device.startsWith('/dev/'))
+                .map(m => `${m.device.padEnd(16)} ${m.mountPoint.padEnd(16)} ${m.fsType.padEnd(8)} ${m.options.padEnd(16)} 0       0`)
+                .join('\n');
+            return fstabHeader + fstabBody + '\n';
+        }
+        const node = this.getNode(normalized);
         if (!node) return null;
         if (node.type === 'dir') return `[Directory: ${node.name}]`;
         return node.content || '';

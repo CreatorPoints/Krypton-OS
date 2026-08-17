@@ -14,8 +14,14 @@ REPO_ROOT = Path("/home/shrestangsu-dutta/Documents/Krypton-Repo")
 OS_ROOT = Path("/home/shrestangsu-dutta/Documents/Krypton-OS")
 
 def get_file_content(path: Path) -> str:
-    with open(path, 'r', encoding='utf-8') as f:
-        return f.read()
+    if path.exists():
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    alt_path = OS_ROOT / "js" / "apps" / path.name
+    if alt_path.exists():
+        with open(alt_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    raise FileNotFoundError(f"Cannot find source file at {path} or {alt_path}")
 
 def sha256_str(content: str) -> str:
     return hashlib.sha256(content.encode('utf-8')).hexdigest()
@@ -111,6 +117,18 @@ def build_all_packages():
             "src": apps_dir / "notes.js"
         },
         {
+            "id": "krypton-clock",
+            "name": "krypton-clock",
+            "file": "krypton-clock.deb",
+            "version": "1.1.0-release",
+            "arch": "amd64",
+            "section": "utils/clock",
+            "summary": "World Clock, Stopwatch, Countdown Timer and System Alarms",
+            "desktop_name": "Clock & Alarms",
+            "desktop_icon": "⏰",
+            "src": apps_dir / "clock.js"
+        },
+        {
             "id": "krypton-filemgr",
             "name": "krypton-filemgr",
             "file": "krypton-filemgr.deb",
@@ -126,10 +144,10 @@ def build_all_packages():
             "id": "krypton-taskmgr",
             "name": "krypton-taskmgr",
             "file": "krypton-taskmgr.deb",
-            "version": "1.2.0-release",
+            "version": "1.3.0-release",
             "arch": "amd64",
             "section": "admin/monitoring",
-            "summary": "GUI System Task Manager, Real-Time Hardware Gauges & Process Killer",
+            "summary": "GUI System Monitor, Real-Time 1Hz Telemetry Gauges, Component RAM Profiler & Process Killer",
             "desktop_name": "System Monitor",
             "desktop_icon": "📊",
             "src": apps_dir / "taskmgr.js"

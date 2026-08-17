@@ -10,6 +10,7 @@ import { openTerminal } from './apps/terminal.js';
 import { openInstallerWizard } from './apps/installer.js';
 import { openClockWindow } from './apps/clock.js';
 import { appLoader } from './loader.js';
+import { telemetry } from './telemetry.js';
 
 // Expose core subsystem singletons on window for dynamic apps & plugins
 window.wm = wm;
@@ -17,6 +18,7 @@ window.vfs = vfs;
 window.story = story;
 window.sound = sound;
 window.appLoader = appLoader;
+window.telemetry = telemetry;
 window.openClockWindow = openClockWindow;
 
 // Register built-in core application launchers

@@ -2033,24 +2033,36 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         const shellVer = isUpgraded ? 'bash 5.2.21' : 'bash 2.0.0-alpha';
         const themeName = isUpgraded ? 'Obsidian-Dark [GTK3/4]' : 'Windows 98 Classic / Alpha';
 
+        const telem = (typeof window !== 'undefined' && window.telemetry) ? window.telemetry : {
+            hardwareConcurrency: navigator.hardwareConcurrency || 8,
+            deviceMemoryGb: navigator.deviceMemory || 16,
+            gpuInfo: { vendor: 'Generic', renderer: 'WebGL Hardware Acceleration' },
+            screenInfo: { width: window.screen.width, height: window.screen.height, dpr: window.devicePixelRatio || 1 },
+            currentCpuLoad: 12,
+            getFormattedCpuModel: () => `x86_64 Processor (${navigator.hardwareConcurrency || 8} Cores)`
+        };
+
+        const totalMemMb = Math.round(telem.deviceMemoryGb * 1024);
+        const usedMemMb = Math.round(totalMemMb * (telem.currentCpuLoad / 200 + 0.24));
+
         callback({
             lines: [
                 { text: `${currentUser}@krypton-station`, type: 'cyan' },
                 { text: `-----------------------`, type: 'muted' },
-                { text: `OS: ${osName} x86_64 (${isInstalled ? 'Installed on /dev/nvme0n1p2' : 'Live USB ISO'})`, type: 'normal' },
-                { text: `Host: ASUSTeK COMPUTER INC. ROG STRIX Z490-E GAMING`, type: 'normal' },
+                { text: `OS: ${osName} x86_64 (${isInstalled ? 'Installed on /dev/nvme0n1p2' : 'Live USB Simulator'})`, type: 'normal' },
+                { text: `Host: Browser Sandbox (${navigator.userAgentData ? navigator.userAgentData.platform : (navigator.platform || 'x86_64')})`, type: 'normal' },
                 { text: `Kernel: ${kernelVer}`, type: 'normal' },
-                { text: `Uptime: 3 hours, 58 mins`, type: 'normal' },
-                { text: `Packages: ${isUpgraded ? '1422 (dpkg)' : '34 (dpkg-alpha)'}`, type: 'normal' },
+                { text: `Uptime: 2 hours, 48 mins`, type: 'normal' },
+                { text: `Packages: ${isUpgraded ? '16 (dpkg-lts)' : '4 (dpkg-alpha)'}`, type: 'normal' },
                 { text: `Shell: ${shellVer}`, type: 'normal' },
-                { text: `Resolution: 2560x1440 @ 165Hz (DisplayPort-1)`, type: 'normal' },
-                { text: `DE: ${isUpgraded ? 'Krypton Desktop (Wayland)' : 'Win98 / Alpha Shell'}`, type: 'normal' },
+                { text: `Resolution: ${telem.screenInfo.width}x${telem.screenInfo.height} @ ${telem.screenInfo.dpr}x DPR (Wayland)`, type: 'normal' },
+                { text: `DE: ${isUpgraded ? 'Krypton Glass Desktop (Wayland)' : 'Win98 / Alpha Shell'}`, type: 'normal' },
                 { text: `WM: krypton-wm`, type: 'normal' },
                 { text: `Theme: ${themeName}`, type: 'normal' },
-                { text: `Terminal: krypton-terminal`, type: 'normal' },
-                { text: `CPU: Intel(R) Core(TM) i7-10700K (16) @ 3.80GHz`, type: 'normal' },
-                { text: `GPU: NVIDIA GeForce RTX 3080 10GB`, type: 'normal' },
-                { text: `Memory: 4128MiB / 15919MiB`, type: 'success' }
+                { text: `Terminal: krypton-terminal (xterm-256color)`, type: 'normal' },
+                { text: `CPU: ${telem.getFormattedCpuModel()}`, type: 'normal' },
+                { text: `GPU: ${telem.gpuInfo.renderer}`, type: 'normal' },
+                { text: `Memory: ${usedMemMb}MiB / ${totalMemMb}MiB`, type: 'success' }
             ],
             exitCode: 0
         });
@@ -2092,7 +2104,11 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'uptime') {
-        callback({ lines: [{ text: " 14:45:01 up 3:58,  1 user,  load average: 0.42, 0.38, 0.31", type: 'normal' }], exitCode: 0 });
+        const telem = (typeof window !== 'undefined' && window.telemetry) ? window.telemetry : { currentCpuLoad: 12 };
+        const load1 = (telem.currentCpuLoad / 100).toFixed(2);
+        const load5 = (telem.currentCpuLoad * 0.9 / 100).toFixed(2);
+        const load15 = (telem.currentCpuLoad * 0.8 / 100).toFixed(2);
+        callback({ lines: [{ text: ` ${new Date().toLocaleTimeString()} up 2:48, 1 user, load average: ${load1}, ${load5}, ${load15}`, type: 'normal' }], exitCode: 0 });
         return;
     }
 
@@ -2119,7 +2135,7 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         callback({
             lines: [
                 { text: "USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT", type: 'muted' },
-                { text: `${currentUser.padEnd(8, ' ')} tty1     :0               10:47    3:58m  0.24s  0.04s /bin/bash`, type: 'normal' }
+                { text: `${currentUser.padEnd(8, ' ')} tty1     :0               10:47    2:48m  0.24s  0.04s /bin/bash`, type: 'normal' }
             ],
             exitCode: 0
         });
@@ -2127,10 +2143,17 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'free') {
+        const telem = (typeof window !== 'undefined' && window.telemetry) ? window.telemetry : { deviceMemoryGb: 16, currentCpuLoad: 12 };
+        const totalKb = telem.deviceMemoryGb * 1024 * 1024;
+        const usedKb = Math.round(totalKb * (telem.currentCpuLoad / 200 + 0.25));
+        const freeKb = totalKb - usedKb;
+        const buffKb = Math.round(totalKb * 0.18);
+        const availKb = Math.round(freeKb * 0.85);
+
         callback({
             lines: [
                 { text: "               total        used        free      shared  buff/cache   available", type: 'muted' },
-                { text: "Mem:        16301284     4210432     8412496      210480     3678356    12104520", type: 'normal' },
+                { text: `Mem:        ${String(totalKb).padStart(8)}    ${String(usedKb).padStart(8)}    ${String(freeKb).padStart(8)}      ${String(Math.round(totalKb * 0.015)).padStart(6)}     ${String(buffKb).padStart(8)}    ${String(availKb).padStart(8)}`, type: 'normal' },
                 { text: "Swap:        2097148           0     2097148", type: 'normal' }
             ],
             exitCode: 0
@@ -2274,28 +2297,34 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'lscpu') {
+        const telem = (typeof window !== 'undefined' && window.telemetry) ? window.telemetry : {
+            hardwareConcurrency: navigator.hardwareConcurrency || 8,
+            getFormattedCpuModel: () => `x86_64 (${navigator.hardwareConcurrency || 8} Cores)`
+        };
+        const cores = telem.hardwareConcurrency;
+        const sockets = 1;
+        const coresPerSocket = Math.max(1, Math.floor(cores / 2));
+        const threadsPerCore = 2;
+
         callback({
             lines: [
                 { text: "Architecture:                    x86_64", type: 'normal' },
                 { text: "CPU op-mode(s):                  32-bit, 64-bit", type: 'normal' },
                 { text: "Address sizes:                   39 bits physical, 48 bits virtual", type: 'normal' },
                 { text: "Byte Order:                      Little Endian", type: 'normal' },
-                { text: "CPU(s):                          16", type: 'normal' },
-                { text: "On-line CPU(s) list:             0-15", type: 'normal' },
+                { text: `CPU(s):                          ${cores}`, type: 'normal' },
+                { text: `On-line CPU(s) list:             0-${cores - 1}`, type: 'normal' },
                 { text: "Vendor ID:                       GenuineIntel", type: 'normal' },
-                { text: "Model name:                      Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz", type: 'cyan' },
+                { text: `Model name:                      ${telem.getFormattedCpuModel()}`, type: 'cyan' },
                 { text: "CPU family:                      6", type: 'normal' },
                 { text: "Model:                           165", type: 'normal' },
-                { text: "Thread(s) per core:              2", type: 'normal' },
-                { text: "Core(s) per socket:              8", type: 'normal' },
-                { text: "Socket(s):                       1", type: 'normal' },
-                { text: "Stepping:                        5", type: 'normal' },
-                { text: "BogoMIPS:                        7599.80", type: 'normal' },
-                { text: "Virtualization:                  VT-x", type: 'normal' },
-                { text: "L1d cache:                       256 KiB (8 instances)", type: 'normal' },
-                { text: "L1i cache:                       256 KiB (8 instances)", type: 'normal' },
-                { text: "L2 cache:                        2 MiB (8 instances)", type: 'normal' },
-                { text: "L3 cache:                        16 MiB (1 instance)", type: 'normal' }
+                { text: `Thread(s) per core:              ${threadsPerCore}`, type: 'normal' },
+                { text: `Core(s) per socket:              ${coresPerSocket}`, type: 'normal' },
+                { text: `Socket(s):                       ${sockets}`, type: 'normal' },
+                { text: "Virtualization:                  VT-x / KVM Hypervisor", type: 'normal' },
+                { text: `L1d cache:                       ${cores * 32} KiB (${cores} instances)`, type: 'normal' },
+                { text: `L2 cache:                        ${cores * 512} KiB (${cores} instances)`, type: 'normal' },
+                { text: `L3 cache:                        ${cores * 2} MiB (1 instance)`, type: 'normal' }
             ],
             exitCode: 0
         });
@@ -2303,19 +2332,20 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'lspci') {
+        const telem = (typeof window !== 'undefined' && window.telemetry) ? window.telemetry : {
+            gpuInfo: { vendor: 'NVIDIA Corporation', renderer: 'Direct3D11 / Vulkan Renderer' }
+        };
+
         callback({
             lines: [
                 { text: "00:00.0 Host bridge: Intel Corporation 10th Gen Core Processor Host Bridge/DRAM Registers (rev 02)", type: 'normal' },
-                { text: "00:01.0 PCI bridge: Intel Corporation 6th-10th Gen Core Processor PCIe Controller (x16) (rev 02)", type: 'normal' },
-                { text: "00:14.0 USB controller: Intel Corporation Comet Lake PCH-V USB 3.2 Gen 1x1 (5Gb/s) Host Controller", type: 'normal' },
-                { text: "00:17.0 SATA controller: Intel Corporation Comet Lake SATA AHCI Controller", type: 'normal' },
-                { text: "00:1b.0 PCI bridge: Intel Corporation Comet Lake PCI Express Root Port #17 (rev f0)", type: 'normal' },
-                { text: "00:1f.0 ISA bridge: Intel Corporation Comet Lake LPC Controller (rev 00)", type: 'normal' },
-                { text: "00:1f.3 Audio device: Intel Corporation Comet Lake PCH-V cAVS", type: 'normal' },
-                { text: "00:1f.6 Ethernet controller: Intel Corporation Ethernet Connection (11) I219-V", type: 'normal' },
-                { text: "01:00.0 VGA compatible controller: NVIDIA Corporation GA102 [GeForce RTX 3080] (rev a1)", type: 'cyan' },
-                { text: "01:00.1 Audio device: NVIDIA Corporation GA102 High Definition Audio Controller (rev a1)", type: 'normal' },
-                { text: "02:00.0 Non-Volatile memory controller: Samsung Electronics Co Ltd NVMe SSD Controller PM9A1/980PRO", type: 'cyan' }
+                { text: "00:01.0 PCI bridge: Intel Corporation PCIe Controller (x16) (rev 02)", type: 'normal' },
+                { text: "00:14.0 USB controller: Intel Corporation USB 3.2 Gen 1x1 (5Gb/s) Host Controller", type: 'normal' },
+                { text: "00:17.0 SATA controller: Intel Corporation SATA AHCI Controller", type: 'normal' },
+                { text: "00:1f.3 Audio device: Intel Corporation High Definition Audio Controller", type: 'normal' },
+                { text: "00:1f.6 Ethernet controller: Intel Corporation Ethernet Connection (1000Mbit)", type: 'normal' },
+                { text: `01:00.0 VGA compatible controller: ${telem.gpuInfo.vendor} [${telem.gpuInfo.renderer}]`, type: 'cyan' },
+                { text: "02:00.0 Non-Volatile memory controller: Samsung Electronics NVMe SSD Controller (PCIe 4.0 x4)", type: 'cyan' }
             ],
             exitCode: 0
         });
@@ -2900,11 +2930,16 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
 function parseDpkgStatus() {
     let raw = vfs.readFile('/var/lib/dpkg/status');
+    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true';
+
     if (!raw) {
         const recAppsEnabled = localStorage.getItem('krypton_selected_recommended_apps') !== 'false';
-        raw = `Package: base-files\nStatus: install ok installed\nPriority: required\nSection: admin\nInstalled-Size: 603\nMaintainer: Krypton Core Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: KryptonOS Core System Files & OS Identity Manifest\n\nPackage: linux-image-2.0.0.14-generic-krypton\nStatus: install ok installed\nPriority: optional\nSection: kernel\nInstalled-Size: 512\nMaintainer: Krypton Kernel Team <kernel@krypton-os.org>\nArchitecture: amd64\nVersion: 2.0.0.14-1\nDescription: Linux Kernel Image 2.0.0.14 Vintage Subsystem\n\nPackage: krypton-browser\nStatus: install ok installed\nPriority: optional\nSection: web/browsers\nInstalled-Size: 1024\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Web Navigator Alpha Edition\n\nPackage: krypton-notes\nStatus: install ok installed\nPriority: optional\nSection: editors/text\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Upgrade Notes & System Documentation\n\n`;
+        const kernelVer = isUpgraded ? '6.10.0-1' : '2.0.0.14-1';
+        const kernelPkg = isUpgraded ? 'linux-image-krypton-generic' : 'linux-image-2.0.0.14-generic-krypton';
+
+        raw = `Package: base-files\nStatus: install ok installed\nPriority: required\nSection: admin\nInstalled-Size: 603\nMaintainer: Krypton Core Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: ${isUpgraded ? '1.0.0' : '0.1.0-alpha'}\nDescription: KryptonOS Core System Files & OS Identity Manifest\n\nPackage: ${kernelPkg}\nStatus: install ok installed\nPriority: optional\nSection: kernel\nInstalled-Size: 597\nMaintainer: Krypton Kernel Team <kernel@krypton-os.org>\nArchitecture: amd64\nVersion: ${kernelVer}\nDescription: Linux Kernel Image ${kernelVer}\n\nPackage: krypton-browser\nStatus: install ok installed\nPriority: optional\nSection: web/browsers\nInstalled-Size: 1024\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: ${isUpgraded ? '1.0.0-release' : '0.1.0-alpha'}\nDescription: Web Navigator\n\nPackage: krypton-notes\nStatus: install ok installed\nPriority: optional\nSection: editors/text\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: ${isUpgraded ? '1.1.0-release' : '0.1.0-alpha'}\nDescription: Upgrade Notes & System Documentation\n\n`;
         if (recAppsEnabled) {
-            raw += `Package: krypton-calculator\nStatus: install ok installed\nPriority: optional\nSection: math/calculators\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Scientific Calculator\n\nPackage: krypton-filemgr\nStatus: install ok installed\nPriority: optional\nSection: utils\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Virtual File Manager\n\nPackage: krypton-taskmgr\nStatus: install ok installed\nPriority: optional\nSection: admin\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: System Task Manager\n\nPackage: krypton-settings\nStatus: install ok installed\nPriority: optional\nSection: admin\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 0.1.0-alpha\nDescription: Control Center Settings\n\n`;
+            raw += `Package: krypton-calculator\nStatus: install ok installed\nPriority: optional\nSection: math/calculators\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 1.0.2-release\nDescription: Scientific Calculator\n\nPackage: krypton-filemgr\nStatus: install ok installed\nPriority: optional\nSection: utils\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 1.0.4-release\nDescription: Virtual File Manager\n\nPackage: krypton-taskmgr\nStatus: install ok installed\nPriority: optional\nSection: admin\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 1.2.0-release\nDescription: System Task Manager\n\nPackage: krypton-settings\nStatus: install ok installed\nPriority: optional\nSection: admin\nInstalled-Size: 512\nMaintainer: Krypton Maintainers <packages@krypton-os.org>\nArchitecture: amd64\nVersion: 1.0.0-release\nDescription: Control Center Settings\n\n`;
         }
         if (!vfs.exists('/var/lib/dpkg')) {
             vfs.createDirectory('/var/lib');
@@ -2913,7 +2948,8 @@ function parseDpkgStatus() {
         vfs.writeFile('/var/lib/dpkg/status', raw);
     }
     const entries = raw.split(/\n\s*\n/).filter(b => b.trim().length > 0);
-    const installed = [];
+    const installedMap = new Map();
+    let hasKernel610 = false;
 
     for (const block of entries) {
         const pkgMatch = block.match(/Package:\s*([^\n]+)/);
@@ -2925,10 +2961,15 @@ function parseDpkgStatus() {
         const descMatch = block.match(/Description:\s*([^\n]+)/);
 
         if (pkgMatch && (!statusMatch || statusMatch[1].includes('installed'))) {
-            installed.push({
-                id: pkgMatch[1].trim(),
-                name: pkgMatch[1].trim(),
-                version: verMatch ? verMatch[1].trim() : '1.0.0',
+            const id = pkgMatch[1].trim();
+            const version = verMatch ? verMatch[1].trim() : '1.0.0';
+            if (id.startsWith('linux-image') && (version.startsWith('6.10') || isUpgraded)) {
+                hasKernel610 = true;
+            }
+            installedMap.set(id, {
+                id,
+                name: id,
+                version,
                 installedSize: sizeMatch ? parseInt(sizeMatch[1].trim(), 10) : 1024,
                 section: secMatch ? secMatch[1].trim() : 'universe',
                 architecture: archMatch ? archMatch[1].trim() : 'amd64',
@@ -2936,7 +2977,19 @@ function parseDpkgStatus() {
             });
         }
     }
-    return installed;
+
+    // Prune legacy 2.0 kernel if 6.10 is installed or system is marked upgraded
+    if (hasKernel610 || isUpgraded) {
+        for (const k of Array.from(installedMap.keys())) {
+            if (k.startsWith('linux-image') && !k.includes('6.10') && k !== 'linux-image-krypton-generic') {
+                installedMap.delete(k);
+            } else if (k === 'linux-image-krypton-generic' && isUpgraded) {
+                installedMap.get(k).version = '6.10.0-1';
+            }
+        }
+    }
+
+    return Array.from(installedMap.values());
 }
 
 function compareSemver(v1, v2) {
@@ -3061,8 +3114,8 @@ async function executeAptCommand(args, isRoot, callback) {
 
         const streamLines = [
             { text: "Hit:1 https://deb.krypton-os.org/krypton beryllium InRelease", type: 'normal', delay: 160 },
-            { text: `Get:2 https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/packages.json beryllium/main amd64 Packages [${catalogSizeKb.toFixed(1)} kB]`, type: 'normal', delay: 220 },
-            { text: `Fetched ${catalogSizeKb.toFixed(1)} kB in ${fetchElapsed.toFixed(1)}s (${speedKb} kB/s) - Synchronized catalog from Krypton-Repo`, type: 'muted', delay: 140 },
+            { text: `Get:2 https://deb.krypton-os.org/krypton beryllium/main amd64 Packages [${catalogSizeKb.toFixed(1)} kB]`, type: 'normal', delay: 220 },
+            { text: `Fetched ${catalogSizeKb.toFixed(1)} kB in ${fetchElapsed.toFixed(1)}s (${speedKb} kB/s)`, type: 'muted', delay: 140 },
             { text: "Reading package lists... Done", type: 'success', delay: 120 },
             { text: "Building dependency tree... Done", type: 'success', delay: 100 },
             { text: "Reading state information... Done", type: 'success', delay: 100 }
@@ -3100,6 +3153,11 @@ async function executeAptCommand(args, isRoot, callback) {
         const totalDownloadKb = (totalDownloadBytes / 1024).toFixed(1);
         const totalDeltaKb = (totalDeltaBytes / 1024).toFixed(1);
 
+        const hasKernelOrBaseUpgrade = upgradables.some(u => 
+            u.available.id.startsWith('linux-image') || 
+            u.available.id === 'base-files'
+        );
+
         const streamLines = [
             { text: "Reading package lists... Done", type: 'normal', delay: 140 },
             { text: "Building dependency tree... Done", type: 'normal', delay: 120 },
@@ -3113,8 +3171,9 @@ async function executeAptCommand(args, isRoot, callback) {
         upgradables.forEach((u, idx) => {
             const debFilename = u.available.file || (u.available.id + '.deb');
             const sizeKb = ((u.available.size || 1024) / 1024).toFixed(1);
+            const poolSec = u.available.section ? u.available.section.split('/')[0] : 'main';
             streamLines.push({
-                text: `Get:${idx + 1} https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/${debFilename} [${sizeKb} kB]`,
+                text: `Get:${idx + 1} https://deb.krypton-os.org/krypton/pool/${poolSec}/${u.available.name}/${debFilename} [${sizeKb} kB]`,
                 type: 'normal',
                 delay: 200
             });
@@ -3140,9 +3199,14 @@ async function executeAptCommand(args, isRoot, callback) {
 
         streamLines.push({ text: "Processing triggers for krypton-desktop...", type: 'normal', delay: 120 });
         streamLines.push({ text: "Updating desktop application registry (/usr/share/applications)... Done", type: 'normal', delay: 120 });
-        streamLines.push({ text: `[ OK ] System upgrade packages installed: Krypton 1.0.0.0 LTS staged.`, type: 'success', delay: 150 });
-        streamLines.push({ text: `\n*** System restart required to complete modern Krypton 1.0 LTS upgrade ***`, type: 'warning', delay: 100 });
-        streamLines.push({ text: `Run 'sudo reboot' in Terminal to restart and boot Linux 6.10.0-krypton-generic.`, type: 'cyan', delay: 80 });
+        
+        if (hasKernelOrBaseUpgrade) {
+            streamLines.push({ text: `[ OK ] Core system packages staged.`, type: 'success', delay: 150 });
+            streamLines.push({ text: `\n*** System restart required to boot Linux 6.10.0-krypton-generic ***`, type: 'warning', delay: 100 });
+            streamLines.push({ text: `Run 'sudo reboot' in Terminal to restart and apply kernel updates.`, type: 'cyan', delay: 80 });
+        } else {
+            streamLines.push({ text: `[ OK ] Upgrade complete. All packages and applications updated.`, type: 'success', delay: 120 });
+        }
 
         // Asynchronously download, verify and extract each package
         (async () => {
@@ -3173,17 +3237,64 @@ async function executeAptCommand(args, isRoot, callback) {
             exitCode: 0,
             onComplete: () => {
                 // Update /var/lib/dpkg/status with upgraded package entries
-                let statusContent = vfs.readFile('/var/lib/dpkg/status') || '';
+                let raw = vfs.readFile('/var/lib/dpkg/status') || '';
+                let blocks = raw.split(/\n\s*\n/).filter(b => b.trim().length > 0);
+
+                const upgradeMap = new Map();
                 for (const u of upgradables) {
-                    const newEntry = `Package: ${u.available.id}\nStatus: install ok installed\nPriority: optional\nSection: ${u.available.section || 'universe'}\nInstalled-Size: ${u.available.installed_size || u.available.size || 1024}\nMaintainer: ${u.available.maintainer || 'Krypton Maintainers <packages@krypton-os.org>'}\nArchitecture: ${u.available.architecture || 'amd64'}\nVersion: ${u.available.version}\nDescription: ${u.available.summary || u.available.description || u.available.name}\n\n`;
-                    if (statusContent.includes(`Package: ${u.available.id}`)) {
-                        statusContent = statusContent.replace(new RegExp(`Package: ${u.available.id}[\\s\\S]*?\\n\\n`, 'g'), newEntry);
-                    } else {
-                        statusContent += newEntry;
+                    upgradeMap.set(u.available.id, u.available);
+                    if (u.installed && u.installed.id) {
+                        upgradeMap.set(u.installed.id, u.available);
+                    }
+                    if (u.available.id.startsWith('linux-image') || (u.installed && u.installed.id.startsWith('linux-image'))) {
+                        upgradeMap.set('__kernel__', u.available);
                     }
                 }
-                vfs.writeFile('/var/lib/dpkg/status', statusContent);
-                vfs.writeFile('/var/run/reboot-required', '*** System restart required ***\n');
+
+                const processedIds = new Set();
+                const finalBlocks = [];
+
+                for (const b of blocks) {
+                    const pkgMatch = b.match(/Package:\s*([^\n]+)/);
+                    if (pkgMatch) {
+                        const pkgId = pkgMatch[1].trim();
+                        let replacementPkg = null;
+
+                        if (pkgId.startsWith('linux-image') && upgradeMap.has('__kernel__')) {
+                            replacementPkg = upgradeMap.get('__kernel__');
+                        } else if (upgradeMap.has(pkgId)) {
+                            replacementPkg = upgradeMap.get(pkgId);
+                        }
+
+                        if (replacementPkg) {
+                            if (!processedIds.has(replacementPkg.id)) {
+                                finalBlocks.push(`Package: ${replacementPkg.id}\nStatus: install ok installed\nPriority: optional\nSection: ${replacementPkg.section || 'universe'}\nInstalled-Size: ${replacementPkg.installed_size || replacementPkg.size || 1024}\nMaintainer: ${replacementPkg.maintainer || 'Krypton Maintainers <packages@krypton-os.org>'}\nArchitecture: ${replacementPkg.architecture || replacementPkg.arch || 'amd64'}\nVersion: ${replacementPkg.version}\nDescription: ${replacementPkg.summary || replacementPkg.description || replacementPkg.name}`);
+                                processedIds.add(replacementPkg.id);
+                            }
+                        } else {
+                            if (!processedIds.has(pkgId)) {
+                                finalBlocks.push(b);
+                                processedIds.add(pkgId);
+                            }
+                        }
+                    } else {
+                        finalBlocks.push(b);
+                    }
+                }
+
+                for (const u of upgradables) {
+                    if (!processedIds.has(u.available.id)) {
+                        finalBlocks.push(`Package: ${u.available.id}\nStatus: install ok installed\nPriority: optional\nSection: ${u.available.section || 'universe'}\nInstalled-Size: ${u.available.installed_size || u.available.size || 1024}\nMaintainer: ${u.available.maintainer || 'Krypton Maintainers <packages@krypton-os.org>'}\nArchitecture: ${u.available.architecture || u.available.arch || 'amd64'}\nVersion: ${u.available.version}\nDescription: ${u.available.summary || u.available.description || u.available.name}`);
+                        processedIds.add(u.available.id);
+                    }
+                }
+
+                vfs.writeFile('/var/lib/dpkg/status', finalBlocks.join('\n\n') + '\n\n');
+                if (hasKernelOrBaseUpgrade) {
+                    vfs.writeFile('/var/run/reboot-required', '*** System restart required ***\n');
+                } else if (vfs.exists('/var/run/reboot-required')) {
+                    vfs.deleteFile('/var/run/reboot-required');
+                }
                 vfs.saveFileSystem();
 
                 if (window.appLoader) {
@@ -3191,7 +3302,11 @@ async function executeAptCommand(args, isRoot, callback) {
                 }
                 window.dispatchEvent(new CustomEvent('krypton_packages_changed'));
 
-                story.showToast('🚀 System Upgraded', `Krypton 1.0 LTS packages staged. Run 'sudo reboot' in Terminal to restart.`, 'info');
+                if (hasKernelOrBaseUpgrade) {
+                    story.showToast('🚀 System Upgraded', `Core packages staged. Run 'sudo reboot' in Terminal to restart.`, 'info');
+                } else {
+                    story.showToast('✨ Applications Updated', `Upgraded packages and refreshed desktop runtime.`, 'success');
+                }
             }
         });
         return;
@@ -3440,9 +3555,18 @@ async function executeAptCommand(args, isRoot, callback) {
         return;
     }
 
+    let suggestion = '';
+    if (subCmd === 'pdate' || subCmd === 'updat' || subCmd === 'upd') suggestion = `\nDid you mean 'update'?`;
+    if (subCmd === 'pgrade' || subCmd === 'upgrde' || subCmd === 'upg') suggestion = `\nDid you mean 'upgrade'?`;
+    if (subCmd === 'instal' || subCmd === 'isntall' || subCmd === 'inst') suggestion = `\nDid you mean 'install'?`;
+
     callback({
-        lines: [{ text: `apt: unsupported action '${subCmd}'. Try 'apt update', 'apt list', 'apt search <query>', 'apt show <pkg>', or 'apt install <pkg>'`, type: 'warning' }],
-        exitCode: 1
+        lines: [
+            { text: `E: Invalid operation ${subCmd}${suggestion}`, type: 'error' },
+            { text: `Usage: apt [options] command`, type: 'normal' },
+            { text: `Commands: update, upgrade, install <pkg>, remove <pkg>, list, search <query>, show <pkg>`, type: 'muted' }
+        ],
+        exitCode: 100
     });
 }
 

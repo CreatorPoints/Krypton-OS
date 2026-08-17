@@ -186,7 +186,40 @@
 
         .channel-icon {
             font-size: 32px;
+        }
+
+        .channel-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 16px;
+        }
+
+        .channel-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-live {
+            background: rgba(16, 185, 129, 0.12);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-featured {
+            background: rgba(0, 229, 255, 0.12);
+            color: var(--cyan-primary);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+        }
+
+        .badge-placeholder {
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
         }
 
         .channel-card h3 {
@@ -315,7 +348,24 @@
             
             <div class="channel-card">
                 <div>
-                    <div class="channel-icon">🐙</div>
+                    <div class="channel-header-row">
+                        <div class="channel-icon">✨</div>
+                        <span class="channel-badge badge-featured">Hack Club Stardance</span>
+                    </div>
+                    <h3>Hack Club Stardance</h3>
+                    <p>Explore KryptonOS on Hack Club Stardance (Project #50415). Follow development milestones, teen hacker showcases, and project progress.</p>
+                </div>
+                <a href="https://stardance.hackclub.com/projects/50415" target="_blank" class="btn btn-secondary">
+                    <span>View on Stardance ↗</span>
+                </a>
+            </div>
+
+            <div class="channel-card">
+                <div>
+                    <div class="channel-header-row">
+                        <div class="channel-icon">🐙</div>
+                        <span class="channel-badge badge-live">Source Code</span>
+                    </div>
                     <h3>GitHub Repository</h3>
                     <p>Access the full source code, file bug reports, track commits, and submit Pull Requests to the main codebase.</p>
                 </div>
@@ -326,7 +376,24 @@
 
             <div class="channel-card">
                 <div>
-                    <div class="channel-icon">💬</div>
+                    <div class="channel-header-row">
+                        <div class="channel-icon">🪐</div>
+                        <span class="channel-badge badge-placeholder">Placeholder</span>
+                    </div>
+                    <h3>Reddit Community</h3>
+                    <p>Join the upcoming r/KryptonOS subreddit to share desktop setups, discuss sandbox experiments, showcase shell scripts, and ask questions.</p>
+                </div>
+                <a href="https://www.reddit.com/r/KryptonOS" target="_blank" class="btn btn-secondary">
+                    <span>Visit r/KryptonOS (Placeholder) ↗</span>
+                </a>
+            </div>
+
+            <div class="channel-card">
+                <div>
+                    <div class="channel-header-row">
+                        <div class="channel-icon">💬</div>
+                        <span class="channel-badge badge-live">Discussions</span>
+                    </div>
                     <h3>Developer Discussions</h3>
                     <p>Propose new POSIX commands, discuss kernel emulation features, and collaborate on system architecture.</p>
                 </div>
@@ -337,7 +404,10 @@
 
             <div class="channel-card">
                 <div>
-                    <div class="channel-icon">📦</div>
+                    <div class="channel-header-row">
+                        <div class="channel-icon">📦</div>
+                        <span class="channel-badge badge-live">APT Repo</span>
+                    </div>
                     <h3>Upstream APT Repository</h3>
                     <p>Browse official `.deb` packages in the Krypton-Repo catalog, test upgrades, and verify cryptographic SHA-256 signatures.</p>
                 </div>
@@ -348,7 +418,10 @@
 
             <div class="channel-card">
                 <div>
-                    <div class="channel-icon">🐛</div>
+                    <div class="channel-header-row">
+                        <div class="channel-icon">🐛</div>
+                        <span class="channel-badge badge-live">Issues</span>
+                    </div>
                     <h3>Issue & Bug Tracker</h3>
                     <p>Report edge cases, terminal shell bugs, package manager solver issues, or desktop windowing glitches.</p>
                 </div>
@@ -359,7 +432,10 @@
 
             <div class="channel-card">
                 <div>
-                    <div class="channel-icon">📚</div>
+                    <div class="channel-header-row">
+                        <div class="channel-icon">📚</div>
+                        <span class="channel-badge badge-live">Docs</span>
+                    </div>
                     <h3>POSIX Documentation</h3>
                     <p>Read standard Unix manpages, filesystem hierarchy standards (FHS 3.0), and bootloader lifecycle specifications.</p>
                 </div>
@@ -370,7 +446,10 @@
 
             <div class="channel-card">
                 <div>
-                    <div class="channel-icon">🌐</div>
+                    <div class="channel-header-row">
+                        <div class="channel-icon">🌐</div>
+                        <span class="channel-badge badge-featured">Live OS</span>
+                    </div>
                     <h3>Web Edition Live Simulator</h3>
                     <p>Run the operating system live in your browser tab to test new packages and shell pipelines immediately.</p>
                 </div>
@@ -423,6 +502,8 @@
                 <li><a href="/krypton">Home</a></li>
                 <li><a href="/downloads">Downloads & Web Edition</a></li>
                 <li><a href="/community">Community</a></li>
+                <li><a href="https://stardance.hackclub.com/projects/50415" target="_blank">Hack Club Stardance</a></li>
+                <li><a href="https://www.reddit.com/r/KryptonOS" target="_blank">Reddit</a></li>
                 <li><a href="https://github.com/CreatorPoints/Krypton-OS" target="_blank">GitHub Repository</a></li>
             </ul>
         </div>

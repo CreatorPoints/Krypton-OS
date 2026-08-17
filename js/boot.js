@@ -5,8 +5,45 @@
 import { checkEnvironmentState } from './main.js';
 import { vfs } from './fs.js';
 
+/**
+ * Genuine Hard Reset (Shift+Ctrl+R equivalent):
+ * 1. Flushes Virtual Filesystem to persistent storage
+ * 2. Purges CacheStorage API
+ * 3. Enforces cache-busting timestamp URL redirect to reload un-cached bundles
+ */
+export function executeHardReset() {
+    try {
+        if (typeof vfs !== 'undefined' && vfs.saveFileSystem) {
+            vfs.saveFileSystem();
+        }
+    } catch (e) {}
+
+    if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+            caches.keys().then(keys => {
+                keys.forEach(k => caches.delete(k));
+            }).catch(() => {});
+        } catch (e) {}
+    }
+
+    try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('_krypton_boot', Date.now().toString());
+        window.location.replace(url.toString());
+    } catch (e) {
+        window.location.reload();
+    }
+}
+
 export class MasterBootEngine {
     constructor() {
+        // Clean URL query bar if booted via hard-refresh timestamp
+        if (typeof window !== 'undefined' && window.location.search.includes('_krypton_boot')) {
+            try {
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+            } catch (e) {}
+        }
+
         this.container = document.getElementById('boot-screen');
 
         this.phase = 'BLACK_INIT'; // SPLASH, APTIO_BIOS, BOOT_ERROR, GRUB_RESCUE, KERNEL_BOOT
@@ -293,11 +330,11 @@ export class MasterBootEngine {
                 </div>
                 <div class="aptio-row ${this.selectedRow === 1 ? 'selected' : ''}">
                     <span class="aptio-label">Processor Type</span>
-                    <span class="aptio-val">Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz</span>
+                    <span class="aptio-val">${(typeof window !== 'undefined' && window.telemetry) ? window.telemetry.getFormattedCpuModel() : `x86_64 Virtualized Processor (${navigator.hardwareConcurrency || 8} Cores)`}</span>
                 </div>
                 <div class="aptio-row ${this.selectedRow === 2 ? 'selected' : ''}">
                     <span class="aptio-label">Total Memory</span>
-                    <span class="aptio-val">16384 MB (DDR4-3200)</span>
+                    <span class="aptio-val">${(navigator.deviceMemory || 16) * 1024} MB OK</span>
                 </div>
                 <div class="aptio-section-header">System Date & Time</div>
                 <div class="aptio-row ${this.selectedRow === 3 ? 'selected' : ''}">
@@ -485,7 +522,7 @@ export class MasterBootEngine {
                     vfs.saveFileSystem();
                     localStorage.removeItem('krypton_upgraded_lts');
                     if (this.keyListener) document.removeEventListener('keydown', this.keyListener);
-                    this.start();
+                    executeHardReset();
                 }
             }
         }
@@ -725,15 +762,15 @@ export class MasterBootEngine {
         const onRebootKey = (e) => {
             if (e.key === 'Enter' || e.code === 'Enter') {
                 document.removeEventListener('keydown', onRebootKey);
-                this.start();
+                executeHardReset();
             }
         };
         document.addEventListener('keydown', onRebootKey);
 
         setTimeout(() => {
             document.removeEventListener('keydown', onRebootKey);
-            this.start();
-        }, 3600);
+            executeHardReset();
+        }, 3200);
     }
 
     bootIntoInstalledMainOS() {
@@ -882,8 +919,7 @@ export class MasterBootEngine {
             const powerBtn = document.getElementById('power-on-btn');
             if (powerBtn) {
                 powerBtn.addEventListener('click', () => {
-                    this.container.innerHTML = '';
-                    this.start();
+                    executeHardReset();
                 });
             }
         }, 2500);
@@ -1011,7 +1047,7 @@ export class MasterBootEngine {
                         grubHistory.appendChild(res);
                     } else if (cmd === 'reboot' || cmd === 'exit') {
                         document.removeEventListener('keydown', this.keyListener);
-                        this.start();
+                        executeHardReset();
                     } else if (cmd === 'factory-reset' || cmd === 'reset') {
                         const res = document.createElement('div');
                         res.textContent = 'Resetting VFS package overlay and restoring baseline Alpha...';
@@ -1022,7 +1058,7 @@ export class MasterBootEngine {
                         localStorage.removeItem('krypton_upgraded_lts');
                         setTimeout(() => {
                             document.removeEventListener('keydown', this.keyListener);
-                            this.start();
+                            executeHardReset();
                         }, 1200);
                     } else if (cmd === 'help') {
                         const res = document.createElement('div');
@@ -1068,7 +1104,7 @@ export class MasterBootEngine {
                 if (isRebootKey) {
                     e.preventDefault();
                     document.removeEventListener('keydown', this.keyListener);
-                    this.start();
+                    executeHardReset();
                     return;
                 }
 
@@ -1080,7 +1116,7 @@ export class MasterBootEngine {
                 } else if (e.key === 'Enter' || e.key.toLowerCase() === 'r') {
                     e.preventDefault();
                     document.removeEventListener('keydown', this.keyListener);
-                    this.start();
+                    executeHardReset();
                 }
             };
             document.addEventListener('keydown', this.keyListener);

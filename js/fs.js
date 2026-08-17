@@ -403,6 +403,28 @@ export class VirtualFileSystem {
         if (normalized === '/proc/mounts') {
             return this.mountTable.map(m => `${m.device} ${m.mountPoint} ${m.fsType} ${m.options} 0 0`).join('\n') + '\n';
         }
+        if (normalized === '/proc/cpuinfo') {
+            if (typeof window !== 'undefined' && window.telemetry) {
+                return window.telemetry.getProcCpuInfo();
+            }
+        }
+        if (normalized === '/proc/meminfo') {
+            if (typeof window !== 'undefined' && window.telemetry) {
+                return window.telemetry.getProcMemInfo();
+            }
+        }
+        if (normalized === '/sys/class/power_supply/BAT0/capacity') {
+            const lvl = (typeof window !== 'undefined' && window.telemetry) ? window.telemetry.batteryInfo.level : 85;
+            return `${lvl}\n`;
+        }
+        if (normalized === '/sys/class/power_supply/BAT0/status') {
+            const charging = (typeof window !== 'undefined' && window.telemetry) ? window.telemetry.batteryInfo.charging : false;
+            return `${charging ? 'Charging' : 'Discharging'}\n`;
+        }
+        if (normalized === '/sys/class/net/eth0/speed') {
+            const dl = (typeof window !== 'undefined' && window.telemetry) ? window.telemetry.networkInfo.downlink : 100;
+            return `${Math.round(dl * 10)}\n`;
+        }
         if (normalized === '/etc/fstab') {
             const fstabHeader = '# /etc/fstab: static file system information.\n# <file system> <mount point>   <type>  <options>       <dump>  <pass>\n';
             const fstabBody = this.mountTable
@@ -644,19 +666,31 @@ export const idbStore = new IndexedDBStorage();
 export async function downloadWithMetrics(url, fallbackUrl = null, onChunk = null) {
     const startTime = Date.now();
     let response = null;
-    let usedUrl = url;
+
+    const isLocalHost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' || 
+        window.location.port === '8080' || 
+        window.location.port === '8000'
+    );
+
+    // Prioritize local repository on local development server
+    const primaryUrl = (isLocalHost && fallbackUrl) ? fallbackUrl : url;
+    const secondaryUrl = (isLocalHost && fallbackUrl) ? url : fallbackUrl;
+    let usedUrl = primaryUrl;
 
     try {
-        response = await fetch(url);
-        if (!response.ok && fallbackUrl) {
-            response = await fetch(fallbackUrl);
-            usedUrl = fallbackUrl;
+        response = await fetch(primaryUrl);
+        usedUrl = primaryUrl;
+        if (!response.ok && secondaryUrl) {
+            response = await fetch(secondaryUrl);
+            usedUrl = secondaryUrl;
         }
     } catch (err) {
-        if (fallbackUrl) {
+        if (secondaryUrl) {
             try {
-                response = await fetch(fallbackUrl);
-                usedUrl = fallbackUrl;
+                response = await fetch(secondaryUrl);
+                usedUrl = secondaryUrl;
             } catch (e2) {}
         }
     }

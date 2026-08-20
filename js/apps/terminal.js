@@ -2445,35 +2445,124 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     /* 7. Process & Network Commands (ps, top, htop, kill, ping, ifconfig, etc.) */
     if (cmd === 'ps') {
-        callback({
-            lines: [
-                { text: "    PID TTY          TIME CMD", type: 'muted' },
-                { text: "      1 ?        00:00:02 systemd", type: 'normal' },
-                { text: "    102 ?        00:00:01 krypton-wm", type: 'normal' },
-                { text: "    105 tty1     00:00:00 bash", type: 'normal' },
-                { text: "    210 ?        00:00:04 krypton-browser", type: 'normal' },
-                { text: "    340 ?        00:00:00 dbus-daemon", type: 'normal' }
-            ],
-            exitCode: 0
+        const procs = (window.telemetry && typeof window.telemetry.getProcessList === 'function')
+            ? window.telemetry.getProcessList()
+            : [
+                { pid: 1, name: 'systemd' },
+                { pid: 1042, name: 'krypton-wm' },
+                { pid: 1100, name: 'bash' }
+            ];
+
+        const lines = [
+            { text: "    PID TTY          TIME CMD", type: 'muted' }
+        ];
+        procs.forEach(p => {
+            const cleanCmd = (p.rawName || p.name).replace(/^.*?\s/, '').trim();
+            lines.push({ text: `${String(p.pid).padStart(7, ' ')} ?        00:00:01 ${cleanCmd}`, type: 'normal' });
         });
+        callback({ lines, exitCode: 0 });
         return;
     }
 
     if (cmd === 'top' || cmd === 'htop') {
-        callback({
-            lines: [
-                { text: "top - 21:42:15 up 1:42,  1 user,  load average: 0.14, 0.08, 0.03", type: 'cyan' },
-                { text: "Tasks:  48 total,   1 running,  47 sleeping,   0 stopped,   0 zombie", type: 'normal' },
-                { text: "%Cpu(s):  2.4 us,  1.1 sy,  0.0 ni, 96.2 id,  0.1 wa,  0.2 hi,  0.0 si", type: 'normal' },
-                { text: "MiB Mem :  16000.0 total,   9611.4 free,   4111.7 used,   2276.9 buff/cache", type: 'normal' },
-                { text: "  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND", type: 'muted' },
-                { text: "  102 guest     20   0  421040  98214  34120 S   2.1   0.6   0:01.42 krypton-wm", type: 'normal' },
-                { text: "  210 guest     20   0  980120 210400  84120 S   1.8   1.3   0:04.10 krypton-browser", type: 'normal' },
-                { text: "  105 guest     20   0   24120   8120   4120 R   0.5   0.1   0:00.12 terminal.sh", type: 'normal' },
-                { text: "    1 root      20   0   32100   6140   3100 S   0.0   0.0   0:02.14 systemd", type: 'normal' }
-            ],
-            exitCode: 0
+        const telem = window.telemetry || { currentCpuLoad: 2.4, getTotalUsedMemoryMb: () => 180.0, deviceMemoryGb: 16 };
+        const procs = (typeof telem.getProcessList === 'function' ? telem.getProcessList() : []);
+        const totalMb = (telem.deviceMemoryGb || 16) * 1024;
+        const usedMb = typeof telem.getTotalUsedMemoryMb === 'function' ? telem.getTotalUsedMemoryMb() : 180.0;
+        const freeMb = (totalMb - usedMb).toFixed(1);
+
+        const lines = [
+            { text: `top - ${new Date().toTimeString().split(' ')[0]} up 2:40, 1 user, load average: 0.14, 0.08, 0.03`, type: 'cyan' },
+            { text: `Tasks:  ${procs.length} total,   1 running,  ${Math.max(0, procs.length - 1)} sleeping,   0 stopped,   0 zombie`, type: 'normal' },
+            { text: `%Cpu(s):  ${telem.currentCpuLoad || 2.4} us,  0.8 sy,  0.0 ni, ${(100 - (telem.currentCpuLoad || 2.4)).toFixed(1)} id,  0.1 wa,  0.0 si`, type: 'normal' },
+            { text: `MiB Mem :  ${totalMb.toFixed(1)} total,   ${freeMb} free,   ${usedMb} used,   240.0 buff/cache`, type: 'normal' },
+            { text: "  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND", type: 'muted' }
+        ];
+
+        procs.forEach(p => {
+            const pidStr = String(p.pid).padStart(5, ' ');
+            const userStr = (p.user || 'guest').padEnd(8, ' ');
+            const cpuStr = String(p.cpu || '0.1%').padStart(5, ' ');
+            const memMb = typeof p.mem === 'number' ? p.mem : 14.0;
+            const memPct = ((memMb / totalMb) * 100).toFixed(1).padStart(5, ' ');
+            const cleanName = (p.rawName || p.name).replace(/^.*?\s/, '').trim();
+            lines.push({
+                text: `${pidStr} ${userStr}  20   0  ${Math.round(memMb * 32)}  ${Math.round(memMb * 8)}   ${Math.round(memMb * 2)} S ${cpuStr} ${memPct}   0:01.20 ${cleanName}`,
+                type: p.isFocused ? 'cyan' : 'normal'
+            });
         });
+
+        callback({ lines, exitCode: 0 });
+        return;
+    }
+
+    if (cmd === 'taskmgr' || cmd === 'krypton-taskmgr' || cmd === 'system-monitor') {
+        if (window.appLoader) {
+            window.appLoader.launch('taskmgr');
+            callback({ lines: [{ text: "Launched System Task Manager & Resource Monitor.", type: 'success' }], exitCode: 0 });
+        } else {
+            callback({ lines: [{ text: "Unable to start Task Manager.", type: 'error' }], exitCode: 1 });
+        }
+        return;
+    }
+
+    if (cmd === 'browser' || cmd === 'krypton-browser') {
+        if (window.appLoader) {
+            window.appLoader.launch('browser', args);
+            callback({ lines: [{ text: "Launched Krypton Web Browser.", type: 'success' }], exitCode: 0 });
+        } else {
+            callback({ lines: [{ text: "Unable to start Web Browser.", type: 'error' }], exitCode: 1 });
+        }
+        return;
+    }
+
+    if (cmd === 'filemgr' || cmd === 'krypton-filemgr') {
+        if (window.appLoader) {
+            window.appLoader.launch('filemgr', args);
+            callback({ lines: [{ text: "Launched Virtual File Explorer.", type: 'success' }], exitCode: 0 });
+        } else {
+            callback({ lines: [{ text: "Unable to start File Manager.", type: 'error' }], exitCode: 1 });
+        }
+        return;
+    }
+
+    if (cmd === 'settings' || cmd === 'krypton-settings') {
+        if (window.appLoader) {
+            window.appLoader.launch('settings', args);
+            callback({ lines: [{ text: "Launched Krypton Settings Control Center.", type: 'success' }], exitCode: 0 });
+        } else {
+            callback({ lines: [{ text: "Unable to start Settings.", type: 'error' }], exitCode: 1 });
+        }
+        return;
+    }
+
+    if (cmd === 'calculator' || cmd === 'krypton-calculator') {
+        if (window.appLoader) {
+            window.appLoader.launch('calculator', args);
+            callback({ lines: [{ text: "Launched Desktop Calculator.", type: 'success' }], exitCode: 0 });
+        } else {
+            callback({ lines: [{ text: "Unable to start Calculator.", type: 'error' }], exitCode: 1 });
+        }
+        return;
+    }
+
+    if (cmd === 'clock' || cmd === 'krypton-clock') {
+        if (window.appLoader) {
+            window.appLoader.launch('clock', args);
+            callback({ lines: [{ text: "Launched World Clock & Alarms.", type: 'success' }], exitCode: 0 });
+        } else {
+            callback({ lines: [{ text: "Unable to start Clock.", type: 'error' }], exitCode: 1 });
+        }
+        return;
+    }
+
+    if (cmd === 'messages' || cmd === 'krypton-messages' || cmd === 'system-logs') {
+        if (window.appLoader) {
+            window.appLoader.launch('messages', args);
+            callback({ lines: [{ text: "Launched System Logs Monitor.", type: 'success' }], exitCode: 0 });
+        } else {
+            callback({ lines: [{ text: "Unable to start System Logs.", type: 'error' }], exitCode: 1 });
+        }
         return;
     }
 

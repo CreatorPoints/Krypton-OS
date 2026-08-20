@@ -9,6 +9,13 @@ import { sound } from './sound.js';
 import { openTerminal } from './apps/terminal.js';
 import { openInstallerWizard } from './apps/installer.js';
 import { openClockWindow } from './apps/clock.js';
+import { openTaskManager } from './apps/taskmgr.js';
+import { openBrowser } from './apps/browser.js';
+import { openNotes } from './apps/notes.js';
+import { openCalculator } from './apps/calculator.js';
+import { openFileManager } from './apps/filemgr.js';
+import { openSettings } from './apps/settings.js';
+import { openSystemLogs } from './apps/messages.js';
 import { appLoader } from './loader.js';
 import { telemetry } from './telemetry.js';
 
@@ -20,11 +27,25 @@ window.sound = sound;
 window.appLoader = appLoader;
 window.telemetry = telemetry;
 window.openClockWindow = openClockWindow;
+window.openTaskManager = openTaskManager;
+window.openBrowser = openBrowser;
+window.openSettings = openSettings;
+window.openNotes = openNotes;
+window.openCalculator = openCalculator;
+window.openFileManager = openFileManager;
+window.openSystemLogs = openSystemLogs;
 
 // Register built-in core application launchers
 appLoader.registerBuiltin('terminal', openTerminal);
 appLoader.registerBuiltin('installer', openInstallerWizard);
 appLoader.registerBuiltin('clock', (args) => openClockWindow(args || 'world'));
+appLoader.registerBuiltin('taskmgr', openTaskManager);
+appLoader.registerBuiltin('settings', openSettings);
+appLoader.registerBuiltin('browser', openBrowser);
+appLoader.registerBuiltin('notes', openNotes);
+appLoader.registerBuiltin('calculator', openCalculator);
+appLoader.registerBuiltin('filemgr', openFileManager);
+appLoader.registerBuiltin('messages', openSystemLogs);
 
 document.addEventListener('DOMContentLoaded', () => {
     initWallpaper();
@@ -37,21 +58,17 @@ document.addEventListener('DOMContentLoaded', () => {
 export function checkEnvironmentState() {
     const isLiveBoot = sessionStorage.getItem('krypton_current_boot_medium') === 'live_usb';
     const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
-    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true';
 
-    if (isLiveBoot || !isInstalled || !vfs.exists('/etc/os-release')) {
-        // 1. Live USB Mode: Windows 98 styled Krypton Alpha OS with Terminal & Installer ONLY
+    if (isLiveBoot) {
+        // Live USB Mode: Windows 98 styled Krypton Alpha OS with Terminal & Installer ONLY
         initLiveSessionDesktop();
-    } else if (!isUpgraded) {
-        // 2. Base Installed OS: Krypton Alpha OS (theme-win98) with Vintage Navigator + Terminal + Upgrade Notes
-        initBaseInstalledDesktop();
     } else {
-        // 3. Upgraded Modern OS: Full modern Krypton 1.0 LTS desktop suite
+        // Main Modern Desktop: Full Krypton 1.0 LTS desktop suite loaded seamlessly on any refresh
         initMainInstalledDesktop();
     }
 }
 
-// System upgrade listener (when user executes sudo apt upgrade)
+// System change listener
 window.addEventListener('krypton_system_upgraded', () => {
     checkEnvironmentState();
 });

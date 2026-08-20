@@ -14,14 +14,22 @@ REPO_ROOT = Path("/home/shrestangsu-dutta/Documents/Krypton-Repo")
 OS_ROOT = Path("/home/shrestangsu-dutta/Documents/Krypton-OS")
 
 def get_file_content(path: Path) -> str:
-    if path.exists():
-        with open(path, 'r', encoding='utf-8') as f:
-            return f.read()
     alt_path = OS_ROOT / "js" / "apps" / path.name
     if alt_path.exists():
         with open(alt_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # Also sync to repo src if repo root exists
+            if path.parent.exists():
+                try:
+                    with open(path, 'w', encoding='utf-8') as rf:
+                        rf.write(content)
+                except Exception:
+                    pass
+            return content
+    if path.exists():
+        with open(path, 'r', encoding='utf-8') as f:
             return f.read()
-    raise FileNotFoundError(f"Cannot find source file at {path} or {alt_path}")
+    raise FileNotFoundError(f"Cannot find source file at {alt_path} or {path}")
 
 def sha256_str(content: str) -> str:
     return hashlib.sha256(content.encode('utf-8')).hexdigest()

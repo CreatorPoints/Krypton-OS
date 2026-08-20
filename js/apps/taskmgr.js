@@ -258,45 +258,37 @@ export function openTaskManager() {
         if (sparkLine) sparkLine.setAttribute('d', pathD);
         if (sparkFill) sparkFill.setAttribute('d', `${pathD} L 300 50 L 0 50 Z`);
 
-        // 6. Update Real Process List with exact Component RAM
+        // 6. Update Real Process List with exact Component RAM & CPU Telemetry
         const procTbody = content.querySelector('#tm-proc-tbody');
         const procCount = content.querySelector('#proc-count');
         if (procTbody) {
-            let rows = `
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);"><td style="padding: 6px 10px;">1</td><td style="padding: 6px 10px;">root</td><td style="padding: 6px 10px;">/sbin/init (systemd 254)</td><td style="padding: 6px 10px;">0.0%</td><td style="padding: 6px 10px;">18.4 MB</td><td style="padding: 6px 10px; text-align: center;">-</td></tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);"><td style="padding: 6px 10px;">380</td><td style="padding: 6px 10px;">root</td><td style="padding: 6px 10px;">/lib/systemd/systemd-journald</td><td style="padding: 6px 10px;">0.1%</td><td style="padding: 6px 10px;">24.2 MB</td><td style="padding: 6px 10px; text-align: center;">-</td></tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);"><td style="padding: 6px 10px;">1042</td><td style="padding: 6px 10px;">guest</td><td style="padding: 6px 10px;">krypton-wm (Wayland Compositor)</td><td style="padding: 6px 10px;">0.8%</td><td style="padding: 6px 10px;">78.5 MB</td><td style="padding: 6px 10px; text-align: center;">-</td></tr>
-            `;
+            const processList = typeof telem.getProcessList === 'function' ? telem.getProcessList() : [];
+            let rows = '';
 
-            let count = 3;
-            if (window.wm && window.wm.windows) {
-                let pidCounter = 1100;
-                window.wm.windows.forEach((winObj, winId) => {
-                    count++;
-                    const winTitle = winObj.title || winId;
-                    const isTaskmgr = winId === 'taskmgr';
-                    const isFocused = window.wm.activeWindowId === winId;
-                    const procCpu = isFocused ? `${(telem.currentCpuLoad * 0.7).toFixed(1)}%` : '0.2%';
-                    const procRamMb = telem.getProcessMemory(winId, winObj);
+            processList.forEach(proc => {
+                const isFocused = !!proc.isFocused;
+                const isMinimized = !!proc.minimized;
+                const activeTag = isFocused 
+                    ? '<span style="font-size: 10px; background: rgba(0,229,255,0.2); color: #00e5ff; border: 1px solid rgba(0,229,255,0.4); padding: 1px 5px; border-radius: 3px; margin-left: 6px;">ACTIVE</span>' 
+                    : (isMinimized ? '<span style="font-size: 10px; background: rgba(148,163,184,0.15); color: #94a3b8; padding: 1px 5px; border-radius: 3px; margin-left: 6px;">MINIMIZED</span>' : '');
 
-                    rows += `
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.03); background: ${isFocused ? 'rgba(0, 229, 255, 0.05)' : 'transparent'};">
-                            <td style="padding: 6px 10px;">${pidCounter++}</td>
-                            <td style="padding: 6px 10px;">guest</td>
-                            <td style="padding: 6px 10px; color: ${isFocused ? '#00e5ff' : '#38bdf8'}; font-weight: ${isFocused ? '600' : 'normal'};">
-                                ${winObj.icon || '📦'} ${winTitle} ${isFocused ? '<span style="font-size: 10px; background: rgba(0,229,255,0.2); padding: 1px 5px; border-radius: 3px; margin-left: 4px;">ACTIVE</span>' : ''}
-                            </td>
-                            <td style="padding: 6px 10px; font-family: monospace;">${procCpu}</td>
-                            <td style="padding: 6px 10px; font-family: monospace; color: #10b981;">${procRamMb} MB</td>
-                            <td style="padding: 6px 10px; text-align: center;">
-                                ${isTaskmgr ? '-' : `<button class="kill-btn" data-winid="${winId}" style="padding: 3px 8px; border-radius: 4px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; font-size: 11px; cursor: pointer; font-weight: bold;">Kill</button>`}
-                            </td>
-                        </tr>
-                    `;
-                });
-            }
+                rows += `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); background: ${isFocused ? 'rgba(0, 229, 255, 0.06)' : 'transparent'};">
+                        <td style="padding: 6px 10px; font-family: monospace; color: #94a3b8;">${proc.pid}</td>
+                        <td style="padding: 6px 10px; color: ${proc.user === 'root' ? '#eab308' : '#cbd5e1'}; font-weight: 500;">${proc.user}</td>
+                        <td style="padding: 6px 10px; color: ${isFocused ? '#00e5ff' : '#f8fafc'}; font-weight: ${isFocused ? '600' : 'normal'};">
+                            ${proc.name} ${activeTag}
+                        </td>
+                        <td style="padding: 6px 10px; font-family: monospace; color: ${isFocused ? '#00e5ff' : '#38bdf8'}; font-weight: 600;">${proc.cpu}</td>
+                        <td style="padding: 6px 10px; font-family: monospace; color: #10b981; font-weight: 600;">${proc.mem} MB</td>
+                        <td style="padding: 6px 10px; text-align: center;">
+                            ${proc.canKill && proc.winId ? `<button class="kill-btn" data-winid="${proc.winId}" style="padding: 3px 8px; border-radius: 4px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; font-size: 11px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Kill</button>` : '-'}
+                        </td>
+                    </tr>
+                `;
+            });
 
-            if (procCount) procCount.textContent = count;
+            if (procCount) procCount.textContent = processList.length;
             procTbody.innerHTML = rows;
 
             // Wire interactive Kill buttons
@@ -306,7 +298,7 @@ export function openTaskManager() {
                     if (winId && window.wm) {
                         sound.playClick();
                         window.wm.closeWindow(winId);
-                        story.showToast('Process Terminated', `Killed [${winId}] and reclaimed component RAM.`, 'info');
+                        story.showToast('Process Terminated', `Killed process [${winId}] and reclaimed system memory.`, 'info');
                         updateUi();
                     }
                 });

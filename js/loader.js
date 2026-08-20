@@ -86,7 +86,29 @@ class DynamicAppLoader {
             vfs.createDirectory(appDir);
         }
 
+        // Standard default desktop app definitions
+        const defaultAppShortcuts = [
+            { id: 'browser', title: 'Web Browser', exec: 'krypton-browser', icon: '🌐', categories: 'Network;WebBrowser;', comment: 'Quantum Sandboxed Web Browser' },
+            { id: 'taskmgr', title: 'System Monitor', exec: 'krypton-taskmgr', icon: '📊', categories: 'System;Monitor;', comment: 'Live Telemetry & Process Manager' },
+            { id: 'filemgr', title: 'File Explorer', exec: 'krypton-filemgr', icon: '📁', categories: 'System;FileManager;', comment: 'Virtual Filesystem Browser' },
+            { id: 'settings', title: 'Settings', exec: 'krypton-settings', icon: '⚙️', categories: 'Settings;System;', comment: 'Krypton Control Center' },
+            { id: 'notes', title: 'Text Editor', exec: 'krypton-notes', icon: '📝', categories: 'Utility;TextEditor;', comment: 'Notepad & Markdown Editor' },
+            { id: 'calculator', title: 'Calculator', exec: 'krypton-calculator', icon: '🧮', categories: 'Utility;Calculator;', comment: 'Scientific Calculator' },
+            { id: 'clock', title: 'Clock & Alarms', exec: 'clock', icon: '⏰', categories: 'Utility;Clock;', comment: 'World Clock, Timer & Stopwatch' },
+            { id: 'messages', title: 'System Logs', exec: 'krypton-messages', icon: '📋', categories: 'System;Admin;', comment: 'systemd-journald Diagnostics Streamer' }
+        ];
+
+        // Ensure default desktop entries exist in VFS
+        defaultAppShortcuts.forEach(d => {
+            const path = `${appDir}/${d.id}.desktop`;
+            if (!vfs.exists(path)) {
+                vfs.writeFile(path, `[Desktop Entry]\nName=${d.title}\nExec=${d.exec}\nIcon=${d.icon}\nType=Application\nCategories=${d.categories}\nComment=${d.comment}\n`);
+            }
+        });
+
         const files = vfs.listDir(appDir) || [];
+        const seenIds = new Set();
+
         for (const file of files) {
             if (file.name.endsWith('.desktop') && file.type === 'file') {
                 const fullPath = `${appDir}/${file.name}`;
@@ -95,9 +117,20 @@ class DynamicAppLoader {
                     const parsed = this.parseDesktopFile(content, file.name);
                     parsed.open = (args) => this.launch(parsed.id, args);
                     apps.push(parsed);
+                    seenIds.add(parsed.id);
                 }
             }
         }
+
+        // Fallback to defaults if any were missing
+        defaultAppShortcuts.forEach(d => {
+            if (!seenIds.has(d.id)) {
+                apps.push({
+                    ...d,
+                    open: (args) => this.launch(d.id, args)
+                });
+            }
+        });
 
         return apps;
     }

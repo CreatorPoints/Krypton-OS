@@ -165,30 +165,102 @@ export class SystemTelemetry {
             'filemgr': 15.8,
             'taskmgr': 22.0,
             'settings': 26.4,
-            'messages': 18.0
+            'messages': 18.0,
+            'installer': 32.0
         };
 
         let mem = baseProfiles[procId] || 12.0;
 
         // If a real window element exists in the DOM, compute its exact live DOM weight
-        if (winObj && winObj.element) {
-            const domNodes = winObj.element.getElementsByTagName('*').length;
+        const el = winObj ? (winObj.el || winObj.element) : null;
+        if (el) {
+            const domNodes = el.getElementsByTagName('*').length;
             // Each live DOM node, event listener, and CSS style tree takes ~4.2 KB
             const domWeightMb = (domNodes * 4.2) / 1024;
             mem += domWeightMb;
 
             // Extra allocations for heavy internal buffers
-            if (procId === 'terminal' && winObj.element.querySelector('.terminal-output')) {
-                const lines = winObj.element.querySelectorAll('.terminal-output p, .terminal-output div').length;
+            if (procId === 'terminal') {
+                const lines = el.querySelectorAll('.terminal-output p, .terminal-output div, p, pre').length;
                 mem += (lines * 0.8) / 1024;
-            }
-            if (procId === 'browser') {
-                const iframe = winObj.element.querySelector('iframe');
+            } else if (procId === 'browser') {
+                const iframe = el.querySelector('iframe');
                 if (iframe) mem += 18.5; // Browser sandbox child frame allocation
+            } else if (procId === 'notes') {
+                const textarea = el.querySelector('textarea, .notes-content, [contenteditable]');
+                if (textarea) {
+                    const textLen = (textarea.value || textarea.textContent || '').length;
+                    mem += (textLen * 2) / (1024 * 1024);
+                }
+            } else if (procId === 'filemgr') {
+                const fileItems = el.querySelectorAll('.file-item, .vfs-node').length;
+                mem += (fileItems * 1.5) / 1024;
             }
         }
 
         return parseFloat(mem.toFixed(1));
+    }
+
+    /**
+     * Measure live Process CPU % dynamically from actual activity & focus
+     */
+    getProcessCpu(procId, winObj = null) {
+        if (!winObj) return '0.1%';
+        const isFocused = window.wm && window.wm.activeWindowId === procId;
+        const isMinimized = winObj.minimized;
+        if (isMinimized) return '0.0%';
+
+        // Base load fraction of total current CPU load
+        const totalLoad = this.currentCpuLoad;
+        let procLoad = 0.2;
+
+        if (isFocused) {
+            procLoad = Math.max(0.8, totalLoad * 0.65 + (Math.random() * 0.4 - 0.2));
+        } else {
+            const winCount = (window.wm && window.wm.windows) ? Math.max(1, window.wm.windows.size) : 1;
+            procLoad = Math.max(0.1, (totalLoad * 0.2) / winCount);
+        }
+
+        return `${parseFloat(procLoad.toFixed(1))}%`;
+    }
+
+    /**
+     * Get complete live process list snapshot with actual telemetry metrics
+     */
+    getProcessList() {
+        const procs = [
+            { pid: 1, user: 'root', name: '/sbin/init (systemd 254)', cpu: '0.0%', mem: 18.4, canKill: false },
+            { pid: 380, user: 'root', name: '/lib/systemd/systemd-journald', cpu: '0.1%', mem: 24.2, canKill: false },
+            { pid: 412, user: 'root', name: '/lib/systemd/systemd-udevd', cpu: '0.0%', mem: 14.8, canKill: false },
+            { pid: 1042, user: 'guest', name: 'krypton-wm (Wayland Compositor)', cpu: '0.6%', mem: 78.5, canKill: false }
+        ];
+
+        let pidCounter = 1100;
+        if (window.wm && window.wm.windows) {
+            window.wm.windows.forEach((winObj, winId) => {
+                const isTaskmgr = winId === 'taskmgr';
+                const isFocused = window.wm.activeWindowId === winId;
+                const cpu = this.getProcessCpu(winId, winObj);
+                const mem = this.getProcessMemory(winId, winObj);
+                const title = winObj.title || winId;
+                const icon = winObj.icon || '📦';
+
+                procs.push({
+                    pid: pidCounter++,
+                    user: 'guest',
+                    winId: winId,
+                    name: `${icon} ${title}`,
+                    rawName: winId,
+                    cpu: cpu,
+                    mem: mem,
+                    isFocused: isFocused,
+                    minimized: winObj.minimized,
+                    canKill: !isTaskmgr
+                });
+            });
+        }
+
+        return procs;
     }
 
     /**

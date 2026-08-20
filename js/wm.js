@@ -220,9 +220,10 @@ export class WindowManager {
         const btn = document.createElement('button');
         btn.className = 'taskbar-btn active';
         btn.id = `taskbar-btn-${winData.id}`;
+        btn.setAttribute('title', winData.title || winData.id);
         btn.innerHTML = `
-            <span>${winData.icon}</span>
-            <span class="btn-title">${winData.title}</span>
+            <span class="btn-icon">${winData.icon || '📦'}</span>
+            <span class="btn-title">${winData.title || winData.id}</span>
         `;
 
         btn.addEventListener('click', () => {

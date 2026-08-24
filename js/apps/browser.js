@@ -852,7 +852,7 @@ function renderYouTubeView(url, viewport, navigateTo) {
                         src="https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&rel=0" 
                         title="YouTube video player" 
                         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                         allowfullscreen
                     ></iframe>
                 </div>
@@ -914,29 +914,130 @@ function extractYouTubeVideoId(url) {
    -------------------------------------------------------------------------- */
 async function fetchViaProxyChain(targetUrl) {
     const proxies = [
-        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
     ];
 
     for (let i = 0; i < proxies.length; i++) {
         const proxyUrl = proxies[i];
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 7000);
+            const timeoutId = setTimeout(() => controller.abort(), 6000);
             const res = await fetch(proxyUrl, { signal: controller.signal });
             clearTimeout(timeoutId);
             if (res.ok) {
                 const text = await res.text();
-                if (text && text.trim().length > 30) {
-                    return { ok: true, html: text, proxyIndex: i + 1 };
+                if (text && text.trim().length > 40 && !text.includes('Attention Required! | Cloudflare') && !text.includes('Access Denied') && !text.includes('403 Forbidden')) {
+                    return { ok: true, html: text, isHtml: true, proxyIndex: i + 1 };
                 }
             }
         } catch (err) {
             // Attempt next proxy in cascade
         }
     }
+
+    // Ultimate Resilient Fallback: Jina AI Web Reader (Bypasses WAF, Apple/Cloudflare botwall, CSP frame-ancestors)
+    try {
+        const jinaUrl = `https://r.jina.ai/${targetUrl}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 7500);
+        const res = await fetch(jinaUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+            const markdown = await res.text();
+            if (markdown && markdown.trim().length > 30) {
+                return { ok: true, markdown: markdown, isMarkdown: true, proxyIndex: 99 };
+            }
+        }
+    } catch (err) {}
+
     return { ok: false, error: 'All proxies timed out' };
+}
+
+function convertMarkdownToRichHtml(markdown, targetUrl) {
+    let cleanUrl = targetUrl;
+    if (!cleanUrl.endsWith('/') && !cleanUrl.split('/').pop().includes('.')) {
+        cleanUrl += '/';
+    }
+
+    let parsedHost = 'Target Host';
+    try {
+        parsedHost = new URL(targetUrl).hostname;
+    } catch (e) {
+        parsedHost = targetUrl;
+    }
+
+    // Convert markdown elements to rich HTML
+    let bodyContent = markdown
+        .replace(/^### (.*$)/gim, '<h3 style="color: #00e5ff; margin-top: 18px; margin-bottom: 8px; font-size: 16px;">$1</h3>')
+        .replace(/^## (.*$)/gim, '<h2 style="color: #f8fafc; margin-top: 22px; margin-bottom: 10px; font-size: 19px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">$1</h2>')
+        .replace(/^# (.*$)/gim, '<h1 style="color: #ffffff; margin-top: 24px; margin-bottom: 12px; font-size: 24px;">$1</h1>')
+        .replace(/\*\*\*(.*?)\*\*\*/gim, '<strong><em>$1</em></strong>')
+        .replace(/\*\*(.*?)\*\*/gim, '<strong style="color: #fff;">$1</strong>')
+        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+        .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<div style="margin: 14px 0; text-align: center;"><img src="$2" alt="$1" style="max-width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.5);"></div>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" style="color: #00e5ff; text-decoration: underline; font-weight: 500;">$1</a>')
+        .replace(/^\> (.*$)/gim, '<blockquote style="border-left: 3px solid #00e5ff; padding: 6px 14px; margin: 10px 0; background: rgba(0,229,255,0.06); color: #cbd5e1; border-radius: 0 4px 4px 0;">$1</blockquote>')
+        .replace(/^\s*-\s+(.*$)/gim, '<li style="margin-bottom: 4px; color: #cbd5e1;">$1</li>')
+        .replace(/^\s*\*\s+(.*$)/gim, '<li style="margin-bottom: 4px; color: #cbd5e1;">$1</li>')
+        .replace(/\n\n+/g, '</p><p style="margin-bottom: 12px; line-height: 1.65; color: #cbd5e1;">');
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <base href="${cleanUrl}">
+            <style>
+                body {
+                    margin: 0;
+                    padding: 24px;
+                    background: #0d111a;
+                    color: #cbd5e1;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    word-wrap: break-word;
+                }
+                a { color: #00e5ff; }
+                a:hover { text-decoration: underline; }
+                .banner {
+                    padding: 10px 14px;
+                    background: rgba(0, 229, 255, 0.08);
+                    border: 1px solid rgba(0, 229, 255, 0.25);
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    font-size: 12px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    color: #00e5ff;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="banner">
+                <span>⚡ <strong>Quantum Protected Mode</strong>: Rendered live content for <strong>${escapeHtml(parsedHost)}</strong> (Bypassed CSP frame-ancestors & Botwall restrictions).</span>
+            </div>
+            <div class="content">
+                <p style="margin-bottom: 12px; line-height: 1.65; color: #cbd5e1;">${bodyContent}</p>
+            </div>
+            <script>
+                document.addEventListener('click', function(e) {
+                    var link = e.target.closest('a');
+                    if (link && link.href) {
+                        var href = link.href;
+                        if (href.startsWith('http://') || href.startsWith('https://')) {
+                            e.preventDefault();
+                            window.parent.postMessage({ type: 'krypton_navigate', url: href }, '*');
+                        }
+                    }
+                }, true);
+            </script>
+        </body>
+        </html>
+    `;
 }
 
 function processAndRewriteHtml(rawHtml, targetUrl) {
@@ -1005,7 +1106,7 @@ function renderUniversalWebFrame(url, viewport, navigateTo) {
                 <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-size: 11px; padding: 4px 10px; background: rgba(52,168,83,0.1); border: 1px solid #34A853; border-radius: 4px; font-weight: 600;">↗️ Direct Tab</a>
             </div>
         </div>
-        <div id="wb-content-host" style="flex: 1; width: 100%; height: 100%; position: relative; background: #fff;">
+        <div id="wb-content-host" style="flex: 1; width: 100%; height: 100%; position: relative; background: #0d111a;">
             <!-- Loaded by engine -->
         </div>
     `;
@@ -1051,27 +1152,32 @@ function renderUniversalWebFrame(url, viewport, navigateTo) {
 
         const result = await fetchViaProxyChain(url);
         if (result.ok) {
-            const rewritten = processAndRewriteHtml(result.html, url);
+            let finalHtml = '';
+            if (result.isMarkdown) {
+                finalHtml = convertMarkdownToRichHtml(result.markdown, url);
+            } else {
+                finalHtml = processAndRewriteHtml(result.html, url);
+            }
+
             host.innerHTML = `
                 <iframe 
                     id="wb-quantum-iframe"
                     class="browser-iframe" 
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    style="width: 100%; height: 100%; border: none; background: #fff;"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    style="width: 100%; height: 100%; border: none; background: #0d111a;"
                 ></iframe>
             `;
             const iframe = host.querySelector('#wb-quantum-iframe');
             if (iframe) {
-                iframe.srcdoc = rewritten;
+                iframe.srcdoc = finalHtml;
             }
         } else {
-            // Fallback to direct frame if all proxies fail
-            loadDirectFrame(true);
+            renderFallbackHub(url, host, navigateTo);
         }
     };
 
-    const loadDirectFrame = (fallbackNotice = false) => {
+    const loadDirectFrame = () => {
         setModeActive(btnDirectFrame);
         if (statusTag) {
             statusTag.textContent = 'DIRECT FRAME';
@@ -1080,18 +1186,12 @@ function renderUniversalWebFrame(url, viewport, navigateTo) {
         if (!host) return;
 
         host.innerHTML = `
-            ${fallbackNotice ? `
-                <div style="background: rgba(239,68,68,0.15); border-bottom: 1px solid rgba(239,68,68,0.3); color: #fca5a5; font-size: 11px; padding: 4px 12px; display: flex; justify-content: space-between; align-items: center;">
-                    <span>⚠️ Quantum proxy was rate-limited for this host. Switched to Direct Frame.</span>
-                    <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #fff; text-decoration: underline;">Open Native Tab</a>
-                </div>
-            ` : ''}
             <iframe 
                 id="wb-live-iframe"
                 class="browser-iframe" 
                 src="${url}" 
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 loading="lazy"
                 style="width: 100%; height: 100%; border: none; background: #fff;"
             ></iframe>
@@ -1114,7 +1214,7 @@ function renderUniversalWebFrame(url, viewport, navigateTo) {
 
     btnDirectFrame?.addEventListener('click', () => {
         sound.playClick();
-        loadDirectFrame(false);
+        loadDirectFrame();
     });
 
     btnReader?.addEventListener('click', () => {
@@ -1124,6 +1224,32 @@ function renderUniversalWebFrame(url, viewport, navigateTo) {
 
     // Default to Quantum Proxy Engine
     loadQuantum();
+}
+
+function renderFallbackHub(url, container, navigateTo) {
+    if (!container) return;
+    container.innerHTML = `
+        <div class="browser-inner-content" style="padding: 40px 20px; text-align: center; color: #cbd5e1; background: #0c0e17; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div style="font-size: 40px; margin-bottom: 12px;">🛡️</div>
+            <h3 style="color: #fff; font-size: 18px; margin: 0 0 8px 0;">Host Protected by Strict Security Policies</h3>
+            <p style="color: #94a3b8; font-size: 13px; max-width: 540px; line-height: 1.6; margin: 0 0 20px 0;">
+                The destination <code>${escapeHtml(url)}</code> enforces strict origin authentication (<code>frame-ancestors 'none'</code>) and anti-bot challenges.
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <a href="${url}" target="_blank" rel="noopener noreferrer" style="padding: 10px 20px; background: #00e5ff; color: #000; font-weight: 700; font-size: 13px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    ↗️ Open in Native Tab
+                </a>
+                <button id="wb-retry-btn" style="padding: 10px 18px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                    🔄 Retry Quantum Engine
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.querySelector('#wb-retry-btn')?.addEventListener('click', () => {
+        sound.playClick();
+        renderUniversalWebFrame(url, container.parentElement, navigateTo);
+    });
 }
 
 async function loadReaderProxy(url, container) {

@@ -5,7 +5,10 @@
 class SoundEngine {
     constructor() {
         this.ctx = null;
-        this.enabled = true;
+        this.enabled = localStorage.getItem('krypton_sound_enabled') !== 'false';
+        const savedVol = localStorage.getItem('krypton_master_volume');
+        this.volume = savedVol !== null ? parseFloat(savedVol) : 0.8;
+        this.muted = localStorage.getItem('krypton_master_muted') === 'true';
     }
 
     init() {
@@ -20,8 +23,41 @@ class SoundEngine {
         }
     }
 
+    setVolume(val) {
+        this.volume = Math.max(0, Math.min(1, val));
+        if (this.volume > 0 && this.muted) {
+            this.muted = false;
+            localStorage.setItem('krypton_master_muted', 'false');
+        }
+        localStorage.setItem('krypton_master_volume', this.volume.toString());
+        window.dispatchEvent(new CustomEvent('krypton_sound_volume_changed', {
+            detail: { volume: this.volume, muted: this.muted, enabled: this.enabled }
+        }));
+    }
+
+    setMuted(isMuted) {
+        this.muted = !!isMuted;
+        localStorage.setItem('krypton_master_muted', this.muted.toString());
+        window.dispatchEvent(new CustomEvent('krypton_sound_volume_changed', {
+            detail: { volume: this.volume, muted: this.muted, enabled: this.enabled }
+        }));
+    }
+
+    toggleMute() {
+        this.setMuted(!this.muted);
+        return this.muted;
+    }
+
+    setEnabled(isEnabled) {
+        this.enabled = !!isEnabled;
+        localStorage.setItem('krypton_sound_enabled', this.enabled.toString());
+        window.dispatchEvent(new CustomEvent('krypton_sound_volume_changed', {
+            detail: { volume: this.volume, muted: this.muted, enabled: this.enabled }
+        }));
+    }
+
     playTone(freq, type = 'sine', duration = 0.1, volume = 0.15) {
-        if (!this.enabled) return;
+        if (!this.enabled || this.muted || this.volume <= 0) return;
         this.init();
         if (!this.ctx) return;
 
@@ -32,7 +68,8 @@ class SoundEngine {
             osc.type = type;
             osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
-            gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+            const effectiveVol = Math.max(0.0001, volume * this.volume);
+            gain.gain.setValueAtTime(effectiveVol, this.ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
 
             osc.connect(gain);

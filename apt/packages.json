@@ -109,9 +109,9 @@
     "version": "1.0.0-release",
     "architecture": "amd64",
     "section": "admin/settings",
-    "size": 35839,
-    "installed_size": 34131,
-    "sha256": "7bcc48587d69835e84653fe525df04aba124e203d0d927023772a2b83e2baf04",
+    "size": 37165,
+    "installed_size": 35362,
+    "sha256": "1cf9aaaa8d6dd6e20273d80ac7b46434a800e299e9eb66d35ef1536080c8d160",
     "file": "krypton-settings.deb",
     "summary": "KryptonOS Control Center, Wallpaper Switcher, Accounts & Appearance",
     "maintainer": "Krypton Maintainers <packages@krypton-os.org>"

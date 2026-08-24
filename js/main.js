@@ -850,55 +850,132 @@ function initClock() {
 }
 
 function initSystemTrayControls() {
-    const quickSettingsBtn = document.getElementById('tray-quick-settings');
-    const quickPanel = document.getElementById('quick-settings-panel');
-    const volSlider = document.getElementById('qs-vol-slider');
-    const volVal = document.getElementById('qs-vol-val');
-    const brightSlider = document.getElementById('qs-bright-slider');
-    const brightVal = document.getElementById('qs-bright-val');
+    // 1. Taskbar Volume Control & Sound Flyout Panel
+    const traySoundBtn = document.getElementById('tray-sound-toggle');
+    const soundFlyout = document.getElementById('tray-sound-flyout');
+    const soundSlider = document.getElementById('sound-volume-slider');
+    const soundVolBadge = document.getElementById('sound-vol-badge');
+    const soundMuteBtn = document.getElementById('sound-mute-btn');
+    const flyoutSoundIcon = document.getElementById('flyout-sound-icon');
+    const soundEnabledCheckbox = document.getElementById('sound-system-enabled-checkbox');
+    const soundTestBtn = document.getElementById('sound-test-btn');
+    const presetBtns = document.querySelectorAll('.sound-preset-btn');
 
-    if (quickSettingsBtn && quickPanel) {
-        quickSettingsBtn.addEventListener('click', (e) => {
+    const updateSoundUi = (vol, isMuted, isEnabled) => {
+        const pct = Math.round(vol * 100);
+        let icon = '🔊';
+        if (isMuted || pct === 0 || !isEnabled) {
+            icon = '🔇';
+        } else if (pct <= 50) {
+            icon = '🔉';
+        }
+
+        if (traySoundBtn) {
+            traySoundBtn.textContent = icon;
+            traySoundBtn.setAttribute('title', isMuted || !isEnabled ? 'Sound: Muted (Click for Controls)' : `Volume: ${pct}% (Click for Controls, Scroll to Adjust)`);
+        }
+
+        if (flyoutSoundIcon) flyoutSoundIcon.textContent = icon;
+        if (soundMuteBtn) {
+            soundMuteBtn.textContent = icon;
+            soundMuteBtn.classList.toggle('muted', isMuted || pct === 0 || !isEnabled);
+        }
+
+        if (soundSlider && document.activeElement !== soundSlider) {
+            soundSlider.value = isMuted ? '0' : pct.toString();
+        }
+
+        if (soundVolBadge) {
+            soundVolBadge.textContent = isMuted || !isEnabled ? 'MUTED' : `${pct}%`;
+        }
+
+        if (soundEnabledCheckbox) {
+            soundEnabledCheckbox.checked = !!isEnabled;
+        }
+    };
+
+    // Initialize UI with current sound engine state
+    updateSoundUi(sound.volume, sound.muted, sound.enabled);
+
+    // Listen to sound engine state changes
+    window.addEventListener('krypton_sound_volume_changed', (e) => {
+        const { volume, muted, enabled } = e.detail;
+        updateSoundUi(volume, muted, enabled);
+    });
+
+    if (traySoundBtn && soundFlyout) {
+        traySoundBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            quickPanel.classList.toggle('hidden');
+            soundFlyout.classList.toggle('hidden');
             sound.playClick();
         });
 
+        // Mouse wheel volume scroll directly on the taskbar tray icon
+        traySoundBtn.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const delta = e.deltaY < 0 ? 0.05 : -0.05;
+            const newVol = Math.max(0, Math.min(1, sound.volume + delta));
+            sound.setVolume(newVol);
+            sound.playTone(600 + newVol * 400, 'sine', 0.03, 0.08);
+        }, { passive: false });
+
         document.addEventListener('click', (e) => {
-            if (!quickPanel.contains(e.target) && !quickSettingsBtn.contains(e.target)) {
-                quickPanel.classList.add('hidden');
+            if (!soundFlyout.contains(e.target) && !traySoundBtn.contains(e.target)) {
+                soundFlyout.classList.add('hidden');
             }
         });
     }
 
-    if (volSlider && volVal) {
-        const savedVol = localStorage.getItem('krypton_volume') || '80';
-        volSlider.value = savedVol;
-        volVal.textContent = `${savedVol}%`;
-        volSlider.addEventListener('input', (e) => {
-            const v = e.target.value;
-            volVal.textContent = `${v}%`;
-            localStorage.setItem('krypton_volume', v);
+    if (soundSlider) {
+        soundSlider.addEventListener('input', (e) => {
+            const pct = parseInt(e.target.value, 10);
+            sound.setVolume(pct / 100);
+        });
+
+        soundSlider.addEventListener('change', () => {
+            sound.playTone(700, 'sine', 0.05, 0.1);
         });
     }
 
-    if (brightSlider && brightVal) {
-        const savedBright = localStorage.getItem('krypton_brightness') || '100';
-        brightSlider.value = savedBright;
-        brightVal.textContent = `${savedBright}%`;
-        const applyBrightness = (val) => {
-            const overlay = document.getElementById('brightness-overlay');
-            if (overlay) {
-                overlay.style.opacity = (1 - (val / 100)) * 0.75;
-            }
-        };
-        applyBrightness(savedBright);
+    if (soundMuteBtn) {
+        soundMuteBtn.addEventListener('click', () => {
+            sound.toggleMute();
+            sound.playClick();
+        });
+    }
 
-        brightSlider.addEventListener('input', (e) => {
-            const b = e.target.value;
-            brightVal.textContent = `${b}%`;
-            localStorage.setItem('krypton_brightness', b);
-            applyBrightness(b);
+    presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const volPct = parseInt(btn.getAttribute('data-vol'), 10);
+            if (volPct === 0) {
+                sound.setMuted(true);
+            } else {
+                sound.setVolume(volPct / 100);
+            }
+            sound.playClick();
+        });
+    });
+
+    if (soundEnabledCheckbox) {
+        soundEnabledCheckbox.addEventListener('change', (e) => {
+            sound.setEnabled(e.target.checked);
+            if (e.target.checked) sound.playSuccess();
+        });
+    }
+
+    if (soundTestBtn) {
+        soundTestBtn.addEventListener('click', () => {
+            sound.playSuccess();
+        });
+    }
+
+    // 2. Adblock Shield Status Indicator Click
+    const adblockTray = document.getElementById('tray-adblock-status');
+    if (adblockTray) {
+        adblockTray.addEventListener('click', () => {
+            sound.playClick();
+            story.showToast('🛡️ Shield Status', 'KryptonOS Sandbox Network Shield is Active.', 'info');
         });
     }
 }

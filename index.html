@@ -74,6 +74,40 @@
             </div>
         </div>
 
+        <!-- Taskbar Volume Control Flyout Panel -->
+        <div id="tray-sound-flyout" class="tray-sound-flyout hidden">
+            <div class="sound-flyout-header">
+                <div class="sound-flyout-title">
+                    <span id="flyout-sound-icon" class="flyout-icon">🔊</span>
+                    <span>Audio Output (PulseAudio)</span>
+                </div>
+                <span id="sound-vol-badge" class="sound-vol-badge">80%</span>
+            </div>
+            
+            <div class="sound-slider-row">
+                <button id="sound-mute-btn" class="sound-mute-btn" title="Toggle Mute">🔊</button>
+                <div class="sound-slider-track">
+                    <input type="range" id="sound-volume-slider" min="0" max="100" value="80" class="sound-slider" title="Adjust System Master Volume">
+                </div>
+            </div>
+
+            <div class="sound-presets-row">
+                <button class="sound-preset-btn" data-vol="0">Mute</button>
+                <button class="sound-preset-btn" data-vol="25">25%</button>
+                <button class="sound-preset-btn" data-vol="50">50%</button>
+                <button class="sound-preset-btn" data-vol="75">75%</button>
+                <button class="sound-preset-btn" data-vol="100">100%</button>
+            </div>
+
+            <div class="sound-flyout-footer">
+                <label class="sound-toggle-label">
+                    <input type="checkbox" id="sound-system-enabled-checkbox" checked>
+                    <span>System Audio Feedback</span>
+                </label>
+                <button id="sound-test-btn" class="sound-test-btn" title="Test audio playback">🔔 Test</button>
+            </div>
+        </div>
+
         <!-- Modern Taskbar Panel -->
         <div id="taskbar" class="taskbar">
             <button id="start-button" class="start-button" title="Open Applications Menu">
@@ -92,7 +126,7 @@
                 <div class="tray-item" id="tray-adblock-status" title="KryptonOS Network Shield Status">
                     🛡️ <span id="tray-adblock-text" class="adblock-badge off">OFF</span>
                 </div>
-                <div class="tray-item tray-icon-btn" id="tray-sound-toggle" title="Toggle Sound Feedback">🔊</div>
+                <div class="tray-item tray-icon-btn" id="tray-sound-toggle" title="Volume: 80% (Click for Controls, Scroll to Adjust)">🔊</div>
                 <div class="tray-item tray-icon-btn" id="tray-battery" title="Battery Level: 98% (Discharging)">🔋 98%</div>
                 <div class="clock-pill" id="tray-clock" title="Click to open Date & Time Settings">
                     <span class="clock-time" id="clock-time">00:00:00</span>

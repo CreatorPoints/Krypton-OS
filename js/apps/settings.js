@@ -540,10 +540,12 @@ function renderDateTimeTab(container) {
    4. Displays & Audio Tab
    -------------------------------------------------------------------------- */
 function renderDisplayTab(container) {
+    const volPct = Math.round(sound.volume * 100);
+
     container.innerHTML = `
         <div class="settings-header">
             <h3>🖥️ Displays & System Audio</h3>
-            <p class="settings-subtext">Manage screen resolution, scale factors, compositor, and audio feedback.</p>
+            <p class="settings-subtext">Manage screen resolution, scale factors, compositor, and master volume output.</p>
         </div>
 
         <div class="settings-section-box">
@@ -557,16 +559,37 @@ function renderDisplayTab(container) {
         </div>
 
         <div class="settings-section-box">
-            <h4 class="section-title">🔊 System Audio & Sound Effects</h4>
-            <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; margin-top: 6px;">
-                <input type="checkbox" id="snd-toggle" ${sound.enabled ? 'checked' : ''}>
+            <h4 class="section-title">🔊 Master Audio Output (PulseAudio / PipeWire)</h4>
+            <div style="display: flex; align-items: center; gap: 12px; margin-top: 10px;">
+                <span id="set-vol-icon" style="font-size: 18px;">${sound.muted ? '🔇' : (volPct <= 50 ? '🔉' : '🔊')}</span>
+                <input type="range" id="set-vol-slider" min="0" max="100" value="${sound.muted ? 0 : volPct}" style="flex: 1; accent-color: #00e5ff; cursor: pointer;">
+                <span id="set-vol-val" style="font-family: monospace; font-weight: bold; width: 45px; color: var(--accent-primary);">${sound.muted ? 'MUTED' : `${volPct}%`}</span>
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; margin-top: 14px;">
+                <input type="checkbox" id="snd-toggle" ${sound.enabled ? 'checked' : ''} style="accent-color: #00e5ff;">
                 <span>Enable UI click sounds, window actions, and terminal bell alerts</span>
             </label>
         </div>
     `;
 
+    const volSlider = container.querySelector('#set-vol-slider');
+    const volVal = container.querySelector('#set-vol-val');
+    const volIcon = container.querySelector('#set-vol-icon');
+
+    volSlider?.addEventListener('input', (e) => {
+        const v = parseInt(e.target.value, 10);
+        sound.setVolume(v / 100);
+        volVal.textContent = `${v}%`;
+        volIcon.textContent = v === 0 ? '🔇' : (v <= 50 ? '🔉' : '🔊');
+    });
+
+    volSlider?.addEventListener('change', () => {
+        sound.playSuccess();
+    });
+
     container.querySelector('#snd-toggle')?.addEventListener('change', (e) => {
-        sound.enabled = e.target.checked;
+        sound.setEnabled(e.target.checked);
         if (sound.enabled) sound.playClick();
         story.showToast('🔊 Audio Settings', `System sound feedback ${sound.enabled ? 'enabled' : 'muted'}.`, 'info');
     });

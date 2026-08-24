@@ -53,7 +53,197 @@ document.addEventListener('DOMContentLoaded', () => {
     checkEnvironmentState();
     initClock();
     initSystemTrayControls();
+    initDesktopSelectionClear();
 });
+
+/* --------------------------------------------------------------------------
+   Desktop Icon Freeform Placement, Drag & Drop, and Persistence
+   -------------------------------------------------------------------------- */
+let savedIconPositions = {};
+try {
+    const raw = localStorage.getItem('krypton_desktop_icon_positions');
+    if (raw) savedIconPositions = JSON.parse(raw);
+} catch (e) {
+    savedIconPositions = {};
+}
+
+export function saveDesktopIconPosition(iconId, left, top) {
+    savedIconPositions[iconId] = { left: Math.round(left), top: Math.round(top) };
+    try {
+        localStorage.setItem('krypton_desktop_icon_positions', JSON.stringify(savedIconPositions));
+    } catch (e) {}
+}
+
+export function getDesktopIconPosition(iconId, defaultIndex = 0) {
+    if (savedIconPositions && savedIconPositions[iconId]) {
+        const p = savedIconPositions[iconId];
+        const maxLeft = Math.max(10, window.innerWidth - 100);
+        const maxTop = Math.max(10, window.innerHeight - 150);
+        return {
+            left: Math.max(10, Math.min(maxLeft, p.left)),
+            top: Math.max(10, Math.min(maxTop, p.top))
+        };
+    }
+
+    // Default layout: structured vertical columns from top-left to right
+    const cellWidth = 98;
+    const cellHeight = 104;
+    const startX = 20;
+    const startY = 20;
+    const taskbarHeight = 48;
+    const availableHeight = Math.max(200, window.innerHeight - taskbarHeight - 20);
+    const rowsPerCol = Math.max(1, Math.floor((availableHeight - startY) / cellHeight));
+
+    const col = Math.floor(defaultIndex / rowsPerCol);
+    const row = defaultIndex % rowsPerCol;
+
+    const left = startX + col * cellWidth;
+    const top = startY + row * cellHeight;
+    return { left, top };
+}
+
+export function makeDesktopIconMovable(iconEl, iconId, defaultIndex = 0) {
+    const initialPos = getDesktopIconPosition(iconId, defaultIndex);
+    iconEl.style.position = 'absolute';
+    iconEl.style.left = `${initialPos.left}px`;
+    iconEl.style.top = `${initialPos.top}px`;
+
+    let isDragging = false;
+    let dragThresholdPassed = false;
+    let startX = 0;
+    let startY = 0;
+    let iconStartX = 0;
+    let iconStartY = 0;
+    let ignoreNextClick = false;
+
+    const onPointerDown = (e) => {
+        if (e.button !== undefined && e.button !== 0) return;
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        startX = clientX;
+        startY = clientY;
+        iconStartX = parseFloat(iconEl.style.left) || iconEl.offsetLeft;
+        iconStartY = parseFloat(iconEl.style.top) || iconEl.offsetTop;
+
+        isDragging = true;
+        dragThresholdPassed = false;
+
+        document.addEventListener('mousemove', onPointerMove, { passive: false });
+        document.addEventListener('mouseup', onPointerUp);
+        document.addEventListener('touchmove', onPointerMove, { passive: false });
+        document.addEventListener('touchend', onPointerUp);
+    };
+
+    const onPointerMove = (e) => {
+        if (!isDragging) return;
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+
+        if (!dragThresholdPassed) {
+            if (Math.hypot(dx, dy) > 5) {
+                dragThresholdPassed = true;
+                iconEl.classList.add('dragging');
+                document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
+                iconEl.classList.add('selected');
+            }
+        }
+
+        if (dragThresholdPassed) {
+            if (e.cancelable) e.preventDefault();
+
+            const iconWidth = iconEl.offsetWidth || 86;
+            const iconHeight = iconEl.offsetHeight || 90;
+            const maxLeft = Math.max(10, window.innerWidth - iconWidth - 10);
+            const maxTop = Math.max(10, window.innerHeight - 56 - iconHeight);
+
+            let newLeft = iconStartX + dx;
+            let newTop = iconStartY + dy;
+
+            newLeft = Math.max(10, Math.min(maxLeft, newLeft));
+            newTop = Math.max(10, Math.min(maxTop, newTop));
+
+            iconEl.style.left = `${newLeft}px`;
+            iconEl.style.top = `${newTop}px`;
+        }
+    };
+
+    const onPointerUp = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+
+        document.removeEventListener('mousemove', onPointerMove);
+        document.removeEventListener('mouseup', onPointerUp);
+        document.removeEventListener('touchmove', onPointerMove);
+        document.removeEventListener('touchend', onPointerUp);
+
+        if (dragThresholdPassed) {
+            iconEl.classList.remove('dragging');
+            ignoreNextClick = true;
+            setTimeout(() => { ignoreNextClick = false; }, 250);
+
+            const finalLeft = parseFloat(iconEl.style.left);
+            const finalTop = parseFloat(iconEl.style.top);
+            saveDesktopIconPosition(iconId, finalLeft, finalTop);
+        } else {
+            document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
+            iconEl.classList.add('selected');
+        }
+    };
+
+    iconEl.addEventListener('mousedown', onPointerDown);
+    iconEl.addEventListener('touchstart', onPointerDown, { passive: true });
+
+    iconEl.addEventListener('click', (e) => {
+        if (ignoreNextClick) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    });
+}
+
+function initDesktopSelectionClear() {
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.desktop-icon') && 
+            !e.target.closest('#start-menu') && 
+            !e.target.closest('#start-button') && 
+            !e.target.closest('.taskbar')) {
+            document.querySelectorAll('.desktop-icon.selected').forEach(i => i.classList.remove('selected'));
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        document.querySelectorAll('.desktop-icon').forEach(iconEl => {
+            const iconId = iconEl.getAttribute('data-app-id') || iconEl.id;
+            const iconWidth = iconEl.offsetWidth || 86;
+            const iconHeight = iconEl.offsetHeight || 90;
+            let left = parseFloat(iconEl.style.left) || 20;
+            let top = parseFloat(iconEl.style.top) || 20;
+            const maxLeft = Math.max(10, window.innerWidth - iconWidth - 10);
+            const maxTop = Math.max(10, window.innerHeight - 56 - iconHeight);
+
+            let changed = false;
+            if (left > maxLeft) {
+                left = maxLeft;
+                changed = true;
+            }
+            if (top > maxTop) {
+                top = maxTop;
+                changed = true;
+            }
+            if (changed) {
+                iconEl.style.left = `${left}px`;
+                iconEl.style.top = `${top}px`;
+                saveDesktopIconPosition(iconId, left, top);
+            }
+        });
+    });
+}
 
 export function checkEnvironmentState() {
     const isLiveBoot = sessionStorage.getItem('krypton_current_boot_medium') === 'live_usb';
@@ -96,21 +286,24 @@ function initLiveSessionDesktop() {
         </div>
     `;
 
-    document.getElementById('icon-terminal')?.addEventListener('dblclick', () => {
-        sound.playClick();
-        openTerminal();
-    });
-    document.getElementById('icon-install-krypton')?.addEventListener('dblclick', () => {
-        sound.playClick();
-        openInstallerWizard();
-    });
+    const termIcon = document.getElementById('icon-terminal');
+    const instIcon = document.getElementById('icon-install-krypton');
 
-    document.querySelectorAll('.desktop-icon').forEach(icon => {
-        icon.addEventListener('click', () => {
-            document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
-            icon.classList.add('selected');
+    if (termIcon) {
+        makeDesktopIconMovable(termIcon, 'live-terminal', 0);
+        termIcon.addEventListener('dblclick', () => {
+            sound.playClick();
+            openTerminal();
         });
-    });
+    }
+
+    if (instIcon) {
+        makeDesktopIconMovable(instIcon, 'live-installer', 1);
+        instIcon.addEventListener('dblclick', () => {
+            sound.playClick();
+            openInstallerWizard();
+        });
+    }
 
     const liveApps = [
         { id: 'terminal', title: 'Terminal', icon: '💻', open: openTerminal },
@@ -152,25 +345,33 @@ function initBaseInstalledDesktop() {
         </div>
     `;
 
-    document.getElementById('icon-browser')?.addEventListener('dblclick', () => {
-        sound.playClick();
-        appLoader.launch('browser');
-    });
-    document.getElementById('icon-terminal')?.addEventListener('dblclick', () => {
-        sound.playClick();
-        openTerminal();
-    });
-    document.getElementById('icon-readme')?.addEventListener('dblclick', () => {
-        sound.playClick();
-        appLoader.launch('notes', ['upgrade_notes.txt', `=== Krypton OS 0.1 Alpha Base Installation ===\n\nKernel: Linux 2.0.0.14-generic-krypton (Vintage Alpha Subsystem)\nInstalled Packages: Base System, Web Navigator (Alpha), GNU Bash 2.0\n\nTo upgrade this system to the modern Linux 6.10 kernel and Krypton 1.0 LTS Desktop Suite:\n1. Open the Terminal\n2. Run the standard Debian upgrade command:\n     sudo apt update && sudo apt upgrade\n\nAll modern apps, Wayland compositor, and glass UI will be automatically unlocked!`]);
-    });
+    const browserIcon = document.getElementById('icon-browser');
+    const termIcon = document.getElementById('icon-terminal');
+    const readmeIcon = document.getElementById('icon-readme');
 
-    document.querySelectorAll('.desktop-icon').forEach(icon => {
-        icon.addEventListener('click', () => {
-            document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
-            icon.classList.add('selected');
+    if (browserIcon) {
+        makeDesktopIconMovable(browserIcon, 'base-browser', 0);
+        browserIcon.addEventListener('dblclick', () => {
+            sound.playClick();
+            appLoader.launch('browser');
         });
-    });
+    }
+
+    if (termIcon) {
+        makeDesktopIconMovable(termIcon, 'base-terminal', 1);
+        termIcon.addEventListener('dblclick', () => {
+            sound.playClick();
+            openTerminal();
+        });
+    }
+
+    if (readmeIcon) {
+        makeDesktopIconMovable(readmeIcon, 'base-readme', 2);
+        readmeIcon.addEventListener('dblclick', () => {
+            sound.playClick();
+            appLoader.launch('notes', ['upgrade_notes.txt', `=== Krypton OS 0.1 Alpha Base Installation ===\n\nKernel: Linux 2.0.0.14-generic-krypton (Vintage Alpha Subsystem)\nInstalled Packages: Base System, Web Navigator (Alpha), GNU Bash 2.0\n\nTo upgrade this system to the modern Linux 6.10 kernel and Krypton 1.0 LTS Desktop Suite:\n1. Open the Terminal\n2. Run the standard Debian upgrade command:\n     sudo apt update && sudo apt upgrade\n\nAll modern apps, Wayland compositor, and glass UI will be automatically unlocked!`]);
+        });
+    }
 
     const baseApps = [
         { id: 'browser', title: 'Web Navigator (Alpha)', icon: '🌐', open: () => appLoader.launch('browser') },
@@ -339,20 +540,18 @@ function initMainInstalledDesktop() {
         });
     }
 
-    // Render Installed App Shortcuts Dynamically
-    installedApps.forEach(app => {
+    // Render Installed App Shortcuts Dynamically with Movable Freeform Drag & Drop
+    installedApps.forEach((app, idx) => {
         const iconEl = document.createElement('div');
         iconEl.className = 'desktop-icon';
         iconEl.setAttribute('data-app-id', app.id);
+        iconEl.setAttribute('title', app.title);
         iconEl.innerHTML = `
             <div class="icon-image">${app.icon}</div>
             <div class="icon-label">${app.title}</div>
         `;
 
-        iconEl.addEventListener('click', () => {
-            document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
-            iconEl.classList.add('selected');
-        });
+        makeDesktopIconMovable(iconEl, `app-${app.id}`, idx);
 
         iconEl.addEventListener('dblclick', () => {
             sound.playClick();

@@ -536,6 +536,7 @@ function setupStartMenu({ title, subtitle, apps, showSearch = true }) {
     const btnSettings = startMenu.querySelector('#start-btn-settings');
     const btnTerminal = startMenu.querySelector('#start-btn-terminal');
     const btnRestart = startMenu.querySelector('#start-btn-restart');
+    const btnPoweroff = startMenu.querySelector('#start-btn-poweroff');
 
     if (btnSettings) {
         btnSettings.onclick = (e) => {
@@ -562,6 +563,19 @@ function setupStartMenu({ title, subtitle, apps, showSearch = true }) {
                 window.systemBoot.triggerSystemRebootBroadcast('The system is going down for reboot NOW!');
             } else if (window.boot) {
                 window.boot.triggerSystemRebootBroadcast('The system is going down for reboot NOW!');
+            }
+        };
+    }
+
+    if (btnPoweroff) {
+        btnPoweroff.onclick = (e) => {
+            e.stopPropagation();
+            sound.playWindowClose();
+            startMenu.classList.add('hidden');
+            if (window.systemBoot) {
+                window.systemBoot.triggerSystemPoweroff();
+            } else if (window.boot) {
+                window.boot.triggerSystemPoweroff();
             }
         };
     }

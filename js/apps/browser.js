@@ -203,6 +203,13 @@ export function openBrowser(initialUrl = 'google://home') {
         }
     });
 
+    const onIframeNavMessage = (e) => {
+        if (e.data && e.data.type === 'krypton_navigate' && e.data.url) {
+            navigateTo(e.data.url);
+        }
+    };
+    window.addEventListener('message', onIframeNavMessage);
+
     updateGoogleBadge();
     navigateTo(initialUrl, false);
 
@@ -212,7 +219,10 @@ export function openBrowser(initialUrl = 'google://home') {
         icon: '🌐',
         width: 980,
         height: 660,
-        content: content
+        content: content,
+        onClose: () => {
+            window.removeEventListener('message', onIframeNavMessage);
+        }
     });
 }
 
@@ -900,22 +910,182 @@ function extractYouTubeVideoId(url) {
 }
 
 /* --------------------------------------------------------------------------
-   Universal Web Engine (Live Iframe + Reader Mode + Direct Tab)
+   Quantum Universal Web Engine (Multi-Proxy, HTML Rewriting & CORS/X-Frame Bypass)
    -------------------------------------------------------------------------- */
+async function fetchViaProxyChain(targetUrl) {
+    const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`
+    ];
+
+    for (let i = 0; i < proxies.length; i++) {
+        const proxyUrl = proxies[i];
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 7000);
+            const res = await fetch(proxyUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+                const text = await res.text();
+                if (text && text.trim().length > 30) {
+                    return { ok: true, html: text, proxyIndex: i + 1 };
+                }
+            }
+        } catch (err) {
+            // Attempt next proxy in cascade
+        }
+    }
+    return { ok: false, error: 'All proxies timed out' };
+}
+
+function processAndRewriteHtml(rawHtml, targetUrl) {
+    try {
+        let cleanUrl = targetUrl;
+        if (!cleanUrl.endsWith('/') && !cleanUrl.split('/').pop().includes('.')) {
+            cleanUrl += '/';
+        }
+        const baseTag = `<base href="${cleanUrl}">`;
+        
+        // Remove restrictive CSP meta tags and X-Frame headers
+        let cleaned = rawHtml
+            .replace(/<meta[^>]*http-equiv=["']?Content-Security-Policy["']?[^>]*>/gi, '')
+            .replace(/<meta[^>]*http-equiv=["']?X-Frame-Options["']?[^>]*>/gi, '')
+            .replace(/<meta[^>]*name=["']?referrer["']?[^>]*>/gi, '');
+
+        // Inject base tag
+        if (/<head[^>]*>/i.test(cleaned)) {
+            cleaned = cleaned.replace(/<head[^>]*>/i, `$&${baseTag}`);
+        } else {
+            cleaned = `${baseTag}${cleaned}`;
+        }
+
+        // Script to intercept in-page navigation and link clicks to route within Krypton browser
+        const interceptScript = `
+            <script>
+                (function() {
+                    document.addEventListener('click', function(e) {
+                        var link = e.target.closest('a');
+                        if (link && link.href) {
+                            var href = link.href;
+                            if (href.startsWith('http://') || href.startsWith('https://')) {
+                                e.preventDefault();
+                                window.parent.postMessage({ type: 'krypton_navigate', url: href }, '*');
+                            }
+                        }
+                    }, true);
+                })();
+            </script>
+        `;
+
+        if (/<\/body>/i.test(cleaned)) {
+            cleaned = cleaned.replace(/<\/body>/i, `${interceptScript}</body>`);
+        } else {
+            cleaned += interceptScript;
+        }
+
+        return cleaned;
+    } catch (e) {
+        return rawHtml;
+    }
+}
+
 function renderUniversalWebFrame(url, viewport, navigateTo) {
     viewport.innerHTML = `
-        <div style="background: #111422; padding: 6px 14px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: #8892b0;">
-            <div style="display: flex; gap: 8px; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
-                <span style="color: #4285F4;">🔒</span>
+        <div style="background: #111422; padding: 6px 14px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: #8892b0; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 8px; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%;">
+                <span style="color: #00e5ff;">⚡</span>
+                <span id="wb-status-tag" style="color: #00e5ff; font-weight: 700; font-size: 10px; background: rgba(0,229,255,0.12); border: 1px solid rgba(0,229,255,0.3); padding: 1px 6px; border-radius: 4px;">QUANTUM PROXY</span>
                 <span style="color: #cbd5e1; font-family: monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(url)}</span>
             </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <button id="wb-btn-direct-frame" style="padding: 3px 8px; background: rgba(66,133,244,0.15); border: 1px solid #4285F4; border-radius: 4px; color: #4285F4; font-size: 11px; cursor: pointer;">🌐 Live Frame</button>
-                <button id="wb-btn-reader" style="padding: 3px 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #cbd5e1; font-size: 11px; cursor: pointer;">⚡ Reader Mode</button>
-                <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-size: 11px; padding: 3px 8px; background: rgba(52,168,83,0.1); border: 1px solid #34A853; border-radius: 4px;">↗️ Direct Tab</a>
+            <div style="display: flex; gap: 6px; align-items: center;">
+                <button id="wb-btn-quantum" style="padding: 4px 10px; background: rgba(0,229,255,0.18); border: 1px solid #00e5ff; border-radius: 4px; color: #00e5ff; font-size: 11px; font-weight: 600; cursor: pointer;">⚡ Quantum Proxy</button>
+                <button id="wb-btn-direct-frame" style="padding: 4px 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #cbd5e1; font-size: 11px; cursor: pointer;">🌐 Direct Frame</button>
+                <button id="wb-btn-reader" style="padding: 4px 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #cbd5e1; font-size: 11px; cursor: pointer;">📖 Reader</button>
+                <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-size: 11px; padding: 4px 10px; background: rgba(52,168,83,0.1); border: 1px solid #34A853; border-radius: 4px; font-weight: 600;">↗️ Direct Tab</a>
             </div>
         </div>
-        <div id="wb-content-host" style="flex: 1; width: 100%; height: 100%; position: relative;">
+        <div id="wb-content-host" style="flex: 1; width: 100%; height: 100%; position: relative; background: #fff;">
+            <!-- Loaded by engine -->
+        </div>
+    `;
+
+    const host = viewport.querySelector('#wb-content-host');
+    const statusTag = viewport.querySelector('#wb-status-tag');
+    const btnQuantum = viewport.querySelector('#wb-btn-quantum');
+    const btnDirectFrame = viewport.querySelector('#wb-btn-direct-frame');
+    const btnReader = viewport.querySelector('#wb-btn-reader');
+
+    const setModeActive = (activeBtn) => {
+        [btnQuantum, btnDirectFrame, btnReader].forEach(b => {
+            if (b) {
+                b.style.background = 'rgba(255,255,255,0.06)';
+                b.style.borderColor = 'rgba(255,255,255,0.15)';
+                b.style.color = '#cbd5e1';
+                b.style.fontWeight = 'normal';
+            }
+        });
+        if (activeBtn) {
+            activeBtn.style.background = 'rgba(0,229,255,0.18)';
+            activeBtn.style.borderColor = '#00e5ff';
+            activeBtn.style.color = '#00e5ff';
+            activeBtn.style.fontWeight = '600';
+        }
+    };
+
+    const loadQuantum = async () => {
+        setModeActive(btnQuantum);
+        if (statusTag) {
+            statusTag.textContent = 'QUANTUM PROXY';
+            statusTag.style.color = '#00e5ff';
+        }
+        if (!host) return;
+
+        host.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #0c0e17; color: #00e5ff; font-family: monospace; font-size: 13px; gap: 12px;">
+                <div style="font-size: 32px; animation: spin 1s infinite linear;">⚡</div>
+                <div style="font-weight: bold; color: #fff;">Bypassing CORS & X-Frame Limits...</div>
+                <div style="color: #64748b; font-size: 11px;">Fetching live DOM and assets for <span style="color: #94a3b8;">${escapeHtml(url)}</span></div>
+            </div>
+        `;
+
+        const result = await fetchViaProxyChain(url);
+        if (result.ok) {
+            const rewritten = processAndRewriteHtml(result.html, url);
+            host.innerHTML = `
+                <iframe 
+                    id="wb-quantum-iframe"
+                    class="browser-iframe" 
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    style="width: 100%; height: 100%; border: none; background: #fff;"
+                ></iframe>
+            `;
+            const iframe = host.querySelector('#wb-quantum-iframe');
+            if (iframe) {
+                iframe.srcdoc = rewritten;
+            }
+        } else {
+            // Fallback to direct frame if all proxies fail
+            loadDirectFrame(true);
+        }
+    };
+
+    const loadDirectFrame = (fallbackNotice = false) => {
+        setModeActive(btnDirectFrame);
+        if (statusTag) {
+            statusTag.textContent = 'DIRECT FRAME';
+            statusTag.style.color = '#4285F4';
+        }
+        if (!host) return;
+
+        host.innerHTML = `
+            ${fallbackNotice ? `
+                <div style="background: rgba(239,68,68,0.15); border-bottom: 1px solid rgba(239,68,68,0.3); color: #fca5a5; font-size: 11px; padding: 4px 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>⚠️ Quantum proxy was rate-limited for this host. Switched to Direct Frame.</span>
+                    <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #fff; text-decoration: underline;">Open Native Tab</a>
+                </div>
+            ` : ''}
             <iframe 
                 id="wb-live-iframe"
                 class="browser-iframe" 
@@ -925,42 +1095,43 @@ function renderUniversalWebFrame(url, viewport, navigateTo) {
                 loading="lazy"
                 style="width: 100%; height: 100%; border: none; background: #fff;"
             ></iframe>
-        </div>
-    `;
+        `;
+    };
 
-    const host = viewport.querySelector('#wb-content-host');
-    const btnDirectFrame = viewport.querySelector('#wb-btn-direct-frame');
-    const btnReader = viewport.querySelector('#wb-btn-reader');
+    const loadReader = () => {
+        setModeActive(btnReader);
+        if (statusTag) {
+            statusTag.textContent = 'READER MODE';
+            statusTag.style.color = '#a855f7';
+        }
+        loadReaderProxy(url, host);
+    };
+
+    btnQuantum?.addEventListener('click', () => {
+        sound.playClick();
+        loadQuantum();
+    });
 
     btnDirectFrame?.addEventListener('click', () => {
         sound.playClick();
-        if (host) {
-            host.innerHTML = `
-                <iframe 
-                    id="wb-live-iframe"
-                    class="browser-iframe" 
-                    src="${url}" 
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    loading="lazy"
-                    style="width: 100%; height: 100%; border: none; background: #fff;"
-                ></iframe>
-            `;
-        }
+        loadDirectFrame(false);
     });
 
     btnReader?.addEventListener('click', () => {
         sound.playClick();
-        loadReaderProxy(url, host);
+        loadReader();
     });
+
+    // Default to Quantum Proxy Engine
+    loadQuantum();
 }
 
 async function loadReaderProxy(url, container) {
     if (!container) return;
     container.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #4285F4; font-family: monospace; font-size: 14px;">
-            <div style="font-size: 24px; margin-bottom: 12px; animation: spin 1s infinite linear;">⚡</div>
-            <div>Rendering Unrestricted Reader Mode for ${escapeHtml(url)}...</div>
+            <div style="font-size: 24px; margin-bottom: 12px; animation: spin 1s infinite linear;">📖</div>
+            <div>Rendering Clean Reader View for ${escapeHtml(url)}...</div>
         </div>
     `;
 
@@ -973,7 +1144,7 @@ async function loadReaderProxy(url, container) {
         container.innerHTML = `
             <div class="browser-inner-content" style="padding: 24px; max-width: 820px; margin: 0 auto; color: #cbd5e1; font-family: system-ui, sans-serif; line-height: 1.7; overflow-y: auto; height: 100%;">
                 <div style="padding: 10px 14px; background: rgba(66,133,244,0.08); border: 1px solid rgba(66,133,244,0.25); border-radius: 8px; margin-bottom: 20px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
-                    <span>⚡ Unrestricted Reader Mode (Bypassing X-Frame-Options)</span>
+                    <span>📖 Clean Reader View (Bypassing CORS & X-Frame limits)</span>
                     <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #4285F4; text-decoration: none;">Open Original Site &rarr;</a>
                 </div>
                 <div style="white-space: pre-wrap; font-family: monospace; font-size: 13px; background: rgba(0,0,0,0.3); padding: 18px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">${escapeHtml(markdown)}</div>

@@ -31,9 +31,9 @@
     "version": "1.0.0-release",
     "architecture": "amd64",
     "section": "web/browsers",
-    "size": 75762,
-    "installed_size": 72857,
-    "sha256": "a880854e620adaea41463b5a01a3c78a21ac66af0c4540f18acfe4eb67e17f76",
+    "size": 83110,
+    "installed_size": 79978,
+    "sha256": "5d75d780740a3152a1e7a036c261d22d704054e8d3089fa2a97e29c9d66f2921",
     "file": "krypton-browser.deb",
     "summary": "Quantum Sandboxed Web Browser with Google Search Engine & Tab Manager",
     "maintainer": "Krypton Maintainers <packages@krypton-os.org>"

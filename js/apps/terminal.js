@@ -490,18 +490,17 @@ export function openTerminal() {
             // Check if command is sudo and needs password prompt
             const trimmed = rawLine.trim();
             const isSudo = trimmed === 'sudo' || trimmed.startsWith('sudo ');
-            const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
             const lastSudo = parseInt(localStorage.getItem('krypton_sudo_timestamp') || '0', 10);
-            const isSudoCached = (Date.now() - lastSudo) < 120000; // 2 minutes cache
+            const isSudoCached = (Date.now() - lastSudo) < 120000; // 2 minutes PAM timestamp cache
             const reqPass = localStorage.getItem('krypton_require_password') !== 'false';
 
-            if (isSudo && isInstalled && currentUser !== 'root' && !isSudoCached && reqPass) {
+            if (isSudo && currentUser !== 'root' && !isSudoCached && reqPass) {
                 isWaitingForPassword = true;
                 promptText.innerHTML = `<span style="color:#fbbf24; font-weight:700;">[sudo] password for ${currentUser}: </span>`;
                 input.type = 'password';
                 pendingPasswordCallback = (enteredPass) => {
                     const realPass = localStorage.getItem('krypton_primary_password') || '';
-                    if (enteredPass === realPass || !realPass || enteredPass === 'guest' || enteredPass === 'admin' || enteredPass === 'krypton') {
+                    if (enteredPass === realPass || (!realPass && (enteredPass === 'guest' || enteredPass === 'krypton' || enteredPass === 'admin' || enteredPass === '')) || enteredPass === 'guest' || enteredPass === 'admin' || enteredPass === 'krypton') {
                         localStorage.setItem('krypton_sudo_timestamp', String(Date.now()));
                         runCommandWithResult(rawLine);
                     } else {
@@ -1218,20 +1217,20 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'sudo') {
-        const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
-        if (!isInstalled) {
-            callback({
-                lines: [
-                    { text: "sudo: sudo elevation is disabled in Live Media (Read-Only Live ISO session).", type: 'error' },
-                    { text: "Use 'krypton-installer' to install Krypton OS to /dev/nvme0n1 first.", type: 'warning' }
-                ],
-                exitCode: 1
-            });
+        if (args.length === 0) {
+            callback({ lines: [{ text: "usage: sudo [-u user] command [args...]\n       sudo -k (invalidate credential cache)\n       sudo -v (validate user credentials)", type: 'normal' }], exitCode: 1 });
             return;
         }
 
-        if (args.length === 0) {
-            callback({ lines: [{ text: "usage: sudo [-u user] command [args...]", type: 'normal' }], exitCode: 1 });
+        if (args[0] === '-k' || args[0] === '-K') {
+            localStorage.removeItem('krypton_sudo_timestamp');
+            callback({ lines: [{ text: "sudo: credential cache invalidated.", type: 'normal' }], exitCode: 0 });
+            return;
+        }
+
+        if (args[0] === '-v') {
+            localStorage.setItem('krypton_sudo_timestamp', String(Date.now()));
+            callback({ lines: [{ text: "sudo: credentials validated and cached.", type: 'success' }], exitCode: 0 });
             return;
         }
 

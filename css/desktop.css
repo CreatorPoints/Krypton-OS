@@ -126,6 +126,29 @@
     transition: none !important;
 }
 
+.desktop-icon.snapping {
+    transition: left 0.22s cubic-bezier(0.2, 0.95, 0.3, 1), top 0.22s cubic-bezier(0.2, 0.95, 0.3, 1), transform 0.18s ease !important;
+}
+
+/* Grid Slot Target Ghost Box */
+.desktop-grid-ghost {
+    position: absolute;
+    width: 86px;
+    height: 94px;
+    border: 2px dashed rgba(0, 229, 255, 0.45);
+    border-radius: 10px;
+    background: rgba(0, 229, 255, 0.08);
+    pointer-events: none;
+    z-index: 5;
+    transition: left 0.12s cubic-bezier(0.2, 0.8, 0.3, 1), top 0.12s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.15s ease;
+    opacity: 0;
+    box-sizing: border-box;
+}
+
+.desktop-grid-ghost.active {
+    opacity: 1;
+}
+
 .icon-image {
     font-size: 38px;
     line-height: 1;

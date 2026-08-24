@@ -57,14 +57,92 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* --------------------------------------------------------------------------
-   Desktop Icon Freeform Placement, Drag & Drop, and Persistence
+   Desktop Icon Grid Snapping, Drag & Drop, and Persistence (Real OS Style)
    -------------------------------------------------------------------------- */
+export const DESKTOP_GRID = {
+    cellWidth: 98,
+    cellHeight: 104,
+    startX: 20,
+    startY: 20,
+    taskbarHeight: 48
+};
+
 let savedIconPositions = {};
 try {
     const raw = localStorage.getItem('krypton_desktop_icon_positions');
     if (raw) savedIconPositions = JSON.parse(raw);
 } catch (e) {
     savedIconPositions = {};
+}
+
+function getOrInitDesktopGridGhost() {
+    let ghost = document.getElementById('desktop-grid-ghost');
+    if (!ghost) {
+        ghost = document.createElement('div');
+        ghost.id = 'desktop-grid-ghost';
+        ghost.className = 'desktop-grid-ghost';
+        const grid = document.getElementById('desktop-grid');
+        if (grid) grid.appendChild(ghost);
+    }
+    return ghost;
+}
+
+export function snapToDesktopGrid(rawLeft, rawTop, excludeIconId = null) {
+    const { cellWidth, cellHeight, startX, startY, taskbarHeight } = DESKTOP_GRID;
+
+    const maxAvailableHeight = Math.max(200, window.innerHeight - taskbarHeight - 20);
+    const maxRows = Math.max(1, Math.floor((maxAvailableHeight - startY) / cellHeight));
+    const maxCols = Math.max(1, Math.floor((window.innerWidth - startX - 86) / cellWidth));
+
+    let col = Math.round((rawLeft - startX) / cellWidth);
+    let row = Math.round((rawTop - startY) / cellHeight);
+
+    col = Math.max(0, Math.min(maxCols - 1, col));
+    row = Math.max(0, Math.min(maxRows - 1, row));
+
+    // Discover occupied grid cells to prevent overlaps
+    const occupied = new Set();
+    document.querySelectorAll('.desktop-icon').forEach(icon => {
+        const id = icon.getAttribute('data-app-id') || icon.id;
+        if (id && id !== excludeIconId) {
+            const l = parseFloat(icon.style.left);
+            const t = parseFloat(icon.style.top);
+            if (!isNaN(l) && !isNaN(t)) {
+                const c = Math.round((l - startX) / cellWidth);
+                const r = Math.round((t - startY) / cellHeight);
+                occupied.add(`${c},${r}`);
+            }
+        }
+    });
+
+    // If target cell is occupied by another shortcut, find the nearest unoccupied slot
+    if (occupied.has(`${col},${row}`)) {
+        let bestDist = Infinity;
+        let bestCol = col;
+        let bestRow = row;
+
+        for (let c = 0; c < maxCols; c++) {
+            for (let r = 0; r < maxRows; r++) {
+                if (!occupied.has(`${c},${r}`)) {
+                    const dist = Math.hypot(c - col, r - row);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestCol = c;
+                        bestRow = r;
+                    }
+                }
+            }
+        }
+        col = bestCol;
+        row = bestRow;
+    }
+
+    return {
+        left: startX + col * cellWidth,
+        top: startY + row * cellHeight,
+        col,
+        row
+    };
 }
 
 export function saveDesktopIconPosition(iconId, left, top) {
@@ -77,20 +155,12 @@ export function saveDesktopIconPosition(iconId, left, top) {
 export function getDesktopIconPosition(iconId, defaultIndex = 0) {
     if (savedIconPositions && savedIconPositions[iconId]) {
         const p = savedIconPositions[iconId];
-        const maxLeft = Math.max(10, window.innerWidth - 100);
-        const maxTop = Math.max(10, window.innerHeight - 150);
-        return {
-            left: Math.max(10, Math.min(maxLeft, p.left)),
-            top: Math.max(10, Math.min(maxTop, p.top))
-        };
+        const snapped = snapToDesktopGrid(p.left, p.top, iconId);
+        return { left: snapped.left, top: snapped.top };
     }
 
-    // Default layout: structured vertical columns from top-left to right
-    const cellWidth = 98;
-    const cellHeight = 104;
-    const startX = 20;
-    const startY = 20;
-    const taskbarHeight = 48;
+    // Default column-first order (top to bottom, then next column to the right)
+    const { cellWidth, cellHeight, startX, startY, taskbarHeight } = DESKTOP_GRID;
     const availableHeight = Math.max(200, window.innerHeight - taskbarHeight - 20);
     const rowsPerCol = Math.max(1, Math.floor((availableHeight - startY) / cellHeight));
 
@@ -170,6 +240,13 @@ export function makeDesktopIconMovable(iconEl, iconId, defaultIndex = 0) {
 
             iconEl.style.left = `${newLeft}px`;
             iconEl.style.top = `${newTop}px`;
+
+            // Live Grid Snap Ghost Target Box
+            const ghost = getOrInitDesktopGridGhost();
+            const snapTarget = snapToDesktopGrid(newLeft, newTop, iconId);
+            ghost.style.left = `${snapTarget.left}px`;
+            ghost.style.top = `${snapTarget.top}px`;
+            ghost.classList.add('active');
         }
     };
 
@@ -182,14 +259,29 @@ export function makeDesktopIconMovable(iconEl, iconId, defaultIndex = 0) {
         document.removeEventListener('touchmove', onPointerMove);
         document.removeEventListener('touchend', onPointerUp);
 
+        const ghost = getOrInitDesktopGridGhost();
+        ghost.classList.remove('active');
+
         if (dragThresholdPassed) {
             iconEl.classList.remove('dragging');
             ignoreNextClick = true;
             setTimeout(() => { ignoreNextClick = false; }, 250);
 
-            const finalLeft = parseFloat(iconEl.style.left);
-            const finalTop = parseFloat(iconEl.style.top);
-            saveDesktopIconPosition(iconId, finalLeft, finalTop);
+            const rawLeft = parseFloat(iconEl.style.left);
+            const rawTop = parseFloat(iconEl.style.top);
+
+            // Snap cleanly to grid
+            const target = snapToDesktopGrid(rawLeft, rawTop, iconId);
+
+            iconEl.classList.add('snapping');
+            iconEl.style.left = `${target.left}px`;
+            iconEl.style.top = `${target.top}px`;
+
+            saveDesktopIconPosition(iconId, target.left, target.top);
+
+            setTimeout(() => {
+                iconEl.classList.remove('snapping');
+            }, 250);
         } else {
             document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
             iconEl.classList.add('selected');
@@ -220,27 +312,13 @@ function initDesktopSelectionClear() {
     window.addEventListener('resize', () => {
         document.querySelectorAll('.desktop-icon').forEach(iconEl => {
             const iconId = iconEl.getAttribute('data-app-id') || iconEl.id;
-            const iconWidth = iconEl.offsetWidth || 86;
-            const iconHeight = iconEl.offsetHeight || 90;
             let left = parseFloat(iconEl.style.left) || 20;
             let top = parseFloat(iconEl.style.top) || 20;
-            const maxLeft = Math.max(10, window.innerWidth - iconWidth - 10);
-            const maxTop = Math.max(10, window.innerHeight - 56 - iconHeight);
 
-            let changed = false;
-            if (left > maxLeft) {
-                left = maxLeft;
-                changed = true;
-            }
-            if (top > maxTop) {
-                top = maxTop;
-                changed = true;
-            }
-            if (changed) {
-                iconEl.style.left = `${left}px`;
-                iconEl.style.top = `${top}px`;
-                saveDesktopIconPosition(iconId, left, top);
-            }
+            const snapped = snapToDesktopGrid(left, top, iconId);
+            iconEl.style.left = `${snapped.left}px`;
+            iconEl.style.top = `${snapped.top}px`;
+            saveDesktopIconPosition(iconId, snapped.left, snapped.top);
         });
     });
 }

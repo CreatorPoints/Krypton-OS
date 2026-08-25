@@ -108,6 +108,7 @@ export function openSettings(initialTab = 'appearance') {
    1. Appearance Tab (Wallpapers, Themes, Accents)
    -------------------------------------------------------------------------- */
 function renderAppearanceTab(container) {
+    const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
     const currentWallpaper = localStorage.getItem('krypton_wallpaper') || 'aurora';
     const currentTheme = localStorage.getItem('krypton_theme') || 'theme-cyberpunk';
     const customBgUrl = localStorage.getItem('krypton_custom_wallpaper_url') || '';
@@ -131,6 +132,13 @@ function renderAppearanceTab(container) {
             <h3>🎨 Appearance & Desktop Styling</h3>
             <p class="settings-subtext">Customize desktop background wallpaper, interface themes, and typography.</p>
         </div>
+
+        ${!isInstalled ? `
+            <div style="padding: 10px 14px; background: rgba(245,158,11,0.12); border: 1px solid #f59e0b; border-radius: 8px; color: #fbbf24; font-size: 12px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">🚧</span>
+                <div><strong>Work In Progress:</strong> Desktop wallpaper customization is preview-only in the Live Media installer session. Install KryptonOS to persist custom background settings.</div>
+            </div>
+        ` : ''}
 
         <!-- Wallpaper Section -->
         <div class="settings-section-box">
@@ -182,7 +190,11 @@ function renderAppearanceTab(container) {
             card.classList.add('selected');
             applyWallpaper(wallId);
             sound.playClick();
-            story.showToast('🖼️ Wallpaper Applied', `Set desktop wallpaper to ${wallId}.`, 'success');
+            if (!isInstalled) {
+                story.showToast('🚧 Work In Progress', 'Wallpaper changes in Live Media are preview-only. Install KryptonOS to persist.', 'warning');
+            } else {
+                story.showToast('🖼️ Wallpaper Applied', `Set desktop wallpaper to ${wallId}.`, 'success');
+            }
         });
     });
 
@@ -266,6 +278,7 @@ export function applyWallpaper(wallId, customUrl = '') {
    2. Users & Accounts Tab
    -------------------------------------------------------------------------- */
 function renderUsersTab(container) {
+    const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
     const passwdContent = vfs.readFile('/etc/passwd') || 'root:x:0:0:root:/root:/bin/bash\nguest:x:1000:1000:Guest User,,,:/home/guest:/bin/bash';
     const users = [];
 
@@ -286,6 +299,13 @@ function renderUsersTab(container) {
             <h3>👥 User Accounts & Access Control</h3>
             <p class="settings-subtext">Manage system accounts, user groups, and credentials (/etc/passwd).</p>
         </div>
+
+        ${!isInstalled ? `
+            <div style="padding: 10px 14px; background: rgba(239,68,68,0.12); border: 1px solid #ef4444; border-radius: 8px; color: #fca5a5; font-size: 12px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">🔒</span>
+                <div><strong>Live Media Session Restricted:</strong> You cannot add accounts or provision more users in the Live Media installer session. Run <code>krypton-installer</code> to install KryptonOS and configure user accounts.</div>
+            </div>
+        ` : ''}
 
         <!-- Active User Profile Card -->
         <div class="settings-section-box">
@@ -311,7 +331,9 @@ function renderUsersTab(container) {
         <div class="settings-section-box">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <h4 class="section-title" style="margin: 0;">Registered System Accounts</h4>
-                <button id="add-user-modal-btn" style="padding: 6px 12px; background: rgba(0,229,255,0.2); border: 1px solid var(--accent-primary); border-radius: 6px; color: #fff; font-size: 12px; cursor: pointer;">+ Add User Account</button>
+                <button id="add-user-modal-btn" style="padding: 6px 12px; background: ${isInstalled ? 'rgba(0,229,255,0.2)' : 'rgba(255,255,255,0.05)'}; border: 1px solid ${isInstalled ? 'var(--accent-primary)' : 'rgba(255,255,255,0.15)'}; border-radius: 6px; color: ${isInstalled ? '#fff' : '#64748b'}; font-size: 12px; cursor: ${isInstalled ? 'pointer' : 'not-allowed'};" title="${isInstalled ? 'Provision new user account' : 'Account creation is locked in Live Media session'}">
+                    ${isInstalled ? '+ Add User Account' : '🔒 + Add User (Locked in Live Media)'}
+                </button>
             </div>
             <table class="settings-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                 <thead>
@@ -367,6 +389,11 @@ function renderUsersTab(container) {
     const saveBtn = container.querySelector('#save-user-btn');
 
     toggleBtn?.addEventListener('click', () => {
+        if (!isInstalled) {
+            sound.playError();
+            story.showToast('🔒 Action Locked', 'Cannot add new users in Live Media. Please install KryptonOS first.', 'error');
+            return;
+        }
         formBox.style.display = formBox.style.display === 'none' ? 'block' : 'none';
     });
 

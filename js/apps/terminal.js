@@ -490,11 +490,13 @@ export function openTerminal() {
             // Check if command is sudo and needs password prompt
             const trimmed = rawLine.trim();
             const isSudo = trimmed === 'sudo' || trimmed.startsWith('sudo ');
+            const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
             const lastSudo = parseInt(localStorage.getItem('krypton_sudo_timestamp') || '0', 10);
             const isSudoCached = (Date.now() - lastSudo) < 120000; // 2 minutes PAM timestamp cache
             const reqPass = localStorage.getItem('krypton_require_password') !== 'false';
 
-            if (isSudo && currentUser !== 'root' && !isSudoCached && reqPass) {
+            // In Live Media (installer session), sudo is passwordless (NOPASSWD: ALL in /etc/sudoers)
+            if (isSudo && isInstalled && currentUser !== 'root' && !isSudoCached && reqPass) {
                 isWaitingForPassword = true;
                 promptText.innerHTML = `<span style="color:#fbbf24; font-weight:700;">[sudo] password for ${currentUser}: </span>`;
                 input.type = 'password';

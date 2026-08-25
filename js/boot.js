@@ -80,6 +80,29 @@ export class MasterBootEngine {
             ];
         }
 
+        // Persisted BIOS settings dictionary for interactive configuration
+        const savedBios = localStorage.getItem('krypton_bios_settings');
+        this.biosSettings = {
+            systemLanguage: 'English',
+            vtx: 'Enabled',
+            hyperThreading: 'Enabled',
+            sataMode: 'AHCI',
+            nvmeController: 'Enabled',
+            pcieSpeed: 'Auto (Gen 4.0)',
+            adminPassword: 'Not Installed',
+            secureBoot: 'Disabled',
+            tpmState: 'Enabled',
+            chassisIntrusion: 'Disabled',
+            fastBoot: 'Enabled',
+            csm: 'Disabled',
+            numlock: 'On'
+        };
+        if (savedBios) {
+            try {
+                Object.assign(this.biosSettings, JSON.parse(savedBios));
+            } catch (e) {}
+        }
+
         this.tabs = ['Main', 'Advanced', 'Security', 'Boot', 'Save & Exit'];
     }
 
@@ -324,24 +347,29 @@ export class MasterBootEngine {
             // Main Tab
             return `
                 <div class="aptio-section-header">System Information</div>
-                <div class="aptio-row ${this.selectedRow === 0 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 0 ? 'selected' : ''}" data-row="0">
                     <span class="aptio-label">BIOS Version</span>
                     <span class="aptio-val">2403 (08/12/2024)</span>
                 </div>
-                <div class="aptio-row ${this.selectedRow === 1 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 1 ? 'selected' : ''}" data-row="1">
                     <span class="aptio-label">Processor Type</span>
-                    <span class="aptio-val">${(typeof window !== 'undefined' && window.telemetry) ? window.telemetry.getFormattedCpuModel() : `x86_64 Virtualized Processor (${navigator.hardwareConcurrency || 8} Cores)`}</span>
+                    <span class="aptio-val">${(typeof window !== 'undefined' && window.telemetry) ? window.telemetry.getFormattedCpuModel() : `Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz`}</span>
                 </div>
-                <div class="aptio-row ${this.selectedRow === 2 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 2 ? 'selected' : ''}" data-row="2">
                     <span class="aptio-label">Total Memory</span>
-                    <span class="aptio-val">${(navigator.deviceMemory || 16) * 1024} MB OK</span>
+                    <span class="aptio-val">${(navigator.deviceMemory || 16) * 1024} MB OK (DDR4-3200)</span>
+                </div>
+                <div class="aptio-section-header">System Configuration</div>
+                <div class="aptio-row ${this.selectedRow === 3 ? 'selected' : ''}" data-row="3">
+                    <span class="aptio-label">System Language</span>
+                    <span class="aptio-val">[ ${this.biosSettings.systemLanguage} ]</span>
                 </div>
                 <div class="aptio-section-header">System Date & Time</div>
-                <div class="aptio-row ${this.selectedRow === 3 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 4 ? 'selected' : ''}" data-row="4">
                     <span class="aptio-label">System Date</span>
                     <span class="aptio-val">[${new Date().toLocaleDateString()}]</span>
                 </div>
-                <div class="aptio-row ${this.selectedRow === 4 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 5 ? 'selected' : ''}" data-row="5">
                     <span class="aptio-label">System Time</span>
                     <span class="aptio-val">[${new Date().toLocaleTimeString()}]</span>
                 </div>
@@ -350,61 +378,75 @@ export class MasterBootEngine {
             // Advanced Tab
             return `
                 <div class="aptio-section-header">Advanced CPU Configuration</div>
-                <div class="aptio-row ${this.selectedRow === 0 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 0 ? 'selected' : ''}" data-row="0">
                     <span class="aptio-label">Intel Virtualization Technology (VT-x)</span>
-                    <span class="aptio-val">[Enabled]</span>
+                    <span class="aptio-val">[ ${this.biosSettings.vtx} ]</span>
                 </div>
-                <div class="aptio-row ${this.selectedRow === 1 ? 'selected' : ''}">
-                    <span class="aptio-label">Hyper-Threading</span>
-                    <span class="aptio-val">[Enabled]</span>
+                <div class="aptio-row ${this.selectedRow === 1 ? 'selected' : ''}" data-row="1">
+                    <span class="aptio-label">Hyper-Threading Technology</span>
+                    <span class="aptio-val">[ ${this.biosSettings.hyperThreading} ]</span>
                 </div>
                 <div class="aptio-section-header">Storage Configuration</div>
-                <div class="aptio-row ${this.selectedRow === 2 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 2 ? 'selected' : ''}" data-row="2">
                     <span class="aptio-label">SATA Mode Selection</span>
-                    <span class="aptio-val">[AHCI]</span>
+                    <span class="aptio-val">[ ${this.biosSettings.sataMode} ]</span>
                 </div>
-                <div class="aptio-row ${this.selectedRow === 3 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 3 ? 'selected' : ''}" data-row="3">
                     <span class="aptio-label">NVMe Controller</span>
-                    <span class="aptio-val">[Samsung 980 PRO 1TB]</span>
+                    <span class="aptio-val">[ ${this.biosSettings.nvmeController} ]</span>
+                </div>
+                <div class="aptio-section-header">PCI Express Subsystem</div>
+                <div class="aptio-row ${this.selectedRow === 4 ? 'selected' : ''}" data-row="4">
+                    <span class="aptio-label">PCIe Link Speed</span>
+                    <span class="aptio-val">[ ${this.biosSettings.pcieSpeed} ]</span>
                 </div>
             `;
         } else if (this.activeTab === 2) {
             // Security Tab
             return `
                 <div class="aptio-section-header">Security Settings</div>
-                <div class="aptio-row ${this.selectedRow === 0 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 0 ? 'selected' : ''}" data-row="0">
                     <span class="aptio-label">Administrator Password</span>
-                    <span class="aptio-val">[Not Installed]</span>
+                    <span class="aptio-val">[ ${this.biosSettings.adminPassword} ]</span>
                 </div>
-                <div class="aptio-row ${this.selectedRow === 1 ? 'selected' : ''}">
-                    <span class="aptio-label">Secure Boot</span>
-                    <span class="aptio-val">[Disabled]</span>
+                <div class="aptio-row ${this.selectedRow === 1 ? 'selected' : ''}" data-row="1">
+                    <span class="aptio-label">Secure Boot State</span>
+                    <span class="aptio-val">[ ${this.biosSettings.secureBoot} ]</span>
                 </div>
-                <div class="aptio-row ${this.selectedRow === 2 ? 'selected' : ''}">
-                    <span class="aptio-label">TPM 2.0 State</span>
-                    <span class="aptio-val">[Enabled]</span>
+                <div class="aptio-row ${this.selectedRow === 2 ? 'selected' : ''}" data-row="2">
+                    <span class="aptio-label">Intel Platform Trust (TPM 2.0)</span>
+                    <span class="aptio-val">[ ${this.biosSettings.tpmState} ]</span>
+                </div>
+                <div class="aptio-row ${this.selectedRow === 3 ? 'selected' : ''}" data-row="3">
+                    <span class="aptio-label">Chassis Intrusion Detection</span>
+                    <span class="aptio-val">[ ${this.biosSettings.chassisIntrusion} ]</span>
                 </div>
             `;
         } else if (this.activeTab === 3) {
-            // Boot Tab (Boot Priority Configuration)
+            // Boot Tab
             return `
                 <div class="aptio-section-header">Boot Option Priorities</div>
-                <div class="aptio-row ${this.selectedRow === 0 ? 'selected' : ''}" data-action="boot1">
+                <div class="aptio-row ${this.selectedRow === 0 ? 'selected' : ''}" data-row="0">
                     <span class="aptio-label">Boot Option #1</span>
                     <span class="aptio-val">[ ${this.bootPriority[0]} ]</span>
                 </div>
-                <div class="aptio-row ${this.selectedRow === 1 ? 'selected' : ''}" data-action="boot2">
+                <div class="aptio-row ${this.selectedRow === 1 ? 'selected' : ''}" data-row="1">
                     <span class="aptio-label">Boot Option #2</span>
                     <span class="aptio-val">[ ${this.bootPriority[1]} ]</span>
                 </div>
                 <div class="aptio-section-header">Fast Boot & CSM</div>
-                <div class="aptio-row ${this.selectedRow === 2 ? 'selected' : ''}">
+                <div class="aptio-row ${this.selectedRow === 2 ? 'selected' : ''}" data-row="2">
                     <span class="aptio-label">Fast Boot</span>
-                    <span class="aptio-val">[Enabled]</span>
+                    <span class="aptio-val">[ ${this.biosSettings.fastBoot} ]</span>
                 </div>
-                <div class="aptio-row ${this.selectedRow === 3 ? 'selected' : ''}">
-                    <span class="aptio-label">Launch CSM</span>
-                    <span class="aptio-val">[Disabled]</span>
+                <div class="aptio-row ${this.selectedRow === 3 ? 'selected' : ''}" data-row="3">
+                    <span class="aptio-label">Launch CSM (Compatibility Support)</span>
+                    <span class="aptio-val">[ ${this.biosSettings.csm} ]</span>
+                </div>
+                <div class="aptio-section-header">Keyboard Features</div>
+                <div class="aptio-row ${this.selectedRow === 4 ? 'selected' : ''}" data-row="4">
+                    <span class="aptio-label">Bootup NumLock State</span>
+                    <span class="aptio-val">[ ${this.biosSettings.numlock} ]</span>
                 </div>
             `;
         } else if (this.activeTab === 4) {
@@ -433,16 +475,41 @@ export class MasterBootEngine {
     }
 
     getHelpTextForSelectedRow() {
+        if (this.activeTab === 0) {
+            if (this.selectedRow === 0) return 'Displays the motherboard UEFI firmware revision and release build date.';
+            if (this.selectedRow === 1) return 'Displays the detected CPU architecture, model name, and logical processor cores.';
+            if (this.selectedRow === 2) return 'Displays total detected system physical RAM installed in dual-channel topology.';
+            if (this.selectedRow === 3) return 'Choose the default display language for Aptio Setup Utility screens.';
+            if (this.selectedRow === 4) return 'Set the system RTC date in [Month/Day/Year] format. Press [Enter] or [+/-] to modify.';
+            if (this.selectedRow === 5) return 'Set the system RTC time in [Hour:Minute:Second] 24-hour military format.';
+        }
+        if (this.activeTab === 1) {
+            if (this.selectedRow === 0) return 'When enabled, hardware virtualization (VT-x) allows virtual machines to run at near-native execution speed.';
+            if (this.selectedRow === 1) return 'Enables Hyper-Threading Technology to allow two execution threads per physical CPU core.';
+            if (this.selectedRow === 2) return 'Configures SATA controller mode. AHCI mode provides Native Command Queuing (NCQ) and hot-plugging.';
+            if (this.selectedRow === 3) return 'Enables or disables the integrated PCI Express 4.0 x4 M.2 NVMe storage host controller.';
+            if (this.selectedRow === 4) return 'Selects the maximum PCIe signaling speed for PCI Express root ports.';
+        }
+        if (this.activeTab === 2) {
+            if (this.selectedRow === 0) return 'Set or clear the Administrator Password protecting BIOS setup from unauthorized tampering.';
+            if (this.selectedRow === 1) return 'Controls UEFI Secure Boot validation to prevent unauthenticated binaries and bootkits from loading.';
+            if (this.selectedRow === 2) return 'Enables the firmware Intel Platform Trust Technology (TPM 2.0) cryptoprocessor.';
+            if (this.selectedRow === 3) return 'Enables case chassis open intrusion sensor alerts during Power-On Self Test.';
+        }
         if (this.activeTab === 3) {
             if (this.selectedRow === 0) return 'Sets the primary system boot device order. Press [Enter] to select between USB PenDrive, NVMe SSD, or Disabled.';
             if (this.selectedRow === 1) return 'Sets the secondary system boot device order if primary fails.';
-            return 'Enables or disables boot optimizations.';
+            if (this.selectedRow === 2) return 'Accelerates system boot speed by bypassing non-critical POST hardware self-tests.';
+            if (this.selectedRow === 3) return 'Launch Compatibility Support Module (CSM) to enable legacy 16-bit BIOS and Option ROM support.';
+            if (this.selectedRow === 4) return 'Selects the power-on state of the keyboard Number Lock key.';
         }
         if (this.activeTab === 4) {
+            if (this.selectedRow === 0) return 'Saves all modified BIOS parameters into CMOS NVRAM and restarts the system.';
+            if (this.selectedRow === 1) return 'Exits BIOS Setup Utility without saving any pending parameter modifications.';
+            if (this.selectedRow === 2) return 'Loads factory optimized system parameters for maximum stability and performance.';
             if (this.selectedRow === 3) return 'Wipes the client Virtual Filesystem overlay and resets the operating system cleanly to the baseline Alpha state.';
-            return 'Exit system setup with or without saving your changes.';
         }
-        return 'Standard system parameter. Use arrow keys to select, [Enter] to view details.';
+        return 'Standard system parameter. Use arrow keys to select, [Enter] or [+/-] to modify.';
     }
 
     attachAptioKeyboardNav() {
@@ -474,6 +541,12 @@ export class MasterBootEngine {
             } else if (e.key === 'Enter') {
                 e.preventDefault();
                 this.handleRowSelect();
+            } else if (e.key === '+' || e.key === '=' || e.key === 'PageUp' || e.key === ' ') {
+                e.preventDefault();
+                this.cycleCurrentOption(1);
+            } else if (e.key === '-' || e.key === '_' || e.key === 'PageDown') {
+                e.preventDefault();
+                this.cycleCurrentOption(-1);
             } else if (e.key === 'F10') {
                 e.preventDefault();
                 this.showSaveModal();
@@ -489,19 +562,205 @@ export class MasterBootEngine {
     }
 
     getMaxRowsForTab() {
-        if (this.activeTab === 0) return 5;
-        if (this.activeTab === 1) return 4;
-        if (this.activeTab === 2) return 3;
-        if (this.activeTab === 3) return 4;
+        if (this.activeTab === 0) return 6;
+        if (this.activeTab === 1) return 5;
+        if (this.activeTab === 2) return 4;
+        if (this.activeTab === 3) return 5;
         if (this.activeTab === 4) return 4;
         return 1;
     }
 
+    cycleCurrentOption(direction = 1) {
+        // Quick in-place cycle of option values via + / - / Space keys
+        const getNext = (list, current) => {
+            const idx = list.indexOf(current);
+            if (idx === -1) return list[0];
+            const nextIdx = (idx + direction + list.length) % list.length;
+            return list[nextIdx];
+        };
+
+        if (this.activeTab === 0) {
+            if (this.selectedRow === 3) {
+                const langs = ['English', 'Français', 'Deutsch', '日本語', 'Español', '中文 (简体)'];
+                this.biosSettings.systemLanguage = getNext(langs, this.biosSettings.systemLanguage);
+                this.renderAptioScreen();
+            }
+        } else if (this.activeTab === 1) {
+            if (this.selectedRow === 0) {
+                this.biosSettings.vtx = getNext(['Enabled', 'Disabled'], this.biosSettings.vtx);
+            } else if (this.selectedRow === 1) {
+                this.biosSettings.hyperThreading = getNext(['Enabled', 'Disabled'], this.biosSettings.hyperThreading);
+            } else if (this.selectedRow === 2) {
+                this.biosSettings.sataMode = getNext(['AHCI', 'RAID Mode', 'IDE Legacy'], this.biosSettings.sataMode);
+            } else if (this.selectedRow === 3) {
+                this.biosSettings.nvmeController = getNext(['Enabled', 'Disabled'], this.biosSettings.nvmeController);
+            } else if (this.selectedRow === 4) {
+                this.biosSettings.pcieSpeed = getNext(['Auto (Gen 4.0)', 'Gen 3.0', 'Gen 2.0', 'Gen 1.0'], this.biosSettings.pcieSpeed);
+            }
+            this.renderAptioScreen();
+        } else if (this.activeTab === 2) {
+            if (this.selectedRow === 1) {
+                this.biosSettings.secureBoot = getNext(['Disabled', 'Enabled', 'Audit Mode', 'Deployed Mode'], this.biosSettings.secureBoot);
+            } else if (this.selectedRow === 2) {
+                this.biosSettings.tpmState = getNext(['Enabled', 'Disabled'], this.biosSettings.tpmState);
+            } else if (this.selectedRow === 3) {
+                this.biosSettings.chassisIntrusion = getNext(['Disabled', 'Enabled', 'Reset'], this.biosSettings.chassisIntrusion);
+            }
+            this.renderAptioScreen();
+        } else if (this.activeTab === 3) {
+            if (this.selectedRow === 0) {
+                this.bootPriority[0] = getNext(this.bootOptions, this.bootPriority[0]);
+                localStorage.setItem('krypton_boot_priority', JSON.stringify(this.bootPriority));
+            } else if (this.selectedRow === 1) {
+                this.bootPriority[1] = getNext(this.bootOptions, this.bootPriority[1]);
+                localStorage.setItem('krypton_boot_priority', JSON.stringify(this.bootPriority));
+            } else if (this.selectedRow === 2) {
+                this.biosSettings.fastBoot = getNext(['Enabled', 'Disabled', 'Ultra Fast'], this.biosSettings.fastBoot);
+            } else if (this.selectedRow === 3) {
+                this.biosSettings.csm = getNext(['Disabled', 'Enabled'], this.biosSettings.csm);
+            } else if (this.selectedRow === 4) {
+                this.biosSettings.numlock = getNext(['On', 'Off'], this.biosSettings.numlock);
+            }
+            this.renderAptioScreen();
+        }
+    }
+
     handleRowSelect() {
-        if (this.activeTab === 3 && (this.selectedRow === 0 || this.selectedRow === 1)) {
-            // Open Boot Option Selection Popup
-            this.showBootOptionPopup(this.selectedRow);
-        } else if (this.activeTab === 4) {
+        // Tab 0: Main Tab
+        if (this.activeTab === 0) {
+            if (this.selectedRow === 0 || this.selectedRow === 1 || this.selectedRow === 2) {
+                this.showGenericInfoPopup('System Hardware Diagnostic', [
+                    `Motherboard: ASUSTeK ROG STRIX Z490-E GAMING`,
+                    `Firmware: AMI Aptio V 2403 (UEFI 2.7)`,
+                    `Processor: ${navigator.hardwareConcurrency || 8} Cores x86_64 Virtual CPU`,
+                    `Memory: ${(navigator.deviceMemory || 16) * 1024} MB Dual-Channel DDR4`
+                ]);
+            } else if (this.selectedRow === 3) {
+                this.showGenericOptionPopup(
+                    'System Language',
+                    ['English', 'Français', 'Deutsch', '日本語', 'Español', '中文 (简体)'],
+                    this.biosSettings.systemLanguage,
+                    (val) => { this.biosSettings.systemLanguage = val; }
+                );
+            } else if (this.selectedRow === 4) {
+                this.showGenericOptionPopup(
+                    'System Date Adjust',
+                    ['Keep Current Hardware Clock', 'Sync via Network Time Protocol (NTP)', '+1 Day Forward', '-1 Day Backward'],
+                    'Keep Current Hardware Clock',
+                    () => {}
+                );
+            } else if (this.selectedRow === 5) {
+                this.showGenericOptionPopup(
+                    'System Time Adjust',
+                    ['Keep Current RTC Time', 'Sync via NTP Server', '+1 Hour Daylight Savings', '-1 Hour Standard'],
+                    'Keep Current RTC Time',
+                    () => {}
+                );
+            }
+            return;
+        }
+
+        // Tab 1: Advanced Tab
+        if (this.activeTab === 1) {
+            if (this.selectedRow === 0) {
+                this.showGenericOptionPopup(
+                    'Intel Virtualization Technology (VT-x)',
+                    ['Enabled', 'Disabled'],
+                    this.biosSettings.vtx,
+                    (val) => { this.biosSettings.vtx = val; }
+                );
+            } else if (this.selectedRow === 1) {
+                this.showGenericOptionPopup(
+                    'Hyper-Threading Technology',
+                    ['Enabled', 'Disabled'],
+                    this.biosSettings.hyperThreading,
+                    (val) => { this.biosSettings.hyperThreading = val; }
+                );
+            } else if (this.selectedRow === 2) {
+                this.showGenericOptionPopup(
+                    'SATA Mode Selection',
+                    ['AHCI', 'RAID Mode', 'IDE Legacy'],
+                    this.biosSettings.sataMode,
+                    (val) => { this.biosSettings.sataMode = val; }
+                );
+            } else if (this.selectedRow === 3) {
+                this.showGenericOptionPopup(
+                    'NVMe Storage Controller',
+                    ['Enabled', 'Disabled'],
+                    this.biosSettings.nvmeController,
+                    (val) => { this.biosSettings.nvmeController = val; }
+                );
+            } else if (this.selectedRow === 4) {
+                this.showGenericOptionPopup(
+                    'PCIe Link Speed',
+                    ['Auto (Gen 4.0)', 'Gen 3.0', 'Gen 2.0', 'Gen 1.0'],
+                    this.biosSettings.pcieSpeed,
+                    (val) => { this.biosSettings.pcieSpeed = val; }
+                );
+            }
+            return;
+        }
+
+        // Tab 2: Security Tab
+        if (this.activeTab === 2) {
+            if (this.selectedRow === 0) {
+                this.showAdminPasswordModal();
+            } else if (this.selectedRow === 1) {
+                this.showGenericOptionPopup(
+                    'Secure Boot State',
+                    ['Disabled', 'Enabled', 'Audit Mode', 'Deployed Mode'],
+                    this.biosSettings.secureBoot,
+                    (val) => { this.biosSettings.secureBoot = val; }
+                );
+            } else if (this.selectedRow === 2) {
+                this.showGenericOptionPopup(
+                    'Intel Platform Trust (TPM 2.0)',
+                    ['Enabled', 'Disabled'],
+                    this.biosSettings.tpmState,
+                    (val) => { this.biosSettings.tpmState = val; }
+                );
+            } else if (this.selectedRow === 3) {
+                this.showGenericOptionPopup(
+                    'Chassis Intrusion Detection',
+                    ['Disabled', 'Enabled', 'Reset Sensor Status'],
+                    this.biosSettings.chassisIntrusion,
+                    (val) => { this.biosSettings.chassisIntrusion = val; }
+                );
+            }
+            return;
+        }
+
+        // Tab 3: Boot Tab
+        if (this.activeTab === 3) {
+            if (this.selectedRow === 0 || this.selectedRow === 1) {
+                this.showBootOptionPopup(this.selectedRow);
+            } else if (this.selectedRow === 2) {
+                this.showGenericOptionPopup(
+                    'Fast Boot Optimization',
+                    ['Enabled', 'Disabled', 'Ultra Fast'],
+                    this.biosSettings.fastBoot,
+                    (val) => { this.biosSettings.fastBoot = val; }
+                );
+            } else if (this.selectedRow === 3) {
+                this.showGenericOptionPopup(
+                    'Launch CSM (Compatibility Support Module)',
+                    ['Disabled', 'Enabled'],
+                    this.biosSettings.csm,
+                    (val) => { this.biosSettings.csm = val; }
+                );
+            } else if (this.selectedRow === 4) {
+                this.showGenericOptionPopup(
+                    'Bootup NumLock State',
+                    ['On', 'Off'],
+                    this.biosSettings.numlock,
+                    (val) => { this.biosSettings.numlock = val; }
+                );
+            }
+            return;
+        }
+
+        // Tab 4: Save & Exit Tab
+        if (this.activeTab === 4) {
             if (this.selectedRow === 0) {
                 this.showSaveModal();
             } else if (this.selectedRow === 1) {
@@ -513,7 +772,23 @@ export class MasterBootEngine {
                     'NVMe: Samsung SSD 980 PRO 1TB',
                     'Disabled'
                 ];
+                this.biosSettings = {
+                    systemLanguage: 'English',
+                    vtx: 'Enabled',
+                    hyperThreading: 'Enabled',
+                    sataMode: 'AHCI',
+                    nvmeController: 'Enabled',
+                    pcieSpeed: 'Auto (Gen 4.0)',
+                    adminPassword: 'Not Installed',
+                    secureBoot: 'Disabled',
+                    tpmState: 'Enabled',
+                    chassisIntrusion: 'Disabled',
+                    fastBoot: 'Enabled',
+                    csm: 'Disabled',
+                    numlock: 'On'
+                };
                 localStorage.setItem('krypton_boot_priority', JSON.stringify(this.bootPriority));
+                localStorage.setItem('krypton_bios_settings', JSON.stringify(this.biosSettings));
                 this.renderAptioScreen();
             } else if (this.selectedRow === 3) {
                 // Factory Reset Virtual Disk
@@ -521,11 +796,142 @@ export class MasterBootEngine {
                     vfs.resetToDefault();
                     vfs.saveFileSystem();
                     localStorage.removeItem('krypton_upgraded_lts');
+                    localStorage.removeItem('krypton_bios_settings');
                     if (this.keyListener) document.removeEventListener('keydown', this.keyListener);
                     executeHardReset();
                 }
             }
+            return;
         }
+    }
+
+    showGenericOptionPopup(title, options, currentVal, onSelect) {
+        this.popupActive = true;
+        let selectedPopupIdx = 0;
+
+        const matchIdx = options.indexOf(currentVal);
+        if (matchIdx !== -1) selectedPopupIdx = matchIdx;
+
+        const popup = document.createElement('div');
+        popup.className = 'aptio-selection-popup';
+
+        const updatePopupHTML = () => {
+            popup.innerHTML = `
+                <div class="aptio-popup-title">${title}</div>
+                ${options.map((opt, idx) => `
+                    <div class="aptio-popup-item ${idx === selectedPopupIdx ? 'selected' : ''}" data-idx="${idx}">
+                        ${opt}
+                    </div>
+                `).join('')}
+            `;
+
+            popup.querySelectorAll('.aptio-popup-item').forEach(itemEl => {
+                itemEl.addEventListener('click', () => {
+                    const idx = parseInt(itemEl.getAttribute('data-idx'), 10);
+                    onSelect(options[idx]);
+                    localStorage.setItem('krypton_bios_settings', JSON.stringify(this.biosSettings));
+                    document.removeEventListener('keydown', handlePopupKey);
+                    popup.remove();
+                    this.popupActive = false;
+                    this.renderAptioScreen();
+                });
+            });
+        };
+
+        updatePopupHTML();
+        this.container.appendChild(popup);
+
+        const handlePopupKey = (e) => {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedPopupIdx = (selectedPopupIdx + 1) % options.length;
+                updatePopupHTML();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedPopupIdx = (selectedPopupIdx - 1 + options.length) % options.length;
+                updatePopupHTML();
+            } else if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect(options[selectedPopupIdx]);
+                localStorage.setItem('krypton_bios_settings', JSON.stringify(this.biosSettings));
+                document.removeEventListener('keydown', handlePopupKey);
+                popup.remove();
+                this.popupActive = false;
+                this.renderAptioScreen();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                document.removeEventListener('keydown', handlePopupKey);
+                popup.remove();
+                this.popupActive = false;
+            }
+        };
+
+        document.addEventListener('keydown', handlePopupKey);
+    }
+
+    showGenericInfoPopup(title, lines) {
+        this.modalActive = true;
+        const modal = document.createElement('div');
+        modal.className = 'aptio-modal-overlay';
+        modal.innerHTML = `
+            <div class="aptio-modal-title">${title}</div>
+            <div style="font-size: 17px; color: #ffffff; text-align: left; margin: 14px 0; line-height: 1.5;">
+                ${lines.map(l => `<div>&bull; ${l}</div>`).join('')}
+            </div>
+            <div class="aptio-modal-prompt" style="color: #ffff55; margin-top: 12px;">[ Press Enter or ESC to Close ]</div>
+        `;
+
+        this.container.appendChild(modal);
+
+        const handleModalKey = (e) => {
+            if (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ') {
+                document.removeEventListener('keydown', handleModalKey);
+                modal.remove();
+                this.modalActive = false;
+            }
+        };
+
+        document.addEventListener('keydown', handleModalKey);
+    }
+
+    showAdminPasswordModal() {
+        this.modalActive = true;
+        const modal = document.createElement('div');
+        modal.className = 'aptio-modal-overlay';
+        modal.innerHTML = `
+            <div class="aptio-modal-title">Create Administrator Password</div>
+            <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 12px;">
+                Enter a new password to restrict access to BIOS Setup:
+            </div>
+            <div style="margin: 12px 0;">
+                <input type="password" id="aptio-pass-input" placeholder="Password (Leave blank to clear)" style="padding: 8px 12px; background: #000055; border: 2px solid #55ffff; color: #ffff55; font-family: monospace; font-size: 18px; outline: none; width: 80%; text-align: center;" autofocus />
+            </div>
+            <div class="aptio-modal-prompt" style="font-size: 15px; color: #aaaaaa; margin-top: 10px;">
+                [ Enter ] Confirm &nbsp;&nbsp;&nbsp;&nbsp; [ ESC ] Cancel
+            </div>
+        `;
+
+        this.container.appendChild(modal);
+        const passInput = modal.querySelector('#aptio-pass-input');
+        if (passInput) passInput.focus();
+
+        const handleModalKey = (e) => {
+            if (e.key === 'Enter') {
+                const val = passInput ? passInput.value.trim() : '';
+                this.biosSettings.adminPassword = val ? 'Installed' : 'Not Installed';
+                localStorage.setItem('krypton_bios_settings', JSON.stringify(this.biosSettings));
+                document.removeEventListener('keydown', handleModalKey);
+                modal.remove();
+                this.modalActive = false;
+                this.renderAptioScreen();
+            } else if (e.key === 'Escape') {
+                document.removeEventListener('keydown', handleModalKey);
+                modal.remove();
+                this.modalActive = false;
+            }
+        };
+
+        document.addEventListener('keydown', handleModalKey);
     }
 
     showBootOptionPopup(bootIndex) {
@@ -611,6 +1017,7 @@ export class MasterBootEngine {
                 this.modalActive = false;
 
                 localStorage.setItem('krypton_boot_priority', JSON.stringify(this.bootPriority));
+                localStorage.setItem('krypton_bios_settings', JSON.stringify(this.biosSettings));
                 this.resolveActiveBootDevice();
             } else if (e.key.toLowerCase() === 'n' || e.key === 'Escape') {
                 document.removeEventListener('keydown', handleModalKey);

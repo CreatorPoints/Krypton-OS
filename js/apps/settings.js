@@ -636,12 +636,44 @@ function renderDisplayTab(container) {
    5. About System Tab
    -------------------------------------------------------------------------- */
 function renderAboutTab(container) {
+    const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true';
+
     const hostnameNode = vfs.getNode('/etc/hostname');
     const curHostname = hostnameNode ? hostnameNode.content.trim() : 'krypton-station';
 
     const osRel = vfs.readFile('/etc/os-release') || '';
     const prettyMatch = osRel.match(/PRETTY_NAME="([^"]+)"/);
-    const osTitle = prettyMatch ? prettyMatch[1] : 'Krypton 1.0.0.0 LTS';
+
+    let osTitle = 'Krypton OS 0.1 Alpha';
+    let osSubtitle = 'Live Installer Media (Read-Only ISO Environment)';
+    let kernelVer = 'Linux 2.0.0.14-generic-krypton (x86_64)';
+    let bootMedium = 'SanDisk Ultra USB 3.0 32GB (/dev/sda1 - Live ISO)';
+    let storageStatus = 'Samsung SSD 980 PRO 1TB (/dev/nvme0n1 - Unpartitioned)';
+    let envStatus = 'Live Session (Read-Only) - Run krypton-installer';
+
+    if (isInstalled) {
+        if (isUpgraded) {
+            osTitle = prettyMatch ? prettyMatch[1] : 'Krypton 1.0.0.0 LTS';
+            osSubtitle = 'Production-Grade Linux Sandbox & Desktop Simulator';
+            kernelVer = 'Linux 6.10.0-krypton-generic (x86_64)';
+            bootMedium = 'Samsung SSD 980 PRO 1TB (/dev/nvme0n1p2 - ext4 rootfs)';
+            storageStatus = 'Samsung SSD 980 PRO 1TB (/dev/nvme0n1p2 - ext4 mounted)';
+            envStatus = 'Installed Production Workstation (Linux 6.10 LTS)';
+        } else {
+            osTitle = 'Krypton OS 0.1 Alpha (Base Installed)';
+            osSubtitle = 'Base Workstation Deployment (Legacy Alpha Kernel)';
+            kernelVer = 'Linux 2.0.0.14-generic-krypton (x86_64)';
+            bootMedium = 'Samsung SSD 980 PRO 1TB (/dev/nvme0n1p2 - ext4 rootfs)';
+            storageStatus = 'Samsung SSD 980 PRO 1TB (/dev/nvme0n1p2 - ext4 mounted)';
+            envStatus = 'Base Installation - Run apt update && apt upgrade for 1.0 LTS';
+        }
+    }
+
+    const cpuModel = (typeof window !== 'undefined' && window.telemetry)
+        ? window.telemetry.getFormattedCpuModel()
+        : `Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz (${navigator.hardwareConcurrency || 8} Threads)`;
+    const totalMemMb = (navigator.deviceMemory || 16) * 1024;
 
     container.innerHTML = `
         <div class="settings-header">
@@ -650,11 +682,11 @@ function renderAboutTab(container) {
         </div>
 
         <div class="settings-section-box" style="display: flex; gap: 18px; align-items: center;">
-            <div style="font-size: 42px;">⚛️</div>
+            <div style="font-size: 42px;">${isInstalled && isUpgraded ? '⚛️' : '💿'}</div>
             <div>
                 <h4 style="margin: 0; font-size: 20px; color: #fff;">${escapeHtml(osTitle)}</h4>
                 <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
-                    Production-Grade Linux Sandbox & Virtualized Desktop Simulator
+                    ${escapeHtml(osSubtitle)}
                 </div>
             </div>
         </div>
@@ -663,20 +695,32 @@ function renderAboutTab(container) {
             <table class="settings-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                 <tbody>
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                        <td style="padding: 8px 6px; color: #94a3b8; width: 140px;">Kernel Version</td>
-                        <td style="padding: 8px 6px; font-family: monospace; color: #00e5ff;">Linux 6.10.0-krypton-generic (x86_64)</td>
+                        <td style="padding: 8px 6px; color: #94a3b8; width: 140px;">OS Version</td>
+                        <td style="padding: 8px 6px; font-family: monospace; font-weight: bold; color: ${isInstalled && isUpgraded ? '#00e5ff' : '#fbbf24'};">${escapeHtml(osTitle)}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                        <td style="padding: 8px 6px; color: #94a3b8;">Kernel Version</td>
+                        <td style="padding: 8px 6px; font-family: monospace; color: #00e5ff;">${escapeHtml(kernelVer)}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                        <td style="padding: 8px 6px; color: #94a3b8;">Environment Mode</td>
+                        <td style="padding: 8px 6px; font-family: monospace; color: #fff;">${escapeHtml(envStatus)}</td>
                     </tr>
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
                         <td style="padding: 8px 6px; color: #94a3b8;">Processor</td>
-                        <td style="padding: 8px 6px; font-family: monospace; color: #fff;">Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz (16 Threads)</td>
+                        <td style="padding: 8px 6px; font-family: monospace; color: #fff;">${escapeHtml(cpuModel)}</td>
                     </tr>
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
                         <td style="padding: 8px 6px; color: #94a3b8;">System Memory</td>
-                        <td style="padding: 8px 6px; font-family: monospace; color: #fff;">16384 MB DDR4-3200 Dual-Channel</td>
+                        <td style="padding: 8px 6px; font-family: monospace; color: #fff;">${totalMemMb} MB DDR4-3200 Dual-Channel OK</td>
                     </tr>
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                        <td style="padding: 8px 6px; color: #94a3b8;">Storage Drive</td>
-                        <td style="padding: 8px 6px; font-family: monospace; color: #fff;">Samsung SSD 980 PRO 1TB (PCIe 4.0 NVMe M.2)</td>
+                        <td style="padding: 8px 6px; color: #94a3b8;">Boot Medium</td>
+                        <td style="padding: 8px 6px; font-family: monospace; color: #fff;">${escapeHtml(bootMedium)}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                        <td style="padding: 8px 6px; color: #94a3b8;">Storage Target</td>
+                        <td style="padding: 8px 6px; font-family: monospace; color: #fff;">${escapeHtml(storageStatus)}</td>
                     </tr>
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
                         <td style="padding: 8px 6px; color: #94a3b8;">System Hostname</td>

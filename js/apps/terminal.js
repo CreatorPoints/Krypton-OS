@@ -518,11 +518,43 @@ export function openTerminal() {
         }
     });
 
-    // Smart Focus: Only focus input if user didn't select text
+    // Smart Focus & Copy Selection Management
     content.addEventListener('mouseup', () => {
         const selection = window.getSelection();
-        if (!selection || selection.toString().length === 0) {
+        const selectedText = selection ? selection.toString() : '';
+        if (!selectedText || selectedText.length === 0) {
             input.focus();
+        }
+    });
+
+    // Content-wide keyboard copy & paste interceptor
+    content.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+            const selectedText = window.getSelection()?.toString() || '';
+            if (selectedText.length > 0) {
+                // User is copying selected text
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(selectedText).catch(() => {});
+                }
+            }
+        }
+        if ((e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'v') || (e.shiftKey && e.key === 'Insert')) {
+            e.preventDefault();
+            navigator.clipboard?.readText().then(clipText => {
+                if (clipText) {
+                    input.value += clipText;
+                    input.focus();
+                }
+            }).catch(() => {});
+        }
+    });
+
+    // Browser Native Copy Event Hook
+    content.addEventListener('copy', (e) => {
+        const selectedText = window.getSelection()?.toString() || '';
+        if (selectedText.length > 0 && e.clipboardData) {
+            e.clipboardData.setData('text/plain', selectedText);
+            e.preventDefault();
         }
     });
 
@@ -531,7 +563,9 @@ export function openTerminal() {
         const selection = window.getSelection();
         const selectedText = selection?.toString() || '';
         if (selectedText.length > 0) {
-            navigator.clipboard?.writeText(selectedText).catch(() => {});
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(selectedText).catch(() => {});
+            }
         } else {
             e.preventDefault();
             navigator.clipboard?.readText().then(clipText => {

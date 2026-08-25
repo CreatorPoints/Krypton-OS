@@ -170,10 +170,15 @@ function renderAppearanceTab(container) {
 
         <!-- Desktop Theme Section -->
         <div class="settings-section-box">
-            <h4 class="section-title">Desktop Theme & Palette</h4>
+            <h4 class="section-title">Desktop Theme & Palette ${!isInstalled ? '<span style="color:#ef4444; font-size:11px; font-weight:normal;">(Locked in Live Media)</span>' : ''}</h4>
+            ${!isInstalled ? `
+                <div style="padding: 8px 12px; background: rgba(239,68,68,0.12); border: 1px solid #ef4444; border-radius: 6px; color: #fca5a5; font-size: 12px; margin-bottom: 12px;">
+                    🔒 <strong>Themes Locked:</strong> Modern desktop themes are only supported on the installed Krypton 1.0 LTS OS suite. Live Media is locked to the classic Alpha theme. Run <code>krypton-installer</code> to install the OS.
+                </div>
+            ` : ''}
             <div class="theme-select-grid">
                 ${themes.map(t => `
-                    <div class="theme-card ${currentTheme === t.id ? 'selected' : ''}" data-theme-id="${t.id}">
+                    <div class="theme-card ${currentTheme === t.id && isInstalled ? 'selected' : ''}" data-theme-id="${t.id}" style="${!isInstalled ? 'opacity: 0.55; cursor: not-allowed;' : ''}">
                         <div class="theme-color-dot" style="background: ${t.accent};"></div>
                         <div class="theme-name">${t.name}</div>
                     </div>
@@ -231,6 +236,11 @@ function renderAppearanceTab(container) {
     // Theme Selection click
     container.querySelectorAll('.theme-card').forEach(card => {
         card.addEventListener('click', () => {
+            if (!isInstalled) {
+                sound.playError();
+                story.showToast('🔒 Themes Locked', 'Modern desktop themes require the installed Krypton OS suite. Please install the OS first.', 'error');
+                return;
+            }
             const themeId = card.getAttribute('data-theme-id');
             container.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');

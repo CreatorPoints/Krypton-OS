@@ -51,7 +51,7 @@ export class MasterBootEngine {
         this.splashTimer = null;
         this.keyListener = null;
 
-        this.activeTab = 3; // Default to Boot tab in BIOS
+        this.activeTab = 0; // Default to Main tab (idx 0) in BIOS
         this.selectedRow = 0;
         this.modalActive = false;
         this.popupActive = false;
@@ -274,9 +274,13 @@ export class MasterBootEngine {
     /* --------------------------------------------------------------------------
        3. APTIO CLASSIC BIOS SETUP UTILITY
        -------------------------------------------------------------------------- */
-    openAptioBIOSSetup() {
+    openAptioBIOSSetup(initialTab = 0) {
         this.phase = 'APTIO_BIOS';
         this.clearTimers();
+        this.activeTab = initialTab;
+        this.selectedRow = 0;
+        this.modalActive = false;
+        this.popupActive = false;
 
         this.renderAptioScreen();
         this.attachAptioKeyboardNav();

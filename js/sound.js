@@ -101,6 +101,12 @@ class SoundEngine {
         setTimeout(() => this.playTone(110, 'sawtooth', 0.2, 0.2), 100);
     }
 
+    playTrash() {
+        this.playTone(320, 'sine', 0.05, 0.12);
+        setTimeout(() => this.playTone(220, 'triangle', 0.08, 0.12), 40);
+        setTimeout(() => this.playTone(140, 'sawtooth', 0.12, 0.1), 90);
+    }
+
     playSuccess() {
         this.playTone(523.25, 'sine', 0.08, 0.15); // C5
         setTimeout(() => this.playTone(659.25, 'sine', 0.08, 0.15), 70); // E5

@@ -79,7 +79,7 @@
     width: 100%;
     height: calc(100% - 46px);
     z-index: 10;
-    pointer-events: none;
+    pointer-events: auto;
     overflow: hidden;
 }
 

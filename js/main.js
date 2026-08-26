@@ -609,6 +609,122 @@ export function checkEnvironmentState() {
     }
 }
 
+// Universal Desktop Right-Click Interceptor (Blocks browser native menu on wallpaper/desktop canvas)
+document.addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.krypton-context-menu')) return;
+    if (e.target.closest('.os-window')) return;
+    if (e.target.closest('#taskbar')) return;
+    if (e.target.closest('#start-menu')) return;
+    if (e.target.closest('#tray-sound-flyout')) return;
+
+    const deskEnv = document.getElementById('desktop-environment');
+    if (!deskEnv || deskEnv.classList.contains('hidden')) return;
+
+    if (e.target.closest('.desktop-icon')) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    sound.playClick();
+
+    const isLiveBoot = sessionStorage.getItem('krypton_current_boot_medium') === 'live_usb';
+    const primaryUser = isLiveBoot ? 'guest' : (localStorage.getItem('krypton_primary_user') || 'guest');
+    const desktopPath = `/home/${primaryUser}/Desktop`;
+    const grid = document.getElementById('desktop-grid');
+
+    showContextMenu(e, [
+        {
+            label: 'Personalize & Appearance',
+            icon: '🎨',
+            action: () => {
+                appLoader.launch('settings', 'appearance');
+            }
+        },
+        {
+            label: 'Refresh Desktop',
+            icon: '🔄',
+            shortcut: 'F5',
+            action: () => {
+                sound.playClick();
+                if (grid) renderDynamicDesktopIcons(grid, isLiveBoot);
+                story.showToast('🔄 Desktop Refreshed', 'Filesystem & icons synced', 'info');
+            }
+        },
+        {
+            separator: true
+        },
+        {
+            label: 'New',
+            icon: '➕',
+            submenu: [
+                {
+                    label: 'Empty Text File',
+                    icon: '📝',
+                    action: () => {
+                        let baseName = 'New_Document.txt';
+                        let counter = 1;
+                        while (vfs.exists(`${desktopPath}/${baseName}`)) {
+                            baseName = `New_Document_${counter++}.txt`;
+                        }
+                        vfs.writeFile(`${desktopPath}/${baseName}`, '');
+                        sound.playSuccess();
+                        story.showToast('📝 Created File', `Created ${baseName} on Desktop`, 'success');
+                        if (grid) renderDynamicDesktopIcons(grid, isLiveBoot);
+                    }
+                },
+                {
+                    label: 'New Folder',
+                    icon: '📁',
+                    action: () => {
+                        let baseName = 'New_Folder';
+                        let counter = 1;
+                        while (vfs.exists(`${desktopPath}/${baseName}`)) {
+                            baseName = `New_Folder_${counter++}`;
+                        }
+                        vfs.mkdir(`${desktopPath}/${baseName}`, true);
+                        sound.playSuccess();
+                        story.showToast('📁 Created Folder', `Created ${baseName} on Desktop`, 'success');
+                        if (grid) renderDynamicDesktopIcons(grid, isLiveBoot);
+                    }
+                },
+                {
+                    label: 'Shell Script (.sh)',
+                    icon: '📜',
+                    action: () => {
+                        let baseName = 'script.sh';
+                        let counter = 1;
+                        while (vfs.exists(`${desktopPath}/${baseName}`)) {
+                            baseName = `script_${counter++}.sh`;
+                        }
+                        vfs.writeFile(`${desktopPath}/${baseName}`, '#!/bin/bash\n# KryptonOS Shell Script\necho "Hello from KryptonOS!"\n');
+                        vfs.chmod(`${desktopPath}/${baseName}`, '0755');
+                        sound.playSuccess();
+                        story.showToast('📜 Created Script', `Created executable ${baseName} on Desktop`, 'success');
+                        if (grid) renderDynamicDesktopIcons(grid, isLiveBoot);
+                    }
+                }
+            ]
+        },
+        {
+            separator: true
+        },
+        {
+            label: 'Open Terminal Here',
+            icon: '💻',
+            shortcut: 'Ctrl+Alt+T',
+            action: () => {
+                openTerminal({ currentDir: desktopPath });
+            }
+        },
+        {
+            label: 'Open File Manager',
+            icon: '📂',
+            action: () => {
+                appLoader.launch('filemgr', [desktopPath]);
+            }
+        }
+    ]);
+});
+
 // Listen for dynamic filesystem modifications across the entire OS
 window.addEventListener('krypton_vfs_changed', () => {
     const grid = document.getElementById('desktop-grid');

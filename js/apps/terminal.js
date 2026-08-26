@@ -257,6 +257,7 @@ export function openTerminal() {
 
     let isWaitingForPassword = false;
     let pendingPasswordCallback = null;
+    let multilineBuffer = [];
 
     const updatePrompt = () => {
         const hNode = vfs.getNode('/etc/hostname');
@@ -733,14 +734,31 @@ export function openTerminal() {
             }
         }
 
+        // Shift+Enter: Multiline Line Continuation
+        if (e.key === 'Enter' && e.shiftKey) {
+            e.preventDefault();
+            const currentLine = input.value;
+            input.value = '';
+            multilineBuffer.push(currentLine);
+            if (multilineBuffer.length === 1) {
+                appendCommandHistory(currentLine);
+            } else {
+                appendLine(`> ${currentLine}`, 'prompt');
+            }
+            promptText.innerHTML = `<span style="color:#38bdf8; font-weight:700;">> </span>`;
+            content.scrollTop = content.scrollHeight;
+            return;
+        }
+
         // Enter: Execute Command
         if (e.key === 'Enter') {
+            e.preventDefault();
             if (activeStreamInterval) {
                 clearInterval(activeStreamInterval);
                 activeStreamInterval = null;
             }
 
-            const rawLine = input.value;
+            let rawLine = input.value;
             input.value = '';
             historyIdx = -1;
 
@@ -757,14 +775,22 @@ export function openTerminal() {
                 return;
             }
 
-            if (!rawLine.trim()) {
-                appendCommandHistory('');
-                content.scrollTop = content.scrollHeight;
-                return;
+            if (multilineBuffer.length > 0) {
+                multilineBuffer.push(rawLine);
+                appendLine(`> ${rawLine}`, 'prompt');
+                rawLine = multilineBuffer.join('\n');
+                multilineBuffer = [];
+                updatePrompt();
+            } else {
+                if (!rawLine.trim()) {
+                    appendCommandHistory('');
+                    content.scrollTop = content.scrollHeight;
+                    return;
+                }
+                appendCommandHistory(rawLine);
             }
 
             commandHistory.push(rawLine);
-            appendCommandHistory(rawLine);
 
             // Check if command is sudo and needs password prompt
             const trimmed = rawLine.trim();
@@ -836,6 +862,51 @@ export function openTerminal() {
         }
     });
 
+    const handleMultilinePaste = (pastedText) => {
+        if (!pastedText) return;
+        const cleaned = cleanTerminalClipboardText(pastedText);
+        if (cleaned.includes('\n')) {
+            const lines = cleaned.split(/\r?\n/);
+            const prefix = input.value;
+            input.value = '';
+
+            let allLines = [prefix + lines[0], ...lines.slice(1)];
+            if (allLines.length > 1 && allLines[allLines.length - 1] === '') {
+                allLines.pop();
+            }
+
+            let pIdx = 0;
+            const execNext = () => {
+                if (pIdx >= allLines.length) {
+                    content.scrollTop = content.scrollHeight;
+                    input.focus();
+                    return;
+                }
+                const l = allLines[pIdx++];
+                if (l.trim()) {
+                    commandHistory.push(l);
+                    appendCommandHistory(l);
+                    runCommandWithResult(l);
+                } else {
+                    appendCommandHistory('');
+                }
+                setTimeout(execNext, 40);
+            };
+            execNext();
+        } else {
+            input.value += cleaned;
+            input.focus();
+        }
+    };
+
+    input.addEventListener('paste', (e) => {
+        const text = (e.clipboardData || window.clipboardData)?.getData('text');
+        if (text && text.includes('\n')) {
+            e.preventDefault();
+            handleMultilinePaste(text);
+        }
+    });
+
     // Browser Native Copy Event Hook
     content.addEventListener('copy', (e) => {
         const selectedText = window.getSelection()?.toString() || '';
@@ -861,8 +932,7 @@ export function openTerminal() {
             e.preventDefault();
             navigator.clipboard?.readText().then(clipText => {
                 if (clipText) {
-                    input.value += clipText;
-                    input.focus();
+                    handleMultilinePaste(clipText);
                 }
             }).catch(() => {});
         }
@@ -928,11 +998,89 @@ export function switchToTTYConsole() {
         ttyScreen.scrollTop = ttyScreen.scrollHeight;
     };
 
-    ttyInput.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-            const line = ttyInput.value;
+    let ttyMultilineBuffer = [];
+
+    const handleTTYMultilinePaste = (pastedText) => {
+        if (!pastedText) return;
+        const cleaned = cleanTerminalClipboardText(pastedText);
+        if (cleaned.includes('\n')) {
+            const lines = cleaned.split(/\r?\n/);
+            const prefix = ttyInput.value;
             ttyInput.value = '';
-            appendTTYLine(`${ttyPrompt.textContent}${line}`, 'prompt');
+
+            let allLines = [prefix + lines[0], ...lines.slice(1)];
+            if (allLines.length > 1 && allLines[allLines.length - 1] === '') {
+                allLines.pop();
+            }
+
+            let pIdx = 0;
+            const execNext = () => {
+                if (pIdx >= allLines.length) {
+                    ttyScreen.scrollTop = ttyScreen.scrollHeight;
+                    ttyInput.focus();
+                    return;
+                }
+                const l = allLines[pIdx++];
+                if (l.trim()) {
+                    appendTTYLine(`${ttyPrompt.textContent}${l}`, 'prompt');
+                    executeCommandLine(l, ttyDir, ttyUser, { PWD: ttyDir, USER: ttyUser, HOME: ttyUser === 'root' ? '/root' : `/home/${ttyUser}` }, {}, ttyDir, (res) => {
+                        if (res.newDir) ttyDir = res.newDir;
+                        if (res.newUser) ttyUser = res.newUser;
+                        updateTTYPrompt();
+                        if (res.clear) ttyHistory.innerHTML = '';
+                        else if (res.lines) res.lines.forEach(line => appendTTYLine(line.text, line.type || 'normal'));
+                    });
+                } else {
+                    appendTTYLine(`${ttyPrompt.textContent}`, 'prompt');
+                }
+                setTimeout(execNext, 40);
+            };
+            execNext();
+        } else {
+            ttyInput.value += cleaned;
+            ttyInput.focus();
+        }
+    };
+
+    ttyInput.addEventListener('paste', (e) => {
+        const text = (e.clipboardData || window.clipboardData)?.getData('text');
+        if (text && text.includes('\n')) {
+            e.preventDefault();
+            handleTTYMultilinePaste(text);
+        }
+    });
+
+    ttyInput.onkeydown = (e) => {
+        if (e.key === 'Enter' && e.shiftKey) {
+            e.preventDefault();
+            const currentLine = ttyInput.value;
+            ttyInput.value = '';
+            ttyMultilineBuffer.push(currentLine);
+            if (ttyMultilineBuffer.length === 1) {
+                appendTTYLine(`${ttyPrompt.textContent}${currentLine}`, 'prompt');
+            } else {
+                appendTTYLine(`> ${currentLine}`, 'prompt');
+            }
+            ttyPrompt.textContent = '> ';
+            ttyScreen.scrollTop = ttyScreen.scrollHeight;
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            let line = ttyInput.value;
+            ttyInput.value = '';
+
+            if (ttyMultilineBuffer.length > 0) {
+                ttyMultilineBuffer.push(line);
+                appendTTYLine(`> ${line}`, 'prompt');
+                line = ttyMultilineBuffer.join('\n');
+                ttyMultilineBuffer = [];
+                updateTTYPrompt();
+            } else {
+                appendTTYLine(`${ttyPrompt.textContent}${line}`, 'prompt');
+            }
+
             if (!line.trim()) return;
 
             if (line.trim() === 'startx' || line.trim() === 'systemctl start krypton-desktop' || line.trim() === 'sudo systemctl start krypton-desktop') {
@@ -1013,11 +1161,11 @@ function handleTabCompletion(inputEl, currentDir) {
    Command Pipeline & Chaining Parser
    -------------------------------------------------------------------------- */
 function executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prevDir, callback) {
-    const chainTokens = rawLine.split(/(&&|;)/);
+    const chainTokens = rawLine.split(/(&&|;|\n)/);
     let commands = [];
     for (let i = 0; i < chainTokens.length; i++) {
         const token = chainTokens[i].trim();
-        if (token && token !== '&&' && token !== ';') {
+        if (token && token !== '&&' && token !== ';' && token !== '\n') {
             commands.push(token);
         }
     }

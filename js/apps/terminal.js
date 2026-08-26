@@ -8,6 +8,16 @@ import { story } from '../story.js';
 import { sound } from '../sound.js';
 import { boot } from '../boot.js';
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 export const REPO_DPKG_PACKAGES = [
     { id: 'krypton-desktop-core', file: 'krypton-desktop-core_0.1.0.2_amd64.deb', name: 'krypton-desktop-core', version: '0.1.0.2', arch: 'amd64', section: 'x11/desktop', size: 4820, maintainer: 'KryptonOS Core Team <core@krypton-os.org>', summary: 'KryptonOS Desktop Shell, Wayland Compositor, and System Utilities' },
     { id: 'cmatrix', file: 'cmatrix.deb', name: 'cmatrix', version: '2.0-3', arch: 'amd64', section: 'utils/console', size: 128, maintainer: 'KryptonOS Maintainers <packages@krypton-os.org>', summary: 'Matrix Digital Rain Terminal Screensaver' },
@@ -359,6 +369,11 @@ export function openTerminal() {
                 document.getElementById('tty-screen')?.classList.add('hidden');
             }
 
+            if (res.launchNano) {
+                openTerminalNano(res.launchNano.filePath, res.launchNano.fileName, res.launchNano.content);
+                return;
+            }
+
             // Streaming ASCII Party Parrot (curl parrot.live)
             if (res.startParrot) {
                 let pFrame = 0;
@@ -376,6 +391,238 @@ export function openTerminal() {
             }
 
             content.scrollTop = content.scrollHeight;
+        });
+    };
+
+    let nanoCutBuffer = '';
+
+    const openTerminalNano = (targetPath, fileName, initialContent) => {
+        let isModified = false;
+        let isExitingPrompt = false;
+
+        // Hide terminal prompt and history
+        historyContainer.style.display = 'none';
+        const promptLine = content.querySelector('.terminal-prompt-line');
+        if (promptLine) promptLine.style.display = 'none';
+
+        const nanoEl = document.createElement('div');
+        nanoEl.className = 'nano-terminal-container';
+
+        const lineCount = initialContent ? initialContent.split('\n').length : 0;
+
+        nanoEl.innerHTML = `
+            <!-- Nano Top Title Bar -->
+            <div class="nano-topbar">
+                <span>GNU nano 6.2</span>
+                <span id="nano-file-heading">${escapeHtml(fileName || 'New Buffer')}</span>
+                <span id="nano-mod-indicator" style="color: #b91c1c; font-weight: 900;"></span>
+            </div>
+
+            <!-- Nano Textarea Editor Area -->
+            <div style="flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; padding: 6px 8px;">
+                <textarea id="nano-editor-textarea" spellcheck="false" autocomplete="off" style="flex: 1; width: 100%; height: 100%; background: transparent; color: #f8fafc; border: none; outline: none; resize: none; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; caret-color: #00e5ff; white-space: pre; overflow-y: auto; user-select: text !important; -webkit-user-select: text !important;">${escapeHtml(initialContent || '')}</textarea>
+            </div>
+
+            <!-- Nano Message / Prompt Bar -->
+            <div id="nano-status-bar" style="padding: 2px 10px; font-size: 11px; background: rgba(0, 229, 255, 0.12); color: #00e5ff; min-height: 20px; display: flex; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); font-family: var(--font-mono);">
+                [ Read ${lineCount} lines ]
+            </div>
+
+            <!-- Nano 2-Row Shortcuts Footer -->
+            <div class="nano-footer-bar">
+                <button class="nano-btn" id="nano-btn-help"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^G</span> Help</button>
+                <button class="nano-btn" id="nano-btn-writeout"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^O</span> WriteOut</button>
+                <button class="nano-btn" id="nano-btn-whereis"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^W</span> Where Is</button>
+                <button class="nano-btn" id="nano-btn-cut"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^K</span> Cut Text</button>
+                <button class="nano-btn" id="nano-btn-justify"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^J</span> Justify</button>
+                <button class="nano-btn" id="nano-btn-curpos"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^C</span> Location</button>
+
+                <button class="nano-btn" id="nano-btn-exit"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^X</span> Exit</button>
+                <button class="nano-btn" id="nano-btn-readfile"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^R</span> Read File</button>
+                <button class="nano-btn" id="nano-btn-replace"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^\</span> Replace</button>
+                <button class="nano-btn" id="nano-btn-paste"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^U</span> Paste</button>
+                <button class="nano-btn" id="nano-btn-toswitch"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^T</span> Execute</button>
+                <button class="nano-btn" id="nano-btn-gotoline"><span style="background: #fff; color: #000; padding: 1px 3px; font-weight: bold; border-radius: 2px;">^_</span> Go To Line</button>
+            </div>
+        `;
+
+        content.appendChild(nanoEl);
+
+        const textarea = nanoEl.querySelector('#nano-editor-textarea');
+        const statusMsg = nanoEl.querySelector('#nano-status-bar');
+        const modIndicator = nanoEl.querySelector('#nano-mod-indicator');
+
+        textarea.focus();
+
+        const markModified = () => {
+            if (!isModified) {
+                isModified = true;
+                modIndicator.textContent = '*Modified';
+            }
+        };
+
+        textarea.addEventListener('input', () => {
+            markModified();
+        });
+
+        const saveFile = () => {
+            const curVal = textarea.value;
+            const dirOfFile = targetPath.substring(0, targetPath.lastIndexOf('/')) || '/';
+            if (!vfs.exists(dirOfFile)) {
+                vfs.createDirectory(dirOfFile);
+            }
+            vfs.writeFile(targetPath, curVal);
+            vfs.saveFileSystem();
+            isModified = false;
+            modIndicator.textContent = '';
+            const linesWritten = curVal.split('\n').length;
+            statusMsg.textContent = `[ Wrote ${linesWritten} lines to ${targetPath} ]`;
+            sound.playSuccess();
+            story.showToast('💾 nano', `Saved ${fileName} (${linesWritten} lines)`, 'success');
+        };
+
+        const exitNano = () => {
+            nanoEl.remove();
+            historyContainer.style.display = 'block';
+            if (promptLine) promptLine.style.display = 'flex';
+            input.disabled = false;
+            input.value = '';
+            input.focus();
+            updatePrompt();
+            content.scrollTop = content.scrollHeight;
+        };
+
+        const handleExitRequest = () => {
+            if (!isModified) {
+                exitNano();
+                return;
+            }
+            isExitingPrompt = true;
+            statusMsg.innerHTML = `<span style="background: #eab308; color: #000; font-weight: bold; padding: 1px 4px;">Save modified buffer?</span> (Y=Yes, N=No, ^C=Cancel)`;
+        };
+
+        // Nano Keydown Listener
+        textarea.addEventListener('keydown', (e) => {
+            // Exit confirmation handling
+            if (isExitingPrompt) {
+                if (e.key.toLowerCase() === 'y' || e.key === 'Enter') {
+                    e.preventDefault();
+                    saveFile();
+                    exitNano();
+                    return;
+                } else if (e.key.toLowerCase() === 'n') {
+                    e.preventDefault();
+                    exitNano();
+                    return;
+                } else if ((e.ctrlKey && e.key.toLowerCase() === 'c') || e.key === 'Escape') {
+                    e.preventDefault();
+                    isExitingPrompt = false;
+                    statusMsg.textContent = `[ Cancelled exit ]`;
+                    return;
+                }
+            }
+
+            // Ctrl+O: WriteOut (Save)
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
+                e.preventDefault();
+                saveFile();
+                return;
+            }
+
+            // Ctrl+X: Exit
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+                e.preventDefault();
+                handleExitRequest();
+                return;
+            }
+
+            // Ctrl+K: Cut Current Line
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                const text = textarea.value;
+                const pos = textarea.selectionStart;
+                const prevNewline = text.lastIndexOf('\n', pos - 1);
+                const startLine = prevNewline === -1 ? 0 : prevNewline + 1;
+                const nextNewline = text.indexOf('\n', pos);
+                const endLine = nextNewline === -1 ? text.length : nextNewline + 1;
+
+                nanoCutBuffer = text.substring(startLine, endLine);
+                textarea.value = text.substring(0, startLine) + text.substring(endLine);
+                textarea.selectionStart = textarea.selectionEnd = startLine;
+                markModified();
+                statusMsg.textContent = `[ Cut 1 line ]`;
+                return;
+            }
+
+            // Ctrl+U: Paste (Uncut)
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
+                e.preventDefault();
+                if (nanoCutBuffer) {
+                    const pos = textarea.selectionStart;
+                    textarea.value = textarea.value.substring(0, pos) + nanoCutBuffer + textarea.value.substring(pos);
+                    textarea.selectionStart = textarea.selectionEnd = pos + nanoCutBuffer.length;
+                    markModified();
+                    statusMsg.textContent = `[ Pasted 1 line ]`;
+                }
+                return;
+            }
+
+            // Ctrl+C: Cur Pos (Location)
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+                e.preventDefault();
+                const pos = textarea.selectionStart;
+                const textBefore = textarea.value.substring(0, pos);
+                const line = textBefore.split('\n').length;
+                const totalLines = textarea.value.split('\n').length;
+                const col = pos - (textBefore.lastIndexOf('\n') + 1) + 1;
+                statusMsg.textContent = `[ line ${line}/${totalLines} (${Math.round((line/totalLines)*100)}%), col ${col}, char ${pos}/${textarea.value.length} ]`;
+                return;
+            }
+
+            // Ctrl+G: Help
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+                e.preventDefault();
+                statusMsg.textContent = `[ GNU nano 6.2 - ^O Save, ^X Exit, ^K Cut, ^U Paste, ^C Position ]`;
+                return;
+            }
+        });
+
+        // Click listeners for bottom nano buttons
+        nanoEl.querySelector('#nano-btn-writeout')?.addEventListener('click', () => { sound.playClick(); saveFile(); });
+        nanoEl.querySelector('#nano-btn-exit')?.addEventListener('click', () => { sound.playClick(); handleExitRequest(); });
+        nanoEl.querySelector('#nano-btn-help')?.addEventListener('click', () => {
+            statusMsg.textContent = `[ GNU nano 6.2 - ^O Save, ^X Exit, ^K Cut, ^U Paste, ^C Position ]`;
+        });
+        nanoEl.querySelector('#nano-btn-curpos')?.addEventListener('click', () => {
+            const pos = textarea.selectionStart;
+            const textBefore = textarea.value.substring(0, pos);
+            const line = textBefore.split('\n').length;
+            const totalLines = textarea.value.split('\n').length;
+            const col = pos - (textBefore.lastIndexOf('\n') + 1) + 1;
+            statusMsg.textContent = `[ line ${line}/${totalLines} (${Math.round((line/totalLines)*100)}%), col ${col}, char ${pos}/${textarea.value.length} ]`;
+        });
+        nanoEl.querySelector('#nano-btn-cut')?.addEventListener('click', () => {
+            const text = textarea.value;
+            const pos = textarea.selectionStart;
+            const prevNewline = text.lastIndexOf('\n', pos - 1);
+            const startLine = prevNewline === -1 ? 0 : prevNewline + 1;
+            const nextNewline = text.indexOf('\n', pos);
+            const endLine = nextNewline === -1 ? text.length : nextNewline + 1;
+
+            nanoCutBuffer = text.substring(startLine, endLine);
+            textarea.value = text.substring(0, startLine) + text.substring(endLine);
+            textarea.selectionStart = textarea.selectionEnd = startLine;
+            markModified();
+            statusMsg.textContent = `[ Cut 1 line ]`;
+        });
+        nanoEl.querySelector('#nano-btn-paste')?.addEventListener('click', () => {
+            if (nanoCutBuffer) {
+                const pos = textarea.selectionStart;
+                textarea.value = textarea.value.substring(0, pos) + nanoCutBuffer + textarea.value.substring(pos);
+                textarea.selectionStart = textarea.selectionEnd = pos + nanoCutBuffer.length;
+                markModified();
+                statusMsg.textContent = `[ Pasted 1 line ]`;
+            }
         });
     };
 
@@ -2878,24 +3125,17 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     /* 9. Editors & Fun CLI Toys (nano, vim, cmatrix, cowsay, figlet, sl, bc, etc.) */
     if (cmd === 'nano' || cmd === 'vim' || cmd === 'vi') {
-        const fileTarget = args[0] || 'untitled.txt';
-        const targetPath = resolvePath(currentDir, fileTarget);
+        const fileTarget = args[0] || '';
+        const targetPath = fileTarget ? resolvePath(currentDir, fileTarget) : resolvePath(currentDir, 'untitled.txt');
         const existingContent = vfs.readFile(targetPath) || '';
-        if (window.appLoader && vfs.exists('/usr/lib/krypton-notes/index.js')) {
-            window.appLoader.launch('notes', [fileTarget, existingContent]);
-            callback({
-                lines: [{ text: `Opened '${fileTarget}' in Krypton Editor.`, type: 'success' }],
-                exitCode: 0
-            });
-        } else {
-            callback({
-                lines: [
-                    { text: `Command '${cmd}' not found, but can be installed with:`, type: 'normal' },
-                    { text: `sudo apt install krypton-notes`, type: 'cyan' }
-                ],
-                exitCode: 127
-            });
-        }
+        callback({
+            launchNano: {
+                filePath: targetPath,
+                fileName: fileTarget || 'New Buffer',
+                content: existingContent
+            },
+            exitCode: 0
+        });
         return;
     }
 

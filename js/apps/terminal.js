@@ -2385,13 +2385,44 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'hostname' || cmd === 'hostnamectl') {
-        if (args[0] && currentUser === 'root') {
-            hostname = args[0];
-            vfs.writeFile('/etc/hostname', hostname + '\n');
-            callback({ lines: [], exitCode: 0 });
-        } else {
-            callback({ lines: [{ text: hostname, type: 'normal' }], exitCode: 0 });
+        const hNode = vfs.getNode('/etc/hostname');
+        let currentHost = (hNode && hNode.content) ? hNode.content.trim() : (env.HOSTNAME || localStorage.getItem('krypton_hostname') || 'krypton-station');
+
+        if (cmd === 'hostnamectl' && args.length === 0) {
+            callback({
+                lines: [
+                    { text: `   Static hostname: ${currentHost}`, type: 'normal' },
+                    { text: `         Icon name: computer`, type: 'normal' },
+                    { text: `           Chassis: desktop`, type: 'normal' },
+                    { text: `        Machine ID: c4b8f047e12f4b2383c3e7424681640a`, type: 'normal' },
+                    { text: `           Boot ID: 17acbf2848cb45d49da4593452cfab9e`, type: 'normal' },
+                    { text: `  Operating System: Krypton OS (Linux ${env.OSTYPE || 'x86_64'})`, type: 'normal' },
+                    { text: `            Kernel: Linux ${vfs.readFile('/proc/version')?.split(' ')[2] || '6.10.0-krypton-generic'}`, type: 'normal' },
+                    { text: `      Architecture: x86-64`, type: 'normal' }
+                ],
+                exitCode: 0
+            });
+            return;
         }
+
+        if (args[0] && (args[0] === 'set-hostname' || cmd === 'hostname')) {
+            const newHost = (args[0] === 'set-hostname' ? args[1] : args[0]) || '';
+            if (newHost) {
+                if (currentUser !== 'root') {
+                    callback({ lines: [{ text: "hostname: you must be root to change the host name", type: 'error' }], exitCode: 1 });
+                    return;
+                }
+                currentHost = newHost;
+                vfs.writeFile('/etc/hostname', currentHost + '\n');
+                vfs.saveFileSystem();
+                localStorage.setItem('krypton_hostname', currentHost);
+                env.HOSTNAME = currentHost;
+                callback({ lines: [], exitCode: 0 });
+                return;
+            }
+        }
+
+        callback({ lines: [{ text: currentHost, type: 'normal' }], exitCode: 0 });
         return;
     }
 

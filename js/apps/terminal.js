@@ -1148,6 +1148,18 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     let cmd = tokens[0];
     let args = tokens.slice(1);
 
+    // Tilde argument expansion (~/ -> /home/user/)
+    const currentHome = env.HOME || (currentUser === 'root' ? '/root' : `/home/${currentUser}`);
+    args = args.map(arg => {
+        if (arg === '~' || arg === '~/') {
+            return currentHome;
+        }
+        if (arg.startsWith('~/')) {
+            return currentHome + arg.substring(1);
+        }
+        return arg;
+    });
+
     // Alias expansion
     if (aliases[cmd] && !cmdStr.startsWith('\\')) {
         const aliasParts = aliases[cmd].split(' ');
@@ -1177,9 +1189,12 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         const allowedAlphaCommands = [
             'apt', 'apt-get', 'dpkg', 'sudo', 'su',
             'cd', 'pwd', 'ls', 'cat', 'echo', 'clear', 'cls', 'help', 'man',
+            'mkdir', 'rmdir', 'touch', 'rm', 'mv', 'cp', 'nano', 'vim', 'vi',
+            'grep', 'find', 'head', 'tail', 'wc', 'sort', 'uniq', 'diff', 'stat',
+            'chmod', 'chown', 'which', 'whereis', 'tree',
             'reboot', 'shutdown', 'poweroff', 'exit', 'logout',
             'uname', 'neofetch', 'date', 'whoami', 'hostname',
-            'df', 'free', 'ps', 'history', 'alias', 'export',
+            'df', 'free', 'ps', 'top', 'htop', 'uptime', 'history', 'alias', 'unalias', 'export',
             'installer', 'krypton-installer', 'calamares', 'ubiquity'
         ];
         if (!allowedAlphaCommands.includes(cmd) && !cmd.startsWith('./')) {
@@ -1657,10 +1672,9 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     if (cmd === 'cd') {
         let target = args[0] || '~';
-        if (target === '~') target = currentUser === 'root' ? '/root' : `/home/${currentUser}`;
-        if (target === '-') target = prevDir;
+        if (target === '-') target = prevDir || (currentUser === 'root' ? '/root' : `/home/${currentUser}`);
 
-        const targetPath = resolvePath(currentDir, target);
+        const targetPath = resolvePath(currentDir, target, currentUser);
         const node = vfs.getNode(targetPath);
         if (!node) {
             callback({ lines: [{ text: `bash: cd: ${target}: No such file or directory`, type: 'error' }], exitCode: 1 });
@@ -1692,7 +1706,7 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
         let outLines = [];
         targetPaths.forEach(tp => {
-            const resolved = resolvePath(currentDir, tp);
+            const resolved = resolvePath(currentDir, tp, currentUser);
             const node = vfs.getNode(resolved);
 
             if (!node) {
@@ -1740,15 +1754,22 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'mkdir') {
+        const parents = args.some(a => a === '-p' || a === '--parents');
         const targets = args.filter(a => !a.startsWith('-'));
         if (targets.length === 0) {
             callback({ lines: [{ text: "mkdir: missing operand", type: 'error' }], exitCode: 1 });
             return;
         }
-        targets.forEach(t => {
-            const targetPath = resolvePath(currentDir, t);
-            vfs.mkdir(targetPath, true);
-        });
+        for (const t of targets) {
+            const targetPath = resolvePath(currentDir, t, currentUser);
+            const parentDir = targetPath.substring(0, targetPath.lastIndexOf('/')) || '/';
+            if (!parents && !vfs.exists(parentDir)) {
+                callback({ lines: [{ text: `mkdir: cannot create directory '${t}': No such file or directory`, type: 'error' }], exitCode: 1 });
+                return;
+            }
+            vfs.mkdir(targetPath, parents);
+        }
+        vfs.saveFileSystem();
         callback({ lines: [], exitCode: 0 });
         return;
     }
@@ -3964,12 +3985,30 @@ function parseArguments(str) {
 /* --------------------------------------------------------------------------
    Helper: Path Resolver
    -------------------------------------------------------------------------- */
-function resolvePath(currentDir, target) {
+function resolvePath(currentDir, target, user = '') {
     if (!target) return currentDir;
-    if (target.startsWith('/')) {
-        return vfs.normalizePath(target);
+    let t = String(target).trim();
+
+    const effUser = user || localStorage.getItem('krypton_primary_user') || 'guest';
+    const homeDir = (effUser === 'root') ? '/root' : `/home/${effUser}`;
+
+    if (t === '~' || t === '~/' || t === '') {
+        return homeDir;
     }
-    return vfs.normalizePath(currentDir + '/' + target);
+    if (t.startsWith('~/')) {
+        t = homeDir + t.substring(1);
+    } else if (t.startsWith('~')) {
+        const slashIdx = t.indexOf('/');
+        const u = slashIdx === -1 ? t.substring(1) : t.substring(1, slashIdx);
+        const rest = slashIdx === -1 ? '' : t.substring(slashIdx);
+        const uHome = u === 'root' ? '/root' : `/home/${u}`;
+        t = uHome + rest;
+    }
+
+    if (t.startsWith('/')) {
+        return vfs.normalizePath(t);
+    }
+    return vfs.normalizePath(currentDir + '/' + t);
 }
 
 /* --------------------------------------------------------------------------

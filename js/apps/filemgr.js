@@ -62,8 +62,8 @@ export function openFileManager(initialPath = null) {
                     renderFolder(`${path === '/' ? '' : path}/${item.name}`);
                 } else {
                     const fullPath = `${path === '/' ? '' : path}/${item.name}`;
-                    const text = vfs.readFile(fullPath);
-                    openNotes(item.name, text);
+                    const text = vfs.readFile(fullPath) || '';
+                    openNotes([fullPath, text]);
                 }
             });
 

@@ -406,7 +406,7 @@ export function renderDynamicDesktopIcons(grid, isLiveBoot = false) {
             onDoubleClick = () => {
                 sound.playClick();
                 const fileContent = vfs.readFile(fullPath) || '';
-                appLoader.launch('notes', [item.name, fileContent]);
+                appLoader.launch('notes', [fullPath, fileContent]);
             };
         }
 

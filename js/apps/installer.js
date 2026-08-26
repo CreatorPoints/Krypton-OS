@@ -19,9 +19,9 @@ export function openInstallerWizard() {
     let selectedTz = 'UTC+05:30 - Kolkata (India)';
     let connectedWifi = null;
     let wifiFailuresCount = 0;
-    let userName = 'Shrestangsu Dutta';
+    let userName = '';
     let userHostname = 'krypton-station';
-    let userLogin = 'shrestangsu';
+    let userLogin = '';
     let userPassword = '';
     let confirmPassword = '';
     let requirePassword = true;
@@ -29,7 +29,7 @@ export function openInstallerWizard() {
     let installInProgress = false;
     let installTimerInterval = null;
 
-    // Google Account Identity (Mandatory for Cloud-Backed Storage Buckets & Persistent VFS)
+    // Google Account Identity (Optional for Cloud-Backed Storage Buckets & Persistent VFS)
     let savedGoogleJson = localStorage.getItem('krypton_google_account');
     let googleAccount = null;
     try {
@@ -37,7 +37,7 @@ export function openInstallerWizard() {
     } catch (e) {}
 
     if (googleAccount) {
-        userName = googleAccount.name || userName;
+        userName = googleAccount.name || '';
         userLogin = (googleAccount.email ? googleAccount.email.split('@')[0] : 'guest').toLowerCase().replace(/[^a-z0-9_]/g, '');
         userHostname = `${userLogin}-station`;
     }
@@ -185,21 +185,21 @@ export function openInstallerWizard() {
 
                 <div class="user-form-card">
                     <div class="user-form-row">
-                        <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Full Name:</label>
-                        <input type="text" class="user-form-input" id="wiz-realname-input" value="${userName}" placeholder="e.g. Shrestangsu Dutta" autocomplete="off" spellcheck="false">
+                        <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Your Name:</label>
+                        <input type="text" class="user-form-input" id="wiz-realname-input" value="${userName}" placeholder="e.g. John Doe" autocomplete="off" spellcheck="false">
                     </div>
                     <div class="user-form-row">
-                        <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Workstation Hostname:</label>
+                        <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Computer's Name (Hostname):</label>
                         <input type="text" class="user-form-input" id="wiz-hostname-input" value="${userHostname}" placeholder="e.g. krypton-station" autocomplete="off" spellcheck="false">
-                        <span class="user-form-hint" style="color: #94a3b8;">Machine identifier used for terminal prompts (<code>${userLogin}@${userHostname}</code>).</span>
+                        <span class="user-form-hint" style="color: #94a3b8;">Machine identifier used for terminal prompts (<code>${userLogin || 'username'}@${userHostname || 'krypton-station'}</code>).</span>
                     </div>
                     <div class="user-form-row">
-                        <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Linux Username <span style="color:#ef4444;">*</span>:</label>
-                        <input type="text" class="user-form-input" id="wiz-username-input" value="${userLogin}" placeholder="e.g. guest" autocomplete="off" spellcheck="false">
+                        <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Pick a Username <span style="color:#ef4444;">*</span>:</label>
+                        <input type="text" class="user-form-input" id="wiz-username-input" value="${userLogin}" placeholder="e.g. jdoe" autocomplete="off" spellcheck="false">
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                         <div class="user-form-row">
-                            <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Password <span style="color:#ef4444;">*</span>:</label>
+                            <label class="user-form-label" style="color: #f8fafc; font-weight: 600;">Choose a Password <span style="color:#ef4444;">*</span>:</label>
                             <input type="password" class="user-form-input" id="wiz-password-input" value="${userPassword}" placeholder="Required password..." autocomplete="off">
                         </div>
                         <div class="user-form-row">
@@ -210,7 +210,7 @@ export function openInstallerWizard() {
                     <div style="margin-top: 10px; background: rgba(255,255,255,0.04); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
                         <label style="display: flex; align-items: center; gap: 10px; font-size: 12px; color: #f8fafc; cursor: pointer;">
                             <input type="checkbox" id="wiz-requirepass-toggle" ${requirePassword ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
-                            <span><strong>Need password to log in?</strong> (Require password on boot and sudo administration)</span>
+                            <span><strong>Require password to log in</strong> (Required for sudo administration)</span>
                         </label>
                     </div>
                 </div>
@@ -448,7 +448,18 @@ export function openInstallerWizard() {
         const confirmPassInput = content.querySelector('#wiz-confirm-pass-input');
         const requirePassToggle = content.querySelector('#wiz-requirepass-toggle');
 
-        if (realnameInput) realnameInput.addEventListener('input', (e) => { userName = e.target.value; });
+        if (realnameInput) {
+            realnameInput.addEventListener('input', (e) => {
+                userName = e.target.value;
+                if (!userLogin || userLogin === userName.slice(0, -1).toLowerCase().replace(/[^a-z0-9_]/g, '')) {
+                    const slug = userName.trim().toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_]/g, '');
+                    if (slug) {
+                        userLogin = slug;
+                        if (usernameInput) usernameInput.value = userLogin;
+                    }
+                }
+            });
+        }
         if (hostnameInput) hostnameInput.addEventListener('input', (e) => { userHostname = e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''); e.target.value = userHostname; });
         if (usernameInput) usernameInput.addEventListener('input', (e) => { userLogin = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''); e.target.value = userLogin; });
         if (passwordInput) passwordInput.addEventListener('input', (e) => { userPassword = e.target.value; });

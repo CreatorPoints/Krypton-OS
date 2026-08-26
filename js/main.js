@@ -508,12 +508,34 @@ function initBaseInstalledDesktop() {
     const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
     const userDesktop = `/home/${primaryUser}/Desktop`;
 
-    if (!vfs.exists(userDesktop) && !localStorage.getItem('krypton_desktop_initialized')) {
-        localStorage.setItem('krypton_desktop_initialized', 'true');
+    if (!vfs.exists(userDesktop)) {
         vfs.mkdir(userDesktop, true);
-        vfs.writeFile(`${userDesktop}/browser.desktop`, '[Desktop Entry]\nName=Web Navigator\nExec=krypton-browser\nIcon=🌐\nType=Application\nComment=Krypton Web Navigator 0.1 Alpha\n');
+    }
+
+    if (!vfs.exists(`${userDesktop}/terminal.desktop`)) {
         vfs.writeFile(`${userDesktop}/terminal.desktop`, '[Desktop Entry]\nName=Terminal\nExec=terminal\nIcon=💻\nType=Application\nComment=Terminal (Linux 2.0.0.14-generic-krypton)\n');
+    }
+    if (!vfs.exists(`${userDesktop}/browser.desktop`)) {
+        vfs.writeFile(`${userDesktop}/browser.desktop`, '[Desktop Entry]\nName=Web Navigator\nExec=krypton-browser\nIcon=🌐\nType=Application\nComment=Krypton Web Navigator 0.1 Alpha\n');
+    }
+    if (!vfs.exists(`${userDesktop}/notes.desktop`)) {
         vfs.writeFile(`${userDesktop}/notes.desktop`, '[Desktop Entry]\nName=Upgrade Notes\nExec=krypton-notes\nIcon=📝\nType=Application\nComment=System Upgrade Instructions\n');
+    }
+
+    const hasRec = localStorage.getItem('krypton_selected_recommended_apps') !== 'false';
+    if (hasRec) {
+        if (!vfs.exists(`${userDesktop}/calculator.desktop`)) {
+            vfs.writeFile(`${userDesktop}/calculator.desktop`, '[Desktop Entry]\nName=Calculator\nExec=krypton-calculator\nIcon=🧮\nType=Application\nComment=Scientific Calculator\n');
+        }
+        if (!vfs.exists(`${userDesktop}/filemgr.desktop`)) {
+            vfs.writeFile(`${userDesktop}/filemgr.desktop`, '[Desktop Entry]\nName=File Manager\nExec=krypton-filemgr\nIcon=📁\nType=Application\nComment=Virtual Filesystem Browser\n');
+        }
+        if (!vfs.exists(`${userDesktop}/taskmgr.desktop`)) {
+            vfs.writeFile(`${userDesktop}/taskmgr.desktop`, '[Desktop Entry]\nName=Task Manager\nExec=krypton-taskmgr\nIcon=📊\nType=Application\nComment=Process & Performance Monitor\n');
+        }
+        if (!vfs.exists(`${userDesktop}/settings.desktop`)) {
+            vfs.writeFile(`${userDesktop}/settings.desktop`, '[Desktop Entry]\nName=Settings\nExec=krypton-settings\nIcon=⚙️\nType=Application\nComment=Krypton Control Center\n');
+        }
     }
 
     renderDynamicDesktopIcons(grid, false);
@@ -524,11 +546,20 @@ function initBaseInstalledDesktop() {
         { id: 'notes', title: 'Upgrade Notes', icon: '📝', open: () => appLoader.launch('notes') }
     ];
 
+    if (hasRec) {
+        baseApps.push(
+            { id: 'calculator', title: 'Calculator', icon: '🧮', open: () => appLoader.launch('calculator') },
+            { id: 'filemgr', title: 'File Explorer', icon: '📁', open: () => appLoader.launch('filemgr') },
+            { id: 'taskmgr', title: 'Task Manager', icon: '📊', open: () => appLoader.launch('taskmgr') },
+            { id: 'settings', title: 'Settings', icon: '⚙️', open: () => appLoader.launch('settings') }
+        );
+    }
+
     setupStartMenu({
-        title: 'Krypton Alpha OS',
+        title: `${primaryUser}@${localStorage.getItem('krypton_hostname') || 'krypton-station'}`,
         subtitle: 'Base Install (Linux 2.0.0.14-generic-krypton)',
         apps: baseApps,
-        showSearch: false
+        showSearch: true
     });
 
     setTimeout(() => {
@@ -687,13 +718,30 @@ function initMainInstalledDesktop() {
     const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
     const userDesktop = `/home/${primaryUser}/Desktop`;
 
-    if (!vfs.exists(userDesktop) && !localStorage.getItem('krypton_desktop_initialized')) {
-        localStorage.setItem('krypton_desktop_initialized', 'true');
+    if (!vfs.exists(userDesktop)) {
         vfs.mkdir(userDesktop, true);
+    }
+
+    if (!vfs.exists(`${userDesktop}/browser.desktop`)) {
         vfs.writeFile(`${userDesktop}/browser.desktop`, '[Desktop Entry]\nName=Web Browser\nExec=krypton-browser\nIcon=🌐\nType=Application\nComment=Quantum Sandboxed Web Browser\n');
+    }
+    if (!vfs.exists(`${userDesktop}/terminal.desktop`)) {
         vfs.writeFile(`${userDesktop}/terminal.desktop`, '[Desktop Entry]\nName=Terminal\nExec=terminal\nIcon=💻\nType=Application\nComment=GNU Bash Terminal\n');
+    }
+    if (!vfs.exists(`${userDesktop}/filemgr.desktop`)) {
         vfs.writeFile(`${userDesktop}/filemgr.desktop`, '[Desktop Entry]\nName=File Manager\nExec=krypton-filemgr\nIcon=📁\nType=Application\nComment=Virtual Filesystem Browser\n');
+    }
+    if (!vfs.exists(`${userDesktop}/settings.desktop`)) {
         vfs.writeFile(`${userDesktop}/settings.desktop`, '[Desktop Entry]\nName=Settings\nExec=krypton-settings\nIcon=⚙️\nType=Application\nComment=Krypton Control Center\n');
+    }
+    if (!vfs.exists(`${userDesktop}/taskmgr.desktop`)) {
+        vfs.writeFile(`${userDesktop}/taskmgr.desktop`, '[Desktop Entry]\nName=Task Manager\nExec=krypton-taskmgr\nIcon=📊\nType=Application\nComment=Process & Performance Monitor\n');
+    }
+    if (!vfs.exists(`${userDesktop}/notes.desktop`)) {
+        vfs.writeFile(`${userDesktop}/notes.desktop`, '[Desktop Entry]\nName=Text Editor\nExec=krypton-notes\nIcon=📝\nType=Application\nComment=Notepad & Markdown Editor\n');
+    }
+    if (!vfs.exists(`${userDesktop}/calculator.desktop`)) {
+        vfs.writeFile(`${userDesktop}/calculator.desktop`, '[Desktop Entry]\nName=Calculator\nExec=krypton-calculator\nIcon=🧮\nType=Application\nComment=Scientific Calculator\n');
     }
 
     renderDynamicDesktopIcons(grid, false);

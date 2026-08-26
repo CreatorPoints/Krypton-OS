@@ -850,6 +850,19 @@ export function openInstallerWizard() {
 
             vfs.writeFile(`/home/${effUser}/.bashrc`, `export PATH=$PATH:/usr/local/bin\nalias ll='ls -la'\nalias la='ls -A'\nalias cls='clear'\n`);
             vfs.writeFile(`/home/${effUser}/.profile`, `if [ -f ~/.bashrc ]; then . ~/.bashrc; fi\n`);
+
+            // Install Desktop Application Shortcuts
+            vfs.writeFile(`/home/${effUser}/Desktop/terminal.desktop`, `[Desktop Entry]\nName=Terminal\nExec=terminal\nIcon=💻\nType=Application\nComment=GNU Bash Shell (Linux 2.0.0.14)\n`);
+            vfs.writeFile(`/home/${effUser}/Desktop/browser.desktop`, `[Desktop Entry]\nName=Web Navigator\nExec=krypton-browser\nIcon=🌐\nType=Application\nComment=Krypton Web Navigator Alpha\n`);
+            vfs.writeFile(`/home/${effUser}/Desktop/notes.desktop`, `[Desktop Entry]\nName=Upgrade Notes\nExec=krypton-notes\nIcon=📝\nType=Application\nComment=System Upgrade Instructions\n`);
+
+            if (downloadRecommendedApps) {
+                vfs.writeFile(`/home/${effUser}/Desktop/calculator.desktop`, `[Desktop Entry]\nName=Calculator\nExec=krypton-calculator\nIcon=🧮\nType=Application\nComment=Scientific Calculator\n`);
+                vfs.writeFile(`/home/${effUser}/Desktop/filemgr.desktop`, `[Desktop Entry]\nName=File Manager\nExec=krypton-filemgr\nIcon=📁\nType=Application\nComment=Virtual Filesystem Browser\n`);
+                vfs.writeFile(`/home/${effUser}/Desktop/taskmgr.desktop`, `[Desktop Entry]\nName=Task Manager\nExec=krypton-taskmgr\nIcon=📊\nType=Application\nComment=Process & Performance Monitor\n`);
+                vfs.writeFile(`/home/${effUser}/Desktop/settings.desktop`, `[Desktop Entry]\nName=Settings\nExec=krypton-settings\nIcon=⚙️\nType=Application\nComment=Krypton Control Center\n`);
+            }
+
             vfs.writeFile(`/home/${effUser}/Desktop/welcome_to_krypton.txt`, `=== Welcome to Krypton OS 0.1 Alpha ===\n\nUser: ${userName} (${effUser})\nWorkstation: ${effHost}\nStorage Target: Samsung SSD 980 PRO (/dev/nvme0n1p2)\nKernel: Linux 2.0.0.14-generic-krypton\n\nTo upgrade this system to the modern Linux 6.10 kernel and Krypton 1.0 LTS Desktop Suite:\nOpen Terminal and run:\n  sudo apt update && sudo apt upgrade\n`);
         }, 1200000);
 

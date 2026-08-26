@@ -1238,23 +1238,21 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         return;
     }
 
+    // 0.1 Check if /bin is missing/broken (Filesystem Destruction)
+    const binNode = vfs.getNode('/bin');
+    const shellBuiltins = ['echo', 'pwd', 'cd', 'exit', 'help', 'reboot', 'shutdown', 'poweroff', 'cls', 'clear', 'export', 'alias', 'unalias', 'history', 'startx', 'systemctl', 'service', 'su', 'sudo', 'useradd', 'adduser', 'userdel', 'passwd', 'chvt'];
+    if (!binNode && !shellBuiltins.includes(cmd) && !cmd.startsWith('./')) {
+        callback({ lines: [{ text: `bash: ${cmd}: No such file or directory`, type: 'error' }], exitCode: 127 });
+        return;
+    }
+
     // 0.0 Legacy Kernel 2.0.0.14 Feature Gate (Alpha Mode)
     const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
     const osRel = vfs.readFile('/etc/os-release') || '';
     const isUpgraded = isInstalled && localStorage.getItem('krypton_upgraded_lts') === 'true' && osRel.includes('1.0.0.0');
-    if (!isUpgraded) {
-        const allowedAlphaCommands = [
-            'apt', 'apt-get', 'dpkg', 'sudo', 'su',
-            'cd', 'pwd', 'ls', 'cat', 'echo', 'clear', 'cls', 'help', 'man',
-            'mkdir', 'rmdir', 'touch', 'rm', 'mv', 'cp', 'nano', 'vim', 'vi',
-            'grep', 'find', 'head', 'tail', 'wc', 'sort', 'uniq', 'diff', 'stat',
-            'chmod', 'chown', 'which', 'whereis', 'tree',
-            'reboot', 'shutdown', 'poweroff', 'exit', 'logout',
-            'uname', 'neofetch', 'date', 'whoami', 'hostname',
-            'df', 'free', 'ps', 'top', 'htop', 'uptime', 'history', 'alias', 'unalias', 'export',
-            'installer', 'krypton-installer', 'calamares', 'ubiquity'
-        ];
-        if (!allowedAlphaCommands.includes(cmd) && !cmd.startsWith('./')) {
+    if (!isUpgraded && binNode) {
+        const modernOnlyCommands = ['docker', 'python', 'python3', 'node', 'npm', 'git', 'rustc', 'cargo', 'curl', 'wget', 'ssh', 'systemd-analyze'];
+        if (modernOnlyCommands.includes(cmd)) {
             callback({
                 lines: [
                     { text: `bash: ${cmd}: command not supported on legacy Linux 2.0.0.14-generic-krypton kernel.`, type: 'error' },
@@ -1264,14 +1262,6 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
             });
             return;
         }
-    }
-
-    // 0.1 Check if /bin is missing/broken
-    const binNode = vfs.getNode('/bin');
-    const shellBuiltins = ['echo', 'pwd', 'cd', 'exit', 'help', 'reboot', 'shutdown', 'poweroff', 'cls', 'clear', 'export', 'alias', 'unalias', 'history', 'startx', 'systemctl', 'service', 'su', 'sudo', 'useradd', 'adduser', 'userdel', 'passwd', 'chvt'];
-    if (!binNode && !shellBuiltins.includes(cmd) && !cmd.startsWith('./')) {
-        callback({ lines: [{ text: `bash: ${cmd}: No such file or directory (/bin directory unlinked)`, type: 'error' }], exitCode: 127 });
-        return;
     }
 
     // 0.2 Script execution (./script.sh, bash script.sh, sh script.sh)

@@ -303,6 +303,13 @@ export function openInstallerWizard() {
                         </div>
                     </div>
 
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 4px;">
+                        <span style="font-size: 11px; color: #94a3b8; font-family: monospace;">System Installation Console Logs</span>
+                        <button id="inst-btn-copy-logs" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; padding: 3px 10px; font-size: 11px; color: #00e5ff; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
+                            📋 Copy All Logs
+                        </button>
+                    </div>
+
                     <div class="installer-terminal-logs" id="inst-term-logs">
                         <div class="log-line">[  0.00s ] Initializing KryptonOS Real Stream Installer Engine...</div>
                     </div>
@@ -580,6 +587,45 @@ export function openInstallerWizard() {
                     render();
                     startDynamicOSInstallation();
                 });
+            });
+        }
+
+        // Step 6: Terminal Logs Copy & Selection Listener
+        const copyLogsBtn = content.querySelector('#inst-btn-copy-logs');
+        const termLogsEl = content.querySelector('#inst-term-logs');
+
+        if (copyLogsBtn && termLogsEl) {
+            copyLogsBtn.addEventListener('click', () => {
+                const text = termLogsEl.innerText || termLogsEl.textContent || '';
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        sound.playClick();
+                        story.showToast('📋 Logs Copied', 'All installer console logs copied to clipboard.', 'success');
+                        copyLogsBtn.innerHTML = '✓ Copied!';
+                        setTimeout(() => {
+                            if (copyLogsBtn) copyLogsBtn.innerHTML = '📋 Copy All Logs';
+                        }, 2000);
+                    }).catch(() => {});
+                }
+            });
+        }
+
+        if (termLogsEl) {
+            termLogsEl.addEventListener('copy', (e) => {
+                const selection = window.getSelection()?.toString() || '';
+                if (selection.length > 0 && e.clipboardData) {
+                    e.clipboardData.setData('text/plain', selection);
+                    e.preventDefault();
+                }
+            });
+            termLogsEl.addEventListener('contextmenu', (e) => {
+                const selection = window.getSelection()?.toString() || '';
+                if (selection.length > 0) {
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(selection).catch(() => {});
+                    }
+                    story.showToast('📋 Copied', 'Selected installer logs copied to clipboard.', 'info');
+                }
             });
         }
     };

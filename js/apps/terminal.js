@@ -1169,26 +1169,249 @@ function handleTabCompletion(inputEl, currentDir) {
 }
 
 /* --------------------------------------------------------------------------
-   Command Pipeline & Chaining Parser
+   Bash Expansion Engine: Braces, Arithmetic, Commands, Variables & Quotes
    -------------------------------------------------------------------------- */
-function executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prevDir, callback) {
-    const chainTokens = rawLine.split(/(&&|;|\n)/);
-    let commands = [];
-    for (let i = 0; i < chainTokens.length; i++) {
-        const token = chainTokens[i].trim();
-        if (token && token !== '&&' && token !== ';' && token !== '\n') {
-            commands.push(token);
+
+// 1. Brace Expansion: {1..1000}, {a..z}, {foo,bar}
+function expandBraces(token) {
+    if (typeof token !== 'string') return [token];
+
+    // Range expansion: {1..1000}, {1..1000..2}, {a..z}
+    const rangeMatch = token.match(/^(.*?)\{([a-zA-Z0-9]+)\.\.([a-zA-Z0-9]+)(?:\.\.([0-9]+))?\}(.*)$/);
+    if (rangeMatch) {
+        const [, prefix, startStr, endStr, stepStr, suffix] = rangeMatch;
+        const isNumStart = /^-?\d+$/.test(startStr);
+        const isNumEnd = /^-?\d+$/.test(endStr);
+        const results = [];
+
+        if (isNumStart && isNumEnd) {
+            const start = parseInt(startStr, 10);
+            const end = parseInt(endStr, 10);
+            const step = stepStr ? Math.max(1, parseInt(stepStr, 10)) : 1;
+            if (start <= end) {
+                for (let i = start; i <= end; i += step) {
+                    results.push(...expandBraces(`${prefix}${i}${suffix}`));
+                }
+            } else {
+                for (let i = start; i >= end; i -= step) {
+                    results.push(...expandBraces(`${prefix}${i}${suffix}`));
+                }
+            }
+            return results;
+        } else if (startStr.length === 1 && endStr.length === 1) {
+            const startCode = startStr.charCodeAt(0);
+            const endCode = endStr.charCodeAt(0);
+            const step = stepStr ? Math.max(1, parseInt(stepStr, 10)) : 1;
+            if (startCode <= endCode) {
+                for (let c = startCode; c <= endCode; c += step) {
+                    results.push(...expandBraces(`${prefix}${String.fromCharCode(c)}${suffix}`));
+                }
+            } else {
+                for (let c = startCode; c >= endCode; c -= step) {
+                    results.push(...expandBraces(`${prefix}${String.fromCharCode(c)}${suffix}`));
+                }
+            }
+            return results;
         }
     }
 
-    if (commands.length === 0) {
-        callback({ lines: [], exitCode: 0 });
-        return;
+    // Comma list expansion: {foo,bar,baz}
+    const commaMatch = token.match(/^(.*?)\{([^{}]+,[^{}]+)\}(.*)$/);
+    if (commaMatch) {
+        const [, prefix, listStr, suffix] = commaMatch;
+        const options = listStr.split(',');
+        const results = [];
+        for (const opt of options) {
+            results.push(...expandBraces(`${prefix}${opt}${suffix}`));
+        }
+        return results;
     }
 
-    // Fast-path: single command without chaining
-    if (commands.length === 1) {
-        executePipeline(commands[0], currentDir, currentUser, env, aliases, prevDir, callback);
+    return [token];
+}
+
+// 2. Arithmetic Expansion: $(( i % 10 )), $(( 2 + 2 ))
+function expandArithmetic(str, env) {
+    if (typeof str !== 'string' || !str.includes('$((')) return str;
+    return str.replace(/\$\(\(([\s\S]+?)\)\)/g, (match, expr) => {
+        try {
+            const sanitized = expr.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (varName) => {
+                const val = env[varName];
+                if (val !== undefined) {
+                    const n = parseInt(val, 10);
+                    return isNaN(n) ? '0' : String(n);
+                }
+                return '0';
+            });
+            if (/^[0-9\s+\-*/%*&|^~()<>=!]+$/.test(sanitized)) {
+                // eslint-disable-next-line no-new-func
+                const res = Function(`"use strict"; return Math.trunc(${sanitized});`)();
+                return String(res);
+            }
+            return '0';
+        } catch (e) {
+            return '0';
+        }
+    });
+}
+
+// 3. Command Substitution: $(date), $(whoami), `uname -r`
+function expandCommandSubstitutionsSync(str, currentDir, currentUser, env) {
+    if (typeof str !== 'string') return str;
+    if (!str.includes('$(') && !str.includes('`')) return str;
+
+    const replaceCmd = (cmdText) => {
+        const trimmed = cmdText.trim();
+        if (trimmed === 'date') {
+            const now = new Date();
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const day = days[now.getUTCDay()];
+            const month = months[now.getUTCMonth()];
+            const date = String(now.getUTCDate()).padStart(2, '0');
+            const time = now.toTimeString().split(' ')[0];
+            const year = now.getUTCFullYear();
+            return `${day} ${month} ${date} ${time} UTC ${year}`;
+        }
+        if (trimmed === 'whoami') return currentUser;
+        if (trimmed === 'pwd') return currentDir;
+        if (trimmed === 'hostname') {
+            const h = vfs.readFile('/etc/hostname') || '';
+            return h.trim() || 'krypton-station';
+        }
+        if (trimmed === 'uname' || trimmed === 'uname -s') return 'Linux';
+        if (trimmed === 'uname -r') return '6.10.0-krypton-generic';
+        if (trimmed === 'uname -m' || trimmed === 'uname -p' || trimmed === 'arch') return 'x86_64';
+        if (trimmed.startsWith('echo ')) return trimmed.substring(5).replace(/^["']|["']$/g, '');
+        if (trimmed.startsWith('cat ')) {
+            const p = resolvePath(currentDir, trimmed.substring(4).trim());
+            return (vfs.readFile(p) || '').trim();
+        }
+
+        let captured = '';
+        executeSingleCommand(trimmed, currentDir, currentUser, env, {}, currentDir, null, (res) => {
+            const lines = res.lines || res.streamLines || [];
+            captured = lines.map(l => l.text).join('\n');
+        });
+        return captured.trim();
+    };
+
+    let result = str.replace(/\$\(([\s\S]+?)\)/g, (m, c) => replaceCmd(c));
+    result = result.replace(/`([\s\S]+?)`/g, (m, c) => replaceCmd(c));
+    return result;
+}
+
+// 4. Parameter & Variable Expansion: $VAR, ${VAR}, $?, $RANDOM
+function expandVariables(str, env) {
+    if (typeof str !== 'string' || !str.includes('$')) return str;
+
+    let res = str.replace(/\$\{([a-zA-Z0-9_]+):-([^}]+)\}/g, (m, v, def) => {
+        return (env[v] !== undefined && env[v] !== '') ? env[v] : def;
+    });
+
+    res = res.replace(/\$\{#([a-zA-Z0-9_]+)\}/g, (m, v) => {
+        const val = env[v] !== undefined ? String(env[v]) : '';
+        return String(val.length);
+    });
+
+    res = res.replace(/\$\{([a-zA-Z0-9_?]+)\}/g, (m, v) => {
+        if (v === '?') return env['?'] || '0';
+        if (v === 'RANDOM') return String(Math.floor(Math.random() * 32767));
+        return env[v] !== undefined ? env[v] : '';
+    });
+
+    res = res.replace(/\$([a-zA-Z0-9_?]+)/g, (m, v) => {
+        if (v === '?') return env['?'] || '0';
+        if (v === 'RANDOM') return String(Math.floor(Math.random() * 32767));
+        return env[v] !== undefined ? env[v] : '';
+    });
+
+    return res;
+}
+
+// Full Composite Expander
+function expandAll(str, currentDir, currentUser, env) {
+    let s = expandArithmetic(str, env);
+    s = expandVariables(s, env);
+    s = expandCommandSubstitutionsSync(s, currentDir, currentUser, env);
+    return s;
+}
+
+/* --------------------------------------------------------------------------
+   Command Pipeline & Chaining Parser (with Full Bash Control Flow)
+   -------------------------------------------------------------------------- */
+function splitStatements(rawLine) {
+    const statements = [];
+    let current = '';
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+    let compoundDepth = 0;
+
+    for (let i = 0; i < rawLine.length; i++) {
+        const ch = rawLine[i];
+        const next = rawLine[i + 1];
+
+        if (ch === "'" && !inDoubleQuote) {
+            inSingleQuote = !inSingleQuote;
+            current += ch;
+            continue;
+        }
+        if (ch === '"' && !inSingleQuote) {
+            inDoubleQuote = !inDoubleQuote;
+            current += ch;
+            continue;
+        }
+
+        if (inSingleQuote || inDoubleQuote) {
+            current += ch;
+            continue;
+        }
+
+        const isWordStart = (i === 0 || /[\s;|\n&()]/.test(rawLine[i - 1]));
+        if (isWordStart) {
+            const sub = rawLine.substring(i);
+            if (/^(for|while|until|if|case)\b/.test(sub)) {
+                compoundDepth++;
+            } else if (/^(done|fi|esac)\b/.test(sub)) {
+                compoundDepth = Math.max(0, compoundDepth - 1);
+            }
+        }
+
+        if (compoundDepth === 0) {
+            if (ch === '&' && next === '&') {
+                if (current.trim()) statements.push({ code: current.trim(), op: '&&' });
+                current = '';
+                i++;
+                continue;
+            }
+            if (ch === '|' && next === '|') {
+                if (current.trim()) statements.push({ code: current.trim(), op: '||' });
+                current = '';
+                i++;
+                continue;
+            }
+            if (ch === ';' || ch === '\n') {
+                if (current.trim()) statements.push({ code: current.trim(), op: ';' });
+                current = '';
+                continue;
+            }
+        }
+
+        current += ch;
+    }
+
+    if (current.trim()) {
+        statements.push({ code: current.trim(), op: ';' });
+    }
+
+    return statements;
+}
+
+function executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prevDir, callback) {
+    const statements = splitStatements(rawLine);
+
+    if (statements.length === 0) {
+        callback({ lines: [], exitCode: 0 });
         return;
     }
 
@@ -1202,7 +1425,7 @@ function executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prev
 
     let index = 0;
     const runNext = () => {
-        if (index >= commands.length) {
+        if (index >= statements.length) {
             const finalOnComplete = () => {
                 onCompleteCallbacks.forEach(fn => {
                     try { fn(); } catch (e) {}
@@ -1230,12 +1453,15 @@ function executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prev
             return;
         }
 
-        const cmdStr = commands[index++];
-        executePipeline(cmdStr, activeDir, activeUser, env, aliases, prevDir, (res) => {
+        const stmt = statements[index++];
+        executeStatement(stmt.code, activeDir, activeUser, env, aliases, prevDir, (res) => {
             if (res.clear) shouldClear = true;
             if (res.newDir) activeDir = res.newDir;
             if (res.newUser) activeUser = res.newUser;
-            if (res.exitCode !== undefined) lastExitCode = res.exitCode;
+            if (res.exitCode !== undefined) {
+                lastExitCode = res.exitCode;
+                env['?'] = String(res.exitCode);
+            }
             if (res.onComplete) onCompleteCallbacks.push(res.onComplete);
 
             if (res.streamLines && res.streamLines.length > 0) {
@@ -1248,32 +1474,43 @@ function executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prev
                 }
             }
 
-            if (res.stop || lastExitCode !== 0) {
+            if (res.stop) {
                 const finalOnComplete = () => {
                     onCompleteCallbacks.forEach(fn => {
                         try { fn(); } catch (e) {}
                     });
                 };
-                if (accumulatedStreamLines.length > 0) {
-                    callback({
-                        streamLines: accumulatedStreamLines,
-                        newDir: activeDir,
-                        newUser: activeUser,
-                        clear: shouldClear,
-                        exitCode: lastExitCode,
-                        onComplete: finalOnComplete
-                    });
-                } else {
-                    callback({
-                        lines: accumulatedLines,
-                        newDir: activeDir,
-                        newUser: activeUser,
-                        clear: shouldClear,
-                        exitCode: lastExitCode,
-                        onComplete: finalOnComplete
-                    });
-                }
+                callback({
+                    streamLines: accumulatedStreamLines,
+                    lines: accumulatedLines,
+                    newDir: activeDir,
+                    newUser: activeUser,
+                    clear: shouldClear,
+                    exitCode: lastExitCode,
+                    onComplete: finalOnComplete
+                });
                 return;
+            }
+
+            // Check logical operators
+            if (stmt.op === '&&' && lastExitCode !== 0) {
+                const finalOnComplete = () => {
+                    onCompleteCallbacks.forEach(fn => {
+                        try { fn(); } catch (e) {}
+                    });
+                };
+                callback({
+                    streamLines: accumulatedStreamLines,
+                    lines: accumulatedLines,
+                    newDir: activeDir,
+                    newUser: activeUser,
+                    clear: shouldClear,
+                    exitCode: lastExitCode,
+                    onComplete: finalOnComplete
+                });
+                return;
+            } else if (stmt.op === '||' && lastExitCode === 0) {
+                if (index < statements.length) index++;
             }
 
             runNext();
@@ -1281,6 +1518,156 @@ function executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prev
     };
 
     runNext();
+}
+
+function executeStatement(statementStr, currentDir, currentUser, env, aliases, prevDir, callback) {
+    const trimmed = statementStr.trim();
+
+    // 1. Bash for Loop: for var in items...; do ...; done
+    const forMatch = trimmed.match(/^for\s+([A-Za-z0-9_]+)\s+in\s+([\s\S]*?)(?:;|[\r\n]+)\s*do\s+([\s\S]*?)(?:;|[\r\n]+)\s*done\s*$/i);
+    if (forMatch) {
+        const varName = forMatch[1];
+        const rawItems = forMatch[2].trim();
+        const body = forMatch[3].trim();
+
+        let expandedItemsStr = expandAll(rawItems, currentDir, currentUser, env);
+        const itemTokens = parseArguments(expandedItemsStr);
+        const allItems = [];
+        for (const tok of itemTokens) {
+            allItems.push(...expandBraces(tok));
+        }
+
+        let accumulatedLines = [];
+        let activeDir = currentDir;
+        let activeUser = currentUser;
+        let lastExit = 0;
+
+        for (let i = 0; i < allItems.length; i++) {
+            env[varName] = allItems[i];
+            executeCommandLine(body, activeDir, activeUser, env, aliases, prevDir, (res) => {
+                if (res.newDir) activeDir = res.newDir;
+                if (res.newUser) activeUser = res.newUser;
+                if (res.exitCode !== undefined) lastExit = res.exitCode;
+                if (res.lines && res.lines.length > 0) {
+                    accumulatedLines.push(...res.lines);
+                }
+            });
+        }
+
+        callback({ lines: accumulatedLines, newDir: activeDir, newUser: activeUser, exitCode: lastExit });
+        return;
+    }
+
+    // 2. Bash C-style for Loop: for (( i=0; i<N; i++ )); do ...; done
+    const forCMatch = trimmed.match(/^for\s*\(\(\s*([A-Za-z0-9_]+)\s*=\s*([0-9]+)\s*;\s*\1\s*([<>!=]+)\s*([0-9]+)\s*;\s*([\s\S]+?)\s*\)\)\s*(?:;|[\r\n]+)\s*do\s+([\s\S]*?)(?:;|[\r\n]+)\s*done\s*$/i);
+    if (forCMatch) {
+        const varName = forCMatch[1];
+        let iVal = parseInt(forCMatch[2], 10);
+        const op = forCMatch[3];
+        const limit = parseInt(forCMatch[4], 10);
+        const stepExpr = forCMatch[5];
+        const body = forCMatch[6].trim();
+
+        let accumulatedLines = [];
+        let activeDir = currentDir;
+        let activeUser = currentUser;
+        let lastExit = 0;
+        let maxIterations = 50000;
+
+        const checkCond = (v) => {
+            if (op === '<') return v < limit;
+            if (op === '<=') return v <= limit;
+            if (op === '>') return v > limit;
+            if (op === '>=') return v >= limit;
+            if (op === '!=') return v !== limit;
+            return false;
+        };
+
+        while (checkCond(iVal) && maxIterations-- > 0) {
+            env[varName] = String(iVal);
+            executeCommandLine(body, activeDir, activeUser, env, aliases, prevDir, (res) => {
+                if (res.newDir) activeDir = res.newDir;
+                if (res.newUser) activeUser = res.newUser;
+                if (res.exitCode !== undefined) lastExit = res.exitCode;
+                if (res.lines && res.lines.length > 0) {
+                    accumulatedLines.push(...res.lines);
+                }
+            });
+
+            if (stepExpr.includes('++')) iVal++;
+            else if (stepExpr.includes('--')) iVal--;
+            else {
+                const addM = stepExpr.match(/\+=\s*(\d+)/);
+                if (addM) iVal += parseInt(addM[1], 10);
+                else iVal++;
+            }
+        }
+
+        callback({ lines: accumulatedLines, newDir: activeDir, newUser: activeUser, exitCode: lastExit });
+        return;
+    }
+
+    // 3. Bash if Block: if <cond>; then <then_body>; [else <else_body>;] fi
+    const ifMatch = trimmed.match(/^if\s+([\s\S]*?)(?:;|[\r\n]+)\s*then\s+([\s\S]*?)(?:\s*(?:;|[\r\n]+)\s*else\s+([\s\S]*?))?(?:;|[\r\n]+)\s*fi\s*$/i);
+    if (ifMatch) {
+        const cond = ifMatch[1].trim();
+        const thenBody = ifMatch[2].trim();
+        const elseBody = ifMatch[3] ? ifMatch[3].trim() : null;
+
+        executeCommandLine(cond, currentDir, currentUser, env, aliases, prevDir, (cRes) => {
+            const condPassed = (cRes.exitCode === 0);
+            const targetBody = condPassed ? thenBody : elseBody;
+            if (targetBody) {
+                executeCommandLine(targetBody, cRes.newDir || currentDir, cRes.newUser || currentUser, env, aliases, prevDir, callback);
+            } else {
+                callback({ lines: [], exitCode: 0 });
+            }
+        });
+        return;
+    }
+
+    // 4. Bash while / until Loop: while <cond>; do <body>; done
+    const whileMatch = trimmed.match(/^(while|until)\s+([\s\S]*?)(?:;|[\r\n]+)\s*do\s+([\s\S]*?)(?:;|[\r\n]+)\s*done\s*$/i);
+    if (whileMatch) {
+        const isUntil = whileMatch[1].toLowerCase() === 'until';
+        const cond = whileMatch[2].trim();
+        const body = whileMatch[3].trim();
+
+        let accumulatedLines = [];
+        let activeDir = currentDir;
+        let activeUser = currentUser;
+        let lastExit = 0;
+        let maxIterations = 50000;
+
+        const runLoop = () => {
+            if (maxIterations-- <= 0) {
+                callback({ lines: accumulatedLines, newDir: activeDir, newUser: activeUser, exitCode: lastExit });
+                return;
+            }
+            executeCommandLine(cond, activeDir, activeUser, env, aliases, prevDir, (cRes) => {
+                const pass = isUntil ? (cRes.exitCode !== 0) : (cRes.exitCode === 0);
+                if (!pass) {
+                    callback({ lines: accumulatedLines, newDir: activeDir, newUser: activeUser, exitCode: lastExit });
+                    return;
+                }
+                executeCommandLine(body, activeDir, activeUser, env, aliases, prevDir, (bRes) => {
+                    if (bRes.newDir) activeDir = bRes.newDir;
+                    if (bRes.newUser) activeUser = bRes.newUser;
+                    if (bRes.exitCode !== undefined) lastExit = bRes.exitCode;
+                    if (bRes.lines && bRes.lines.length > 0) {
+                        accumulatedLines.push(...bRes.lines);
+                    }
+                    runLoop();
+                });
+            });
+        };
+
+        runLoop();
+        return;
+    }
+
+    // Standard Pipeline Execution
+    executePipeline(statementStr, currentDir, currentUser, env, aliases, prevDir, callback);
 }
 
 function executePipeline(pipelineStr, currentDir, currentUser, env, aliases, prevDir, callback) {
@@ -1298,6 +1685,10 @@ function executePipeline(pipelineStr, currentDir, currentUser, env, aliases, pre
         cleanPipeline = parts[0].trim();
         redirectFile = parts[1].trim();
         redirectMode = 'write';
+    }
+
+    if (redirectFile) {
+        redirectFile = expandAll(redirectFile, currentDir, currentUser, env);
     }
 
     const stageStrings = cleanPipeline.split('|').map(s => s.trim()).filter(Boolean);
@@ -1319,6 +1710,7 @@ function executePipeline(pipelineStr, currentDir, currentUser, env, aliases, pre
             if (redirectFile && stageInput !== null) {
                 const targetPath = resolvePath(currentDir, redirectFile);
                 vfs.writeFile(targetPath, stageInput + '\n', redirectMode === 'append');
+                vfs.saveFileSystem();
                 callback({ lines: [], exitCode: 0 });
             } else if (stageInput !== null) {
                 const lines = stageInput ? stageInput.split('\n').map(l => ({ text: l, type: 'normal' })) : [];
@@ -1349,20 +1741,39 @@ function executePipeline(pipelineStr, currentDir, currentUser, env, aliases, pre
    Single Command Dispatcher
    -------------------------------------------------------------------------- */
 function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, prevDir, pipedStdin, callback) {
-    let expanded = cmdStr.replace(/\$([A-Za-z0-9_?]+)/g, (match, varName) => {
-        if (varName === '?') return env['?'] || '0';
-        if (varName === 'RANDOM') return String(Math.floor(Math.random() * 32767));
-        return env[varName] !== undefined ? env[varName] : '';
-    });
+    let expanded = expandAll(cmdStr, currentDir, currentUser, env);
 
-    const tokens = parseArguments(expanded);
-    if (tokens.length === 0) {
+    const rawTokens = parseArguments(expanded);
+    if (rawTokens.length === 0) {
         callback({ lines: [], exitCode: 0 });
         return;
     }
 
+    let tokens = [];
+    rawTokens.forEach((tok, idx) => {
+        if (idx === 0) {
+            tokens.push(tok);
+        } else {
+            tokens.push(...expandBraces(tok));
+        }
+    });
+
     let cmd = tokens[0];
     let args = tokens.slice(1);
+
+    // Direct variable assignment (e.g. i=0, VAR=hello)
+    if (cmd.includes('=') && !cmd.startsWith('./') && !cmd.startsWith('/') && /^[a-zA-Z_][a-zA-Z0-9_]*=/.test(cmd)) {
+        const eqIdx = cmd.indexOf('=');
+        const varName = cmd.substring(0, eqIdx);
+        let varVal = cmd.substring(eqIdx + 1);
+        if (args.length > 0) {
+            varVal += ' ' + args.join(' ');
+        }
+        varVal = varVal.replace(/^['"]|['"]$/g, '');
+        env[varName] = varVal;
+        callback({ lines: [], exitCode: 0 });
+        return;
+    }
 
     // Tilde argument expansion (~/ -> /home/user/)
     const currentHome = env.HOME || (currentUser === 'root' ? '/root' : `/home/${currentUser}`);
@@ -1399,7 +1810,7 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
     // 0.1 Check if /bin is missing/broken (Filesystem Destruction)
     const binNode = vfs.getNode('/bin');
-    const shellBuiltins = ['echo', 'pwd', 'cd', 'exit', 'help', 'reboot', 'shutdown', 'poweroff', 'cls', 'clear', 'export', 'alias', 'unalias', 'history', 'startx', 'systemctl', 'service', 'su', 'sudo', 'useradd', 'adduser', 'userdel', 'passwd', 'chvt'];
+    const shellBuiltins = ['echo', 'pwd', 'cd', 'exit', 'help', 'reboot', 'shutdown', 'poweroff', 'cls', 'clear', 'export', 'alias', 'unalias', 'history', 'startx', 'systemctl', 'service', 'su', 'sudo', 'useradd', 'adduser', 'userdel', 'passwd', 'chvt', '[', 'test', 'true', 'false', 'let', 'expr', 'seq', 'read', 'source', '.', 'du'];
     if (!binNode && !shellBuiltins.includes(cmd) && !cmd.startsWith('./')) {
         callback({ lines: [{ text: `bash: ${cmd}: No such file or directory`, type: 'error' }], exitCode: 127 });
         return;
@@ -2935,15 +3346,228 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'du') {
-        const targetPath = resolvePath(currentDir, args[0] || '.');
-        callback({
-            lines: [
-                { text: `4\t${targetPath}/.bashrc`, type: 'normal' },
-                { text: `8\t${targetPath}/Desktop`, type: 'normal' },
-                { text: `12\t${targetPath}`, type: 'normal' }
-            ],
-            exitCode: 0
-        });
+        let showAll = false;
+        let summarize = false;
+        let humanReadable = false;
+        let showTotal = false;
+        let maxDepth = Infinity;
+        const paths = [];
+
+        for (let i = 0; i < args.length; i++) {
+            const a = args[i];
+            if (a === '-s' || a === '--summarize') summarize = true;
+            else if (a === '-h' || a === '--human-readable') humanReadable = true;
+            else if (a === '-a' || a === '--all') showAll = true;
+            else if (a === '-c' || a === '--total') showTotal = true;
+            else if (a === '-sh' || a === '-hs') { summarize = true; humanReadable = true; }
+            else if (a === '-ah' || a === '-ha') { showAll = true; humanReadable = true; }
+            else if (a === '-sch' || a === '-shc') { summarize = true; humanReadable = true; showTotal = true; }
+            else if (a.startsWith('-d')) {
+                const d = a.length > 2 ? a.substring(2) : args[++i];
+                maxDepth = parseInt(d, 10) || 0;
+            } else if (!a.startsWith('-')) {
+                paths.push(a);
+            }
+        }
+
+        if (paths.length === 0) paths.push('.');
+
+        const formatSize = (bytes) => {
+            const kb = Math.ceil(bytes / 1024);
+            if (!humanReadable) return String(kb);
+            if (kb < 1024) return `${kb}K`;
+            if (kb < 1024 * 1024) return `${(kb / 1024).toFixed(1).replace(/\.0$/, '')}M`;
+            return `${(kb / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')}G`;
+        };
+
+        const getDiskUsage = (node) => {
+            if (!node) return 0;
+            if (node.type === 'file') {
+                const len = typeof node.content === 'string' ? node.content.length : 0;
+                return Math.max(4096, Math.ceil(len / 4096) * 4096);
+            }
+            if (node.type === 'dir' && node.children) {
+                let sum = 4096;
+                for (const c of Object.values(node.children)) {
+                    sum += getDiskUsage(c);
+                }
+                return sum;
+            }
+            return 4096;
+        };
+
+        const lines = [];
+        let grandTotalBytes = 0;
+
+        for (const p of paths) {
+            const fullPath = resolvePath(currentDir, p);
+            const node = vfs.getNode(fullPath);
+            if (!node) {
+                lines.push({ text: `du: cannot access '${p}': No such file or directory`, type: 'error' });
+                continue;
+            }
+
+            const totalBytes = getDiskUsage(node);
+            grandTotalBytes += totalBytes;
+
+            if (summarize || node.type === 'file') {
+                lines.push({ text: `${formatSize(totalBytes)}\t${p}`, type: 'normal' });
+                continue;
+            }
+
+            const walk = (currNode, currRelPath, depth) => {
+                if (depth > maxDepth) return;
+                if (currNode.type === 'dir' && currNode.children) {
+                    for (const [name, child] of Object.entries(currNode.children)) {
+                        const childRel = currRelPath === '.' ? name : `${currRelPath}/${name}`;
+                        if (child.type === 'dir') {
+                            walk(child, childRel, depth + 1);
+                            lines.push({ text: `${formatSize(getDiskUsage(child))}\t${childRel}`, type: 'normal' });
+                        } else if (showAll) {
+                            lines.push({ text: `${formatSize(getDiskUsage(child))}\t${childRel}`, type: 'normal' });
+                        }
+                    }
+                }
+            };
+
+            walk(node, p, 1);
+            lines.push({ text: `${formatSize(totalBytes)}\t${p}`, type: 'normal' });
+        }
+
+        if (showTotal) {
+            lines.push({ text: `${formatSize(grandTotalBytes)}\ttotal`, type: 'normal' });
+        }
+
+        callback({ lines, exitCode: 0 });
+        return;
+    }
+
+    if (cmd === 'test' || cmd === '[') {
+        let testArgs = [...args];
+        if (cmd === '[' && testArgs[testArgs.length - 1] === ']') {
+            testArgs.pop();
+        }
+
+        let isTrue = false;
+        if (testArgs.length === 0) {
+            isTrue = false;
+        } else if (testArgs.length === 1) {
+            isTrue = testArgs[0].length > 0;
+        } else if (testArgs[0] === '!') {
+            const sub = testArgs.slice(1);
+            if (sub[0] === '-f') isTrue = !vfs.getNode(resolvePath(currentDir, sub[1]))?.type === 'file';
+            else if (sub[0] === '-d') isTrue = !vfs.getNode(resolvePath(currentDir, sub[1]))?.type === 'dir';
+            else if (sub[0] === '-e') isTrue = !vfs.exists(resolvePath(currentDir, sub[1]));
+            else isTrue = false;
+        } else if (testArgs[0] === '-f') {
+            const node = vfs.getNode(resolvePath(currentDir, testArgs[1]));
+            isTrue = !!(node && node.type === 'file');
+        } else if (testArgs[0] === '-d') {
+            const node = vfs.getNode(resolvePath(currentDir, testArgs[1]));
+            isTrue = !!(node && node.type === 'dir');
+        } else if (testArgs[0] === '-e') {
+            isTrue = vfs.exists(resolvePath(currentDir, testArgs[1]));
+        } else if (testArgs[0] === '-z') {
+            isTrue = (!testArgs[1] || testArgs[1].length === 0);
+        } else if (testArgs[0] === '-n') {
+            isTrue = (testArgs[1] && testArgs[1].length > 0);
+        } else if (testArgs[1] === '=' || testArgs[1] === '==') {
+            isTrue = (testArgs[0] === testArgs[2]);
+        } else if (testArgs[1] === '!=') {
+            isTrue = (testArgs[0] !== testArgs[2]);
+        } else if (testArgs[1] === '-eq') {
+            isTrue = (parseInt(testArgs[0], 10) === parseInt(testArgs[2], 10));
+        } else if (testArgs[1] === '-ne') {
+            isTrue = (parseInt(testArgs[0], 10) !== parseInt(testArgs[2], 10));
+        } else if (testArgs[1] === '-lt') {
+            isTrue = (parseInt(testArgs[0], 10) < parseInt(testArgs[2], 10));
+        } else if (testArgs[1] === '-le') {
+            isTrue = (parseInt(testArgs[0], 10) <= parseInt(testArgs[2], 10));
+        } else if (testArgs[1] === '-gt') {
+            isTrue = (parseInt(testArgs[0], 10) > parseInt(testArgs[2], 10));
+        } else if (testArgs[1] === '-ge') {
+            isTrue = (parseInt(testArgs[0], 10) >= parseInt(testArgs[2], 10));
+        }
+
+        callback({ lines: [], exitCode: isTrue ? 0 : 1 });
+        return;
+    }
+
+    if (cmd === 'true') {
+        callback({ lines: [], exitCode: 0 });
+        return;
+    }
+
+    if (cmd === 'false') {
+        callback({ lines: [], exitCode: 1 });
+        return;
+    }
+
+    if (cmd === 'let') {
+        const expr = args.join(' ');
+        try {
+            const sanitized = expr.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (varName) => {
+                const val = env[varName];
+                if (val !== undefined) {
+                    const n = parseInt(val, 10);
+                    return isNaN(n) ? '0' : String(n);
+                }
+                return '0';
+            });
+            const m = expr.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/);
+            if (m) {
+                const res = Function(`"use strict"; return Math.trunc(${sanitized.substring(sanitized.indexOf('=') + 1)});`)();
+                env[m[1]] = String(res);
+            } else if (expr.includes('++')) {
+                const v = expr.replace(/\+\+/g, '').trim();
+                const cur = parseInt(env[v] || '0', 10);
+                env[v] = String(cur + 1);
+            } else if (expr.includes('--')) {
+                const v = expr.replace(/--/g, '').trim();
+                const cur = parseInt(env[v] || '0', 10);
+                env[v] = String(cur - 1);
+            }
+        } catch (e) {}
+        callback({ lines: [], exitCode: 0 });
+        return;
+    }
+
+    if (cmd === 'expr') {
+        try {
+            const expr = args.join(' ');
+            const res = Function(`"use strict"; return Math.trunc(${expr});`)();
+            callback({ lines: [{ text: String(res), type: 'normal' }], exitCode: 0 });
+        } catch (e) {
+            callback({ lines: [{ text: "expr: syntax error", type: 'error' }], exitCode: 2 });
+        }
+        return;
+    }
+
+    if (cmd === 'seq') {
+        let first = 1;
+        let step = 1;
+        let last = 1;
+        if (args.length === 1) {
+            last = parseInt(args[0], 10);
+        } else if (args.length === 2) {
+            first = parseInt(args[0], 10);
+            last = parseInt(args[1], 10);
+        } else if (args.length >= 3) {
+            first = parseInt(args[0], 10);
+            step = parseInt(args[1], 10) || 1;
+            last = parseInt(args[2], 10);
+        }
+        const lines = [];
+        if (first <= last) {
+            for (let n = first; n <= last; n += step) {
+                lines.push({ text: String(n), type: 'normal' });
+            }
+        } else {
+            for (let n = first; n >= last; n -= Math.abs(step)) {
+                lines.push({ text: String(n), type: 'normal' });
+            }
+        }
+        callback({ lines, exitCode: 0 });
         return;
     }
 
@@ -4508,3 +5132,5 @@ function generateFakeHash(len, seed) {
     }
     return hash;
 }
+
+export { executeCommandLine, executePipeline, executeSingleCommand, parseArguments, expandBraces, expandArithmetic, expandVariables, expandAll };

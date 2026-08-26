@@ -1812,8 +1812,13 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
                     outLines.push({ text: `${perm} 1 ${currentUser} ${currentUser} ${String(size).padStart(6, ' ')} Aug 14 21:00 ${e.name}${e.type === 'dir' ? '/' : ''}`, type: e.type === 'dir' ? 'cyan' : 'normal' });
                 });
             } else {
-                const listStr = entries.map(e => e.type === 'dir' ? `${e.name}/` : e.name).join('  ');
-                outLines.push({ text: listStr || '(empty directory)', type: 'success' });
+                if (entries.length === 0) {
+                    outLines.push({ text: '(empty directory)', type: 'muted' });
+                } else {
+                    entries.forEach(e => {
+                        outLines.push({ text: e.type === 'dir' ? `${e.name}/` : e.name, type: e.type === 'dir' ? 'cyan' : 'normal' });
+                    });
+                }
             }
         });
 
@@ -2081,12 +2086,35 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'grep') {
-        let ignoreCase = args.includes('-i');
-        let invert = args.includes('-v');
-        let nonFlagArgs = args.filter(a => !a.startsWith('-'));
+        let ignoreCase = false;
+        let invert = false;
+        let lineNumbers = false;
+        let countOnly = false;
+        let nonFlagArgs = [];
+
+        args.forEach(arg => {
+            if (arg === '-i' || arg === '--ignore-case') ignoreCase = true;
+            else if (arg === '-v' || arg === '--invert-match') invert = true;
+            else if (arg === '-n' || arg === '--line-number') lineNumbers = true;
+            else if (arg === '-c' || arg === '--count') countOnly = true;
+            else if (arg.startsWith('-') && arg !== '-') {
+                if (arg.includes('i')) ignoreCase = true;
+                if (arg.includes('v')) invert = true;
+                if (arg.includes('n')) lineNumbers = true;
+                if (arg.includes('c')) countOnly = true;
+            } else {
+                nonFlagArgs.push(arg);
+            }
+        });
 
         if (nonFlagArgs.length === 0) {
-            callback({ lines: [{ text: "grep: missing pattern", type: 'error' }], exitCode: 1 });
+            callback({
+                lines: [
+                    { text: "Usage: grep [OPTION]... PATTERNS [FILE]...", type: 'error' },
+                    { text: "Try 'grep --help' for more information.", type: 'muted' }
+                ],
+                exitCode: 2
+            });
             return;
         }
 
@@ -2095,23 +2123,83 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         let textSource = pipedStdin;
 
         if (files.length > 0) {
-            const targetPath = resolvePath(currentDir, files[0]);
-            textSource = vfs.readFile(targetPath);
-            if (textSource === null) {
-                callback({ lines: [{ text: `grep: ${files[0]}: No such file or directory`, type: 'error' }], exitCode: 1 });
-                return;
+            let allLines = [];
+            let totalMatchCount = 0;
+            let fileError = false;
+
+            for (const f of files) {
+                const targetPath = resolvePath(currentDir, f, currentUser);
+                const fileNode = vfs.getNode(targetPath);
+                if (!fileNode) {
+                    allLines.push({ text: `grep: ${f}: No such file or directory`, type: 'error' });
+                    fileError = true;
+                    continue;
+                }
+                if (fileNode.type === 'dir') {
+                    allLines.push({ text: `grep: ${f}: Is a directory`, type: 'error' });
+                    continue;
+                }
+                const content = fileNode.content || '';
+                let regex;
+                try {
+                    regex = new RegExp(pattern, ignoreCase ? 'i' : '');
+                } catch (e) {
+                    regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), ignoreCase ? 'i' : '');
+                }
+                const rawLines = content.split('\n');
+                let matchCount = 0;
+                rawLines.forEach((l, idx) => {
+                    const matches = regex.test(l);
+                    if (invert ? !matches : matches) {
+                        matchCount++;
+                        const prefix = (files.length > 1 ? `${f}:` : '') + (lineNumbers ? `${idx + 1}:` : '');
+                        allLines.push({ text: `${prefix}${l}`, type: 'normal' });
+                    }
+                });
+                totalMatchCount += matchCount;
+                if (countOnly) {
+                    const prefix = files.length > 1 ? `${f}:` : '';
+                    allLines.push({ text: `${prefix}${matchCount}`, type: 'normal' });
+                }
             }
+
+            callback({ lines: allLines, exitCode: (totalMatchCount > 0 && !fileError) ? 0 : 1 });
+            return;
         }
 
-        if (textSource === null) textSource = '';
-        const regex = new RegExp(pattern, ignoreCase ? 'i' : '');
-        const matchingLines = textSource.split('\n').filter((l) => {
-            const match = regex.test(l);
-            return invert ? !match : match;
+        if (textSource === null) {
+            callback({
+                lines: [{ text: `grep: (standard input) - waiting for stdin or supply file operand`, type: 'muted' }],
+                exitCode: 1
+            });
+            return;
+        }
+
+        let regex;
+        try {
+            regex = new RegExp(pattern, ignoreCase ? 'i' : '');
+        } catch (e) {
+            regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), ignoreCase ? 'i' : '');
+        }
+
+        const rawLines = textSource.split('\n');
+        let matchCount = 0;
+        let matchingLines = [];
+
+        rawLines.forEach((l, idx) => {
+            const matches = regex.test(l);
+            if (invert ? !matches : matches) {
+                matchCount++;
+                const prefix = lineNumbers ? `${idx + 1}:` : '';
+                matchingLines.push({ text: `${prefix}${l}`, type: 'normal' });
+            }
         });
 
-        const lines = matchingLines.map(l => ({ text: l, type: 'normal' }));
-        callback({ lines, exitCode: lines.length > 0 ? 0 : 1 });
+        if (countOnly) {
+            matchingLines = [{ text: String(matchCount), type: 'normal' }];
+        }
+
+        callback({ lines: matchingLines, exitCode: matchCount > 0 ? 0 : 1 });
         return;
     }
 
@@ -2968,12 +3056,160 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         return;
     }
 
-    if (cmd === 'kill' || cmd === 'killall') {
-        if (!args[0]) {
-            callback({ lines: [{ text: `${cmd}: missing operand`, type: 'error' }], exitCode: 1 });
+    if (cmd === 'kill') {
+        if (!args || args.length === 0) {
+            callback({
+                lines: [
+                    { text: "kill: usage: kill [-s sigspec | -n signum | -sigspec] pid | jobspec ... or kill -l [sigspec]", type: 'error' }
+                ],
+                exitCode: 2
+            });
             return;
         }
-        callback({ lines: [{ text: `[ OK ] Signal SIGTERM sent to process '${args[args.length - 1]}'`, type: 'success' }], exitCode: 0 });
+
+        let signal = 'SIGTERM';
+        let targetOperands = [];
+
+        for (let i = 0; i < args.length; i++) {
+            const a = args[i];
+            if (a === '-s' && i + 1 < args.length) {
+                signal = args[++i].toUpperCase();
+            } else if (a.startsWith('-') && a !== '-') {
+                const s = a.substring(1).toUpperCase();
+                if (s === '9' || s === 'KILL' || s === 'SIGKILL') signal = 'SIGKILL';
+                else if (s === '15' || s === 'TERM' || s === 'SIGTERM') signal = 'SIGTERM';
+                else if (s === '1' || s === 'HUP' || s === 'SIGHUP') signal = 'SIGHUP';
+                else if (s === 'l' || s === '-LIST' || s === 'L') {
+                    callback({
+                        lines: [
+                            { text: " 1) SIGHUP       2) SIGINT       3) SIGQUIT      6) SIGABRT", type: 'normal' },
+                            { text: " 9) SIGKILL     14) SIGALRM     15) SIGTERM     17) SIGCHLD", type: 'normal' },
+                            { text: "18) SIGCONT     19) SIGSTOP     20) SIGTSTP", type: 'normal' }
+                        ],
+                        exitCode: 0
+                    });
+                    return;
+                } else {
+                    signal = `SIG${s}`;
+                }
+            } else {
+                targetOperands.push(a);
+            }
+        }
+
+        if (targetOperands.length === 0) {
+            callback({
+                lines: [{ text: "kill: missing operand", type: 'error' }],
+                exitCode: 2
+            });
+            return;
+        }
+
+        const telem = window.telemetry || { getProcessList: () => [] };
+        const procs = typeof telem.getProcessList === 'function' ? telem.getProcessList() : [];
+        const outLines = [];
+        let exitCode = 0;
+
+        for (const target of targetOperands) {
+            const pidNum = parseInt(target, 10);
+            if (isNaN(pidNum)) {
+                outLines.push({ text: `bash: kill: ${target}: arguments must be process or job IDs`, type: 'error' });
+                exitCode = 1;
+                continue;
+            }
+
+            const foundProc = procs.find(p => p.pid === pidNum);
+            if (!foundProc) {
+                outLines.push({ text: `bash: kill: (${pidNum}) - No such process`, type: 'error' });
+                exitCode = 1;
+                continue;
+            }
+
+            if (foundProc.canKill === false || pidNum === 1) {
+                if (currentUser !== 'root') {
+                    outLines.push({ text: `bash: kill: (${pidNum}) - Operation not permitted`, type: 'error' });
+                    exitCode = 1;
+                } else {
+                    outLines.push({ text: `bash: kill: (${pidNum}) - Protected kernel/init process`, type: 'error' });
+                    exitCode = 1;
+                }
+                continue;
+            }
+
+            // Terminate the process window in window manager
+            if (foundProc.winId && window.wm && typeof window.wm.closeWindow === 'function') {
+                window.wm.closeWindow(foundProc.winId);
+            }
+        }
+
+        callback({ lines: outLines, exitCode });
+        return;
+    }
+
+    if (cmd === 'killall') {
+        if (!args || args.length === 0) {
+            callback({
+                lines: [
+                    { text: "killall: missing operand", type: 'error' },
+                    { text: "Usage: killall [OPTION]... NAME...", type: 'muted' }
+                ],
+                exitCode: 1
+            });
+            return;
+        }
+
+        let signal = 'SIGTERM';
+        let targetNames = [];
+
+        for (let i = 0; i < args.length; i++) {
+            const a = args[i];
+            if (a.startsWith('-') && a !== '-') {
+                const s = a.substring(1).toUpperCase();
+                if (s === '9' || s === 'KILL' || s === 'SIGKILL') signal = 'SIGKILL';
+                else if (s === '15' || s === 'TERM' || s === 'SIGTERM') signal = 'SIGTERM';
+                else signal = `SIG${s}`;
+            } else {
+                targetNames.push(a);
+            }
+        }
+
+        if (targetNames.length === 0) {
+            callback({ lines: [{ text: "killall: missing operand", type: 'error' }], exitCode: 1 });
+            return;
+        }
+
+        const telem = window.telemetry || { getProcessList: () => [] };
+        const procs = typeof telem.getProcessList === 'function' ? telem.getProcessList() : [];
+        const outLines = [];
+        let exitCode = 0;
+
+        for (const targetName of targetNames) {
+            const normTarget = targetName.toLowerCase().replace(/^krypton-/, '');
+            const matchingProcs = procs.filter(p => {
+                const raw = (p.rawName || '').toLowerCase().replace(/^krypton-/, '');
+                const name = (p.name || '').toLowerCase();
+                return raw === normTarget || name.includes(normTarget) || p.winId === targetName;
+            });
+
+            if (matchingProcs.length === 0) {
+                outLines.push({ text: `${targetName}: no process found`, type: 'error' });
+                exitCode = 1;
+                continue;
+            }
+
+            for (const p of matchingProcs) {
+                if (p.canKill === false) {
+                    outLines.push({ text: `${targetName}: Operation not permitted`, type: 'error' });
+                    exitCode = 1;
+                    continue;
+                }
+                if (p.winId && window.wm && typeof window.wm.closeWindow === 'function') {
+                    window.wm.closeWindow(p.winId);
+                }
+            }
+        }
+
+        callback({ lines: outLines, exitCode });
         return;
     }
 

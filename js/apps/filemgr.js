@@ -8,9 +8,14 @@ import { sound } from '../sound.js';
 import { openNotes } from './notes.js';
 
 export function openFileManager(initialPath = null) {
+    if (Array.isArray(initialPath)) {
+        initialPath = initialPath[0] || null;
+    } else if (typeof initialPath === 'object' && initialPath !== null) {
+        initialPath = initialPath.path || initialPath.dir || null;
+    }
     const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
     const userHome = vfs.getNode(`/home/${primaryUser}`) ? `/home/${primaryUser}` : '/home/guest';
-    let currentPath = initialPath || userHome;
+    let currentPath = (typeof initialPath === 'string' && initialPath) ? initialPath : userHome;
 
     const content = document.createElement('div');
     content.className = 'filemgr-app';

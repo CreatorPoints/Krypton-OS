@@ -16,6 +16,60 @@ export class VirtualFileSystem {
         ];
         this.root = this.loadFileSystem() || this.getDefaultFileSystem();
         this.initPersistentSdaStorage();
+        this.ensureHealthyBaseTree();
+    }
+
+    ensureHealthyBaseTree() {
+        if (!this.root || this.root.type !== 'dir') {
+            this.root = this.getDefaultFileSystem();
+            this.saveFileSystem();
+            return;
+        }
+
+        const hasBoot = !!this.getNode('/boot');
+        const hasEtc = !!this.getNode('/etc');
+        const isNuked = sessionStorage.getItem('krypton_fs_destroyed') === 'true' || (!hasBoot && !hasEtc);
+
+        if (isNuked) {
+            return;
+        }
+
+        const binNode = this.getNode('/bin');
+        if (!binNode || !binNode.children || Object.keys(binNode.children).length === 0) {
+            const defaultRoot = this.getDefaultFileSystem();
+            if (defaultRoot.children && defaultRoot.children.bin) {
+                if (!binNode) {
+                    this.createDirectory('/bin');
+                }
+                const targetBin = this.getNode('/bin');
+                if (targetBin) {
+                    targetBin.children = { ...(defaultRoot.children.bin.children || {}), ...(targetBin.children || {}) };
+                }
+            }
+            if (defaultRoot.children && defaultRoot.children.sbin) {
+                if (!this.getNode('/sbin')) {
+                    this.createDirectory('/sbin');
+                }
+                const targetSbin = this.getNode('/sbin');
+                if (targetSbin) {
+                    targetSbin.children = { ...(defaultRoot.children.sbin.children || {}), ...(targetSbin.children || {}) };
+                }
+            }
+            if (defaultRoot.children && defaultRoot.children.usr) {
+                if (!this.getNode('/usr')) {
+                    this.createDirectory('/usr');
+                }
+                if (!this.getNode('/usr/bin')) {
+                    this.createDirectory('/usr/bin');
+                }
+                const targetUsrBin = this.getNode('/usr/bin');
+                const defaultUsrBin = defaultRoot.children.usr.children?.bin;
+                if (targetUsrBin && defaultUsrBin) {
+                    targetUsrBin.children = { ...(defaultUsrBin.children || {}), ...(targetUsrBin.children || {}) };
+                }
+            }
+            this.saveFileSystem();
+        }
     }
 
     initPersistentSdaStorage() {

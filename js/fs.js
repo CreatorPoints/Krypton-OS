@@ -226,7 +226,9 @@ export class VirtualFileSystem {
             home: createDir('home', {
                 guest: createDir('guest', {
                     Desktop: createDir('Desktop', {
-                        'welcome_to_krypton.txt': createFile('welcome_to_krypton.txt', `=== Welcome to KryptonOS 1.0 LTS ===\n\nKryptonOS is a fully simulated, breakable Linux operating system with real-world accuracy.\n\nTips:\n- Open the Krypton Browser to explore live websites and search engines.\n- Use the full Linux Terminal (sudo supported!) to explore /etc, /proc, and all standard GNU coreutils.\n- Package manager: apt and dpkg are fully functional with packages in /apt.\n- Manage system services with 'systemctl' or drop into headless TTY1 with 'systemctl stop krypton-desktop'.\n\nHave fun exploring!`),
+                        'installer.desktop': createFile('installer.desktop', `[Desktop Entry]\nName=Install Krypton OS\nExec=krypton-installer\nIcon=💿\nType=Application\nComment=Install Krypton OS to Hard Disk\n`),
+                        'terminal.desktop': createFile('terminal.desktop', `[Desktop Entry]\nName=Terminal\nExec=terminal\nIcon=💻\nType=Application\nComment=Unix / MS-DOS Shell (Linux 2.0.0.14-generic-krypton)\n`),
+                        'welcome_to_krypton.txt': createFile('welcome_to_krypton.txt', `=== Welcome to KryptonOS Live Environment ===\n\nDouble-click 'Install Krypton OS' on the desktop or run 'krypton-installer' in the terminal to install to disk.\n`),
                         'secret_notes.txt': createFile('secret_notes.txt', `DO NOT READ THIS FILE!\n\nSeriously, why are you reading this?\nOkay fine. If you want a secret, try installing 'antigravity' in the Terminal.\n  sudo apt install antigravity\n`)
                     }),
                     Documents: createDir('Documents', {

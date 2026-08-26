@@ -38,6 +38,7 @@ window.openSystemLogs = openSystemLogs;
 // Register built-in core application launchers
 appLoader.registerBuiltin('terminal', openTerminal);
 appLoader.registerBuiltin('installer', openInstallerWizard);
+appLoader.registerBuiltin('krypton-installer', openInstallerWizard);
 appLoader.registerBuiltin('clock', (args) => openClockWindow(args || 'world'));
 appLoader.registerBuiltin('taskmgr', openTaskManager);
 appLoader.registerBuiltin('settings', openSettings);
@@ -469,8 +470,12 @@ function initLiveSessionDesktop() {
 
     if (!vfs.exists('/home/guest/Desktop')) {
         vfs.mkdir('/home/guest/Desktop', true);
-        vfs.writeFile('/home/guest/Desktop/terminal.desktop', '[Desktop Entry]\nName=Terminal\nExec=terminal\nIcon=💻\nType=Application\nComment=Unix / MS-DOS Shell (Linux 2.0.0.14-generic-krypton)\n');
+    }
+    if (!vfs.exists('/home/guest/Desktop/installer.desktop')) {
         vfs.writeFile('/home/guest/Desktop/installer.desktop', '[Desktop Entry]\nName=Install Krypton OS\nExec=krypton-installer\nIcon=💿\nType=Application\nComment=Install Krypton OS to Hard Disk\n');
+    }
+    if (!vfs.exists('/home/guest/Desktop/terminal.desktop')) {
+        vfs.writeFile('/home/guest/Desktop/terminal.desktop', '[Desktop Entry]\nName=Terminal\nExec=terminal\nIcon=💻\nType=Application\nComment=Unix / MS-DOS Shell (Linux 2.0.0.14-generic-krypton)\n');
     }
 
     renderDynamicDesktopIcons(grid, true);

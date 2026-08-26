@@ -2662,22 +2662,47 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         let invert = false;
         let lineNumbers = false;
         let countOnly = false;
+        let onlyMatching = false;
+        let quiet = false;
+        let filesWithMatches = false;
+        let filesWithoutMatches = false;
+        let wordRegexp = false;
+        let lineRegexp = false;
+        let maxCount = Infinity;
         let nonFlagArgs = [];
 
-        args.forEach(arg => {
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
             if (arg === '-i' || arg === '--ignore-case') ignoreCase = true;
             else if (arg === '-v' || arg === '--invert-match') invert = true;
             else if (arg === '-n' || arg === '--line-number') lineNumbers = true;
             else if (arg === '-c' || arg === '--count') countOnly = true;
-            else if (arg.startsWith('-') && arg !== '-') {
+            else if (arg === '-o' || arg === '--only-matching') onlyMatching = true;
+            else if (arg === '-q' || arg === '--quiet' || arg === '--silent') quiet = true;
+            else if (arg === '-l' || arg === '--files-with-matches') filesWithMatches = true;
+            else if (arg === '-L' || arg === '--files-without-match') filesWithoutMatches = true;
+            else if (arg === '-w' || arg === '--word-regexp') wordRegexp = true;
+            else if (arg === '-x' || arg === '--line-regexp') lineRegexp = true;
+            else if (arg === '-E' || arg === '--extended-regexp') { /* regex supported */ }
+            else if (arg === '-m' && i + 1 < args.length) {
+                maxCount = parseInt(args[++i], 10) || Infinity;
+            } else if (arg.startsWith('-m')) {
+                maxCount = parseInt(arg.substring(2), 10) || Infinity;
+            } else if (arg.startsWith('-') && arg !== '-') {
                 if (arg.includes('i')) ignoreCase = true;
                 if (arg.includes('v')) invert = true;
                 if (arg.includes('n')) lineNumbers = true;
                 if (arg.includes('c')) countOnly = true;
+                if (arg.includes('o')) onlyMatching = true;
+                if (arg.includes('q')) quiet = true;
+                if (arg.includes('l')) filesWithMatches = true;
+                if (arg.includes('L')) filesWithoutMatches = true;
+                if (arg.includes('w')) wordRegexp = true;
+                if (arg.includes('x')) lineRegexp = true;
             } else {
                 nonFlagArgs.push(arg);
             }
-        });
+        }
 
         if (nonFlagArgs.length === 0) {
             callback({
@@ -2690,9 +2715,24 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
             return;
         }
 
-        const pattern = nonFlagArgs[0];
+        let pattern = nonFlagArgs[0];
         const files = nonFlagArgs.slice(1);
         let textSource = pipedStdin;
+
+        // Build pattern regex
+        let patternStr = pattern;
+        if (wordRegexp) patternStr = `\\b(?:${patternStr})\\b`;
+        if (lineRegexp) patternStr = `^(?:${patternStr})$`;
+
+        const getRegex = (global = false) => {
+            const flags = (ignoreCase ? 'i' : '') + (global ? 'g' : '');
+            try {
+                return new RegExp(patternStr, flags);
+            } catch (e) {
+                const escaped = patternStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                return new RegExp(escaped, flags);
+            }
+        };
 
         if (files.length > 0) {
             let allLines = [];
@@ -2703,39 +2743,60 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
                 const targetPath = resolvePath(currentDir, f, currentUser);
                 const fileNode = vfs.getNode(targetPath);
                 if (!fileNode) {
-                    allLines.push({ text: `grep: ${f}: No such file or directory`, type: 'error' });
+                    if (!quiet) allLines.push({ text: `grep: ${f}: No such file or directory`, type: 'error' });
                     fileError = true;
                     continue;
                 }
                 if (fileNode.type === 'dir') {
-                    allLines.push({ text: `grep: ${f}: Is a directory`, type: 'error' });
+                    if (!quiet) allLines.push({ text: `grep: ${f}: Is a directory`, type: 'error' });
                     continue;
                 }
                 const content = fileNode.content || '';
-                let regex;
-                try {
-                    regex = new RegExp(pattern, ignoreCase ? 'i' : '');
-                } catch (e) {
-                    regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), ignoreCase ? 'i' : '');
-                }
                 const rawLines = content.split('\n');
                 let matchCount = 0;
-                rawLines.forEach((l, idx) => {
-                    const matches = regex.test(l);
+                let fileMatched = false;
+
+                const lineRegex = getRegex(false);
+                const globalRegex = getRegex(true);
+
+                for (let idx = 0; idx < rawLines.length; idx++) {
+                    if (matchCount >= maxCount) break;
+                    const l = rawLines[idx];
+                    const matches = lineRegex.test(l);
                     if (invert ? !matches : matches) {
                         matchCount++;
-                        const prefix = (files.length > 1 ? `${f}:` : '') + (lineNumbers ? `${idx + 1}:` : '');
-                        allLines.push({ text: `${prefix}${l}`, type: 'normal' });
+                        fileMatched = true;
+                        if (quiet) {
+                            callback({ lines: [], exitCode: 0 });
+                            return;
+                        }
+                        if (!countOnly && !filesWithMatches && !filesWithoutMatches) {
+                            const prefix = (files.length > 1 ? `${f}:` : '') + (lineNumbers ? `${idx + 1}:` : '');
+                            if (onlyMatching && !invert) {
+                                const matchedParts = l.match(globalRegex) || [];
+                                for (const part of matchedParts) {
+                                    allLines.push({ text: `${prefix}${part}`, type: 'normal' });
+                                }
+                            } else {
+                                allLines.push({ text: `${prefix}${l}`, type: 'normal' });
+                            }
+                        }
                     }
-                });
+                }
+
                 totalMatchCount += matchCount;
-                if (countOnly) {
+
+                if (countOnly && !quiet) {
                     const prefix = files.length > 1 ? `${f}:` : '';
                     allLines.push({ text: `${prefix}${matchCount}`, type: 'normal' });
+                } else if (filesWithMatches && fileMatched && !quiet) {
+                    allLines.push({ text: f, type: 'normal' });
+                } else if (filesWithoutMatches && !fileMatched && !quiet) {
+                    allLines.push({ text: f, type: 'normal' });
                 }
             }
 
-            callback({ lines: allLines, exitCode: (totalMatchCount > 0 && !fileError) ? 0 : 1 });
+            callback({ lines: quiet ? [] : allLines, exitCode: (totalMatchCount > 0 && !fileError) ? 0 : 1 });
             return;
         }
 
@@ -2747,31 +2808,40 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
             return;
         }
 
-        let regex;
-        try {
-            regex = new RegExp(pattern, ignoreCase ? 'i' : '');
-        } catch (e) {
-            regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), ignoreCase ? 'i' : '');
-        }
-
         const rawLines = textSource.split('\n');
         let matchCount = 0;
         let matchingLines = [];
 
-        rawLines.forEach((l, idx) => {
-            const matches = regex.test(l);
+        const lineRegex = getRegex(false);
+        const globalRegex = getRegex(true);
+
+        for (let idx = 0; idx < rawLines.length; idx++) {
+            if (matchCount >= maxCount) break;
+            const l = rawLines[idx];
+            const matches = lineRegex.test(l);
             if (invert ? !matches : matches) {
                 matchCount++;
+                if (quiet) {
+                    callback({ lines: [], exitCode: 0 });
+                    return;
+                }
                 const prefix = lineNumbers ? `${idx + 1}:` : '';
-                matchingLines.push({ text: `${prefix}${l}`, type: 'normal' });
+                if (onlyMatching && !invert) {
+                    const matchedParts = l.match(globalRegex) || [];
+                    for (const part of matchedParts) {
+                        matchingLines.push({ text: `${prefix}${part}`, type: 'normal' });
+                    }
+                } else {
+                    matchingLines.push({ text: `${prefix}${l}`, type: 'normal' });
+                }
             }
-        });
+        }
 
-        if (countOnly) {
+        if (countOnly && !quiet) {
             matchingLines = [{ text: String(matchCount), type: 'normal' }];
         }
 
-        callback({ lines: matchingLines, exitCode: matchCount > 0 ? 0 : 1 });
+        callback({ lines: quiet ? [] : matchingLines, exitCode: matchCount > 0 ? 0 : 1 });
         return;
     }
 

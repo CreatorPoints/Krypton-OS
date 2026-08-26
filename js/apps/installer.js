@@ -132,14 +132,14 @@ export function openInstallerWizard() {
                 <div class="step-subtitle">Connect to a wireless or wired network to fetch system packages from GitHub upstream.</div>
                 <div class="wifi-network-list">
                     ${wifis.map(w => {
-                        const isConn = connectedWifi === w.ssid;
+                        const isConn = (connectedWifi === w.ssid) || (w.isOffline && connectedWifi === 'Offline Mode');
                         return `
                             <div class="wifi-card ${isConn ? 'connected' : ''}" data-ssid="${w.ssid}" data-locked="${w.locked}" data-neighbor="${w.neighborLocked || false}" data-offline="${w.isOffline || false}">
                                 <div>
                                     <div class="wifi-name">${w.isOffline ? '⚡' : '📶'} ${w.ssid}</div>
                                     <div style="font-size: 11px; color: #94a3b8;">${w.isOffline ? 'Install base packages from local ISO image' : `Signal: ${w.signal} • ${w.locked ? '🔒 Encrypted WPA2-PSK' : '🔓 Open Network'}`}</div>
                                 </div>
-                                <div class="wifi-status-badge">${isConn ? '✓ Connected' : (w.isOffline ? 'Select' : (w.locked ? 'Connect' : 'Join'))}</div>
+                                <div class="wifi-status-badge">${isConn ? (w.isOffline ? '✓ Selected' : '✓ Connected') : (w.isOffline ? 'Select' : (w.locked ? 'Connect' : 'Join'))}</div>
                             </div>
                         `;
                     }).join('')}
@@ -408,6 +408,7 @@ export function openInstallerWizard() {
                 }
 
                 if (isOffline) {
+                    sound.playClick();
                     connectedWifi = 'Offline Mode';
                     story.showToast('Offline Mode', 'Selected offline installation mode from local ISO.', 'info');
                     render();

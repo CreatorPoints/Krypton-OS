@@ -323,8 +323,8 @@ export function openInstallerWizard() {
             <div style="font-size: 12px; color: #4a5568;">
                 Enter your Google Account email to authenticate and initialize your cloud persistent storage bucket:
             </div>
-            <input type="email" id="google-email-input" value="shrestangsu.dutta@gmail.com" placeholder="name@gmail.com" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
-            <input type="text" id="google-name-input" value="Shrestangsu Dutta" placeholder="Display Name" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
+            <input type="email" id="google-email-input" value="" placeholder="name@gmail.com" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
+            <input type="text" id="google-name-input" value="" placeholder="Display Name (e.g. John Doe)" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; font-family: inherit;">
             <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
                 <button id="google-btn-cancel" style="padding: 6px 14px; background: #edf2f7; border: 1px solid #cbd5e0; border-radius: 6px; cursor: pointer; font-size: 12px;">Cancel</button>
                 <button id="google-btn-auth" style="padding: 6px 16px; background: #4285F4; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">Connect Google ID</button>
@@ -343,7 +343,7 @@ export function openInstallerWizard() {
         dialog.querySelector('#google-btn-cancel').addEventListener('click', () => wm.closeWindow('google-auth-dialog'));
         dialog.querySelector('#google-btn-auth').addEventListener('click', () => {
             const email = dialog.querySelector('#google-email-input').value.trim();
-            const name = dialog.querySelector('#google-name-input').value.trim() || 'Google User';
+            const name = dialog.querySelector('#google-name-input').value.trim() || email.split('@')[0];
 
             if (!email || !email.includes('@')) {
                 story.showToast('Validation Error', 'Please enter a valid Google Account email address.', 'error');
@@ -367,6 +367,61 @@ export function openInstallerWizard() {
             wm.closeWindow('google-auth-dialog');
             story.showToast('✓ Google Account Connected', `Authenticated as ${email}. Cloud storage bucket configured!`, 'success');
             render();
+        });
+    };
+
+    const showInstallationCompleteDialog = () => {
+        if (wm.windows.has('installer-complete-dialog')) return;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = 'display: flex; flex-direction: column; gap: 16px; padding: 6px; color: #fff; font-family: var(--font-sans);';
+
+        dialog.innerHTML = `
+            <div style="display: flex; gap: 14px; align-items: center;">
+                <div style="font-size: 38px; line-height: 1;">🎉</div>
+                <div>
+                    <h3 style="margin: 0 0 4px 0; font-size: 16px; color: #fff; font-weight: 700;">Installation Complete</h3>
+                    <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                        Installation is complete. You can continue testing Krypton OS now, but until you restart the computer, any changes you make will not be preserved.
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #e2e8f0; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 18px;">💡</span>
+                <span>Restart the computer now to boot into your newly installed <strong>Krypton OS 0.1 Alpha</strong> environment on <code>/dev/nvme0n1</code>.</span>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+                <button id="inst-btn-continue" style="padding: 8px 16px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer;">
+                    Continue Testing
+                </button>
+                <button id="inst-btn-restart-now" style="padding: 8px 20px; background: #10b981; border: none; border-radius: 6px; color: #000; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(16,185,129,0.3);">
+                    ⏻ Restart Now
+                </button>
+            </div>
+        `;
+
+        wm.createWindow({
+            id: 'installer-complete-dialog',
+            title: 'Installation Finished - Krypton OS',
+            icon: '🎉',
+            width: 480,
+            height: 250,
+            content: dialog
+        });
+
+        dialog.querySelector('#inst-btn-continue')?.addEventListener('click', () => {
+            sound.playClick();
+            wm.closeWindow('installer-complete-dialog');
+            story.showToast('Live Media Session', 'You can continue testing. Restart whenever you want to boot into installed Krypton OS.', 'info');
+        });
+
+        dialog.querySelector('#inst-btn-restart-now')?.addEventListener('click', () => {
+            sound.playClick();
+            wm.closeWindow('installer-complete-dialog');
+            wm.closeWindow('installer');
+            boot.triggerSystemRebootBroadcast('The system is going down for reboot NOW! (Krypton OS 0.1 Alpha Deployment)');
         });
     };
 
@@ -916,16 +971,15 @@ export function openInstallerWizard() {
         if (statusLabel) statusLabel.textContent = `🎉 Krypton OS 0.1 Alpha Installed successfully!`;
 
         appendLog(`[ SUCCESS ] Krypton OS 0.1 Alpha rootfs deployed! Storage synchronized.`, '#ffff55', true);
-        appendLog(`[ SYSTEM ] Invoking "sudo reboot" in 2.5 seconds...`, '#00e5ff', true);
+        appendLog(`[ SYSTEM ] Installation finished. Prompting user to restart system...`, '#00e5ff', true);
 
         sound.playSuccess();
-        story.showToast('🎉 Installation Complete!', `Krypton OS 0.1 Alpha installed. Automatically rebooting...`, 'success');
+        story.showToast('🎉 Installation Complete!', `Krypton OS 0.1 Alpha is installed. Restart to finish setup.`, 'success');
 
-        // Automatic sudo reboot call with broadcast message
+        // Prompt user to reboot to finish installation
         setTimeout(() => {
-            wm.closeWindow('installer');
-            boot.triggerSystemRebootBroadcast('The system is going down for reboot NOW! (Krypton OS 0.1 Alpha Deployment)');
-        }, 2500);
+            showInstallationCompleteDialog();
+        }, 800);
     };
 
     render();

@@ -323,18 +323,132 @@ function initDesktopSelectionClear() {
     });
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/* --------------------------------------------------------------------------
+   Dynamic Desktop Icon Renderer (Synchronized with ~/Desktop in VFS)
+   -------------------------------------------------------------------------- */
+export function renderDynamicDesktopIcons(grid, isLiveBoot = false) {
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const primaryUser = isLiveBoot ? 'guest' : (localStorage.getItem('krypton_primary_user') || 'guest');
+    const desktopPath = `/home/${primaryUser}/Desktop`;
+
+    const desktopNode = vfs.getNode(desktopPath);
+    if (!desktopNode || desktopNode.type !== 'dir') {
+        // ~/Desktop folder was removed via rm -rf ~/Desktop: render clean empty desktop canvas
+        return;
+    }
+
+    const items = vfs.listDir(desktopPath) || [];
+    let idx = 0;
+
+    items.forEach(item => {
+        const fullPath = `${desktopPath}/${item.name}`;
+        const iconEl = document.createElement('div');
+        iconEl.className = 'desktop-icon';
+        iconEl.setAttribute('data-path', fullPath);
+
+        let iconEmoji = '📄';
+        let label = item.name;
+        let title = item.name;
+        let onDoubleClick = null;
+
+        if (item.name.endsWith('.desktop') && item.type === 'file') {
+            const content = vfs.readFile(fullPath) || '';
+            const parsed = appLoader.parseDesktopFile(content, item.name);
+            iconEmoji = parsed.icon || '📦';
+            label = parsed.title || item.name.replace('.desktop', '');
+            title = parsed.comment || parsed.title || label;
+
+            onDoubleClick = () => {
+                sound.playClick();
+                if (parsed.id === 'terminal' || parsed.exec === 'terminal') {
+                    openTerminal();
+                } else if (parsed.id === 'installer' || parsed.exec === 'krypton-installer' || parsed.id === 'live-installer') {
+                    openInstallerWizard();
+                } else {
+                    appLoader.launch(parsed.id);
+                }
+            };
+        } else if (item.type === 'dir') {
+            iconEmoji = '📁';
+            label = item.name;
+            title = `Directory: ${fullPath}`;
+            onDoubleClick = () => {
+                sound.playClick();
+                appLoader.launch('filemgr', [fullPath]);
+            };
+        } else {
+            // Regular file
+            const ext = item.name.substring(item.name.lastIndexOf('.')).toLowerCase();
+            if (['.txt', '.md', '.log', '.conf', '.cfg', '.json'].includes(ext)) {
+                iconEmoji = '📝';
+            } else if (['.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif'].includes(ext)) {
+                iconEmoji = '🖼️';
+            } else if (['.sh', '.bash', '.py', '.js', '.c', '.cpp'].includes(ext)) {
+                iconEmoji = '📜';
+            } else {
+                iconEmoji = '📄';
+            }
+            label = item.name;
+            title = `File: ${fullPath}`;
+            onDoubleClick = () => {
+                sound.playClick();
+                const fileContent = vfs.readFile(fullPath) || '';
+                appLoader.launch('notes', [item.name, fileContent]);
+            };
+        }
+
+        iconEl.setAttribute('title', title);
+        iconEl.innerHTML = `
+            <div class="icon-image">${iconEmoji}</div>
+            <div class="icon-label">${escapeHtml(label)}</div>
+        `;
+
+        makeDesktopIconMovable(iconEl, `vfs-icon-${primaryUser}-${item.name.replace(/[^a-zA-Z0-9_-]/g, '_')}`, idx++);
+
+        if (onDoubleClick) {
+            iconEl.addEventListener('dblclick', onDoubleClick);
+        }
+
+        grid.appendChild(iconEl);
+    });
+}
+
 export function checkEnvironmentState() {
     const isLiveBoot = sessionStorage.getItem('krypton_current_boot_medium') === 'live_usb';
     const isInstalled = localStorage.getItem('krypton_os_installed') === 'true';
+    const isUpgraded = localStorage.getItem('krypton_upgraded_lts') === 'true';
 
     if (isLiveBoot) {
         // Live USB Mode: Windows 98 styled Krypton Alpha OS with Terminal & Installer ONLY
         initLiveSessionDesktop();
+    } else if (isInstalled && !isUpgraded) {
+        initBaseInstalledDesktop();
     } else {
-        // Main Modern Desktop: Full Krypton 1.0 LTS desktop suite loaded seamlessly on any refresh
+        // Main Modern Desktop: Full Krypton 1.0 LTS desktop suite
         initMainInstalledDesktop();
     }
 }
+
+// Listen for dynamic filesystem modifications across the entire OS
+window.addEventListener('krypton_vfs_changed', () => {
+    const grid = document.getElementById('desktop-grid');
+    if (grid) {
+        const isLiveBoot = sessionStorage.getItem('krypton_current_boot_medium') === 'live_usb';
+        renderDynamicDesktopIcons(grid, isLiveBoot);
+    }
+});
 
 // System change listener
 window.addEventListener('krypton_system_upgraded', () => {
@@ -353,35 +467,13 @@ function initLiveSessionDesktop() {
     const grid = document.getElementById('desktop-grid');
     if (!grid) return;
 
-    grid.innerHTML = `
-        <div class="desktop-icon" id="icon-terminal" title="Unix / MS-DOS Shell (Linux 2.0.0.14-generic-krypton)">
-            <div class="icon-image">💻</div>
-            <div class="icon-label">Terminal</div>
-        </div>
-        <div class="desktop-icon" id="icon-install-krypton" title="Install Krypton OS to Hard Disk">
-            <div class="icon-image">💿</div>
-            <div class="icon-label">Install Krypton OS</div>
-        </div>
-    `;
-
-    const termIcon = document.getElementById('icon-terminal');
-    const instIcon = document.getElementById('icon-install-krypton');
-
-    if (termIcon) {
-        makeDesktopIconMovable(termIcon, 'live-terminal', 0);
-        termIcon.addEventListener('dblclick', () => {
-            sound.playClick();
-            openTerminal();
-        });
+    if (!vfs.exists('/home/guest/Desktop')) {
+        vfs.mkdir('/home/guest/Desktop', true);
+        vfs.writeFile('/home/guest/Desktop/terminal.desktop', '[Desktop Entry]\nName=Terminal\nExec=terminal\nIcon=💻\nType=Application\nComment=Unix / MS-DOS Shell (Linux 2.0.0.14-generic-krypton)\n');
+        vfs.writeFile('/home/guest/Desktop/installer.desktop', '[Desktop Entry]\nName=Install Krypton OS\nExec=krypton-installer\nIcon=💿\nType=Application\nComment=Install Krypton OS to Hard Disk\n');
     }
 
-    if (instIcon) {
-        makeDesktopIconMovable(instIcon, 'live-installer', 1);
-        instIcon.addEventListener('dblclick', () => {
-            sound.playClick();
-            openInstallerWizard();
-        });
-    }
+    renderDynamicDesktopIcons(grid, true);
 
     const liveApps = [
         { id: 'terminal', title: 'Terminal', icon: '💻', open: openTerminal },
@@ -408,48 +500,18 @@ function initBaseInstalledDesktop() {
     const grid = document.getElementById('desktop-grid');
     if (!grid) return;
 
-    grid.innerHTML = `
-        <div class="desktop-icon" id="icon-browser" title="Krypton Web Navigator 0.1 Alpha">
-            <div class="icon-image">🌐</div>
-            <div class="icon-label">Web Navigator</div>
-        </div>
-        <div class="desktop-icon" id="icon-terminal" title="Terminal (Linux 2.0.0.14-generic-krypton)">
-            <div class="icon-image">💻</div>
-            <div class="icon-label">Terminal</div>
-        </div>
-        <div class="desktop-icon" id="icon-readme" title="System Upgrade Instructions">
-            <div class="icon-image">📝</div>
-            <div class="icon-label">Upgrade Notes</div>
-        </div>
-    `;
+    const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
+    const userDesktop = `/home/${primaryUser}/Desktop`;
 
-    const browserIcon = document.getElementById('icon-browser');
-    const termIcon = document.getElementById('icon-terminal');
-    const readmeIcon = document.getElementById('icon-readme');
-
-    if (browserIcon) {
-        makeDesktopIconMovable(browserIcon, 'base-browser', 0);
-        browserIcon.addEventListener('dblclick', () => {
-            sound.playClick();
-            appLoader.launch('browser');
-        });
+    if (!vfs.exists(userDesktop) && !localStorage.getItem('krypton_desktop_initialized')) {
+        localStorage.setItem('krypton_desktop_initialized', 'true');
+        vfs.mkdir(userDesktop, true);
+        vfs.writeFile(`${userDesktop}/browser.desktop`, '[Desktop Entry]\nName=Web Navigator\nExec=krypton-browser\nIcon=🌐\nType=Application\nComment=Krypton Web Navigator 0.1 Alpha\n');
+        vfs.writeFile(`${userDesktop}/terminal.desktop`, '[Desktop Entry]\nName=Terminal\nExec=terminal\nIcon=💻\nType=Application\nComment=Terminal (Linux 2.0.0.14-generic-krypton)\n');
+        vfs.writeFile(`${userDesktop}/notes.desktop`, '[Desktop Entry]\nName=Upgrade Notes\nExec=krypton-notes\nIcon=📝\nType=Application\nComment=System Upgrade Instructions\n');
     }
 
-    if (termIcon) {
-        makeDesktopIconMovable(termIcon, 'base-terminal', 1);
-        termIcon.addEventListener('dblclick', () => {
-            sound.playClick();
-            openTerminal();
-        });
-    }
-
-    if (readmeIcon) {
-        makeDesktopIconMovable(readmeIcon, 'base-readme', 2);
-        readmeIcon.addEventListener('dblclick', () => {
-            sound.playClick();
-            appLoader.launch('notes', ['upgrade_notes.txt', `=== Krypton OS 0.1 Alpha Base Installation ===\n\nKernel: Linux 2.0.0.14-generic-krypton (Vintage Alpha Subsystem)\nInstalled Packages: Base System, Web Navigator (Alpha), GNU Bash 2.0\n\nTo upgrade this system to the modern Linux 6.10 kernel and Krypton 1.0 LTS Desktop Suite:\n1. Open the Terminal\n2. Run the standard Debian upgrade command:\n     sudo apt update && sudo apt upgrade\n\nAll modern apps, Wayland compositor, and glass UI will be automatically unlocked!`]);
-        });
-    }
+    renderDynamicDesktopIcons(grid, false);
 
     const baseApps = [
         { id: 'browser', title: 'Web Navigator (Alpha)', icon: '🌐', open: () => appLoader.launch('browser') },
@@ -617,9 +679,21 @@ function initMainInstalledDesktop() {
     const grid = document.getElementById('desktop-grid');
     if (!grid) return;
 
-    grid.innerHTML = '';
+    const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
+    const userDesktop = `/home/${primaryUser}/Desktop`;
 
-    // Discover installed applications dynamically from /usr/share/applications/
+    if (!vfs.exists(userDesktop) && !localStorage.getItem('krypton_desktop_initialized')) {
+        localStorage.setItem('krypton_desktop_initialized', 'true');
+        vfs.mkdir(userDesktop, true);
+        vfs.writeFile(`${userDesktop}/browser.desktop`, '[Desktop Entry]\nName=Web Browser\nExec=krypton-browser\nIcon=🌐\nType=Application\nComment=Quantum Sandboxed Web Browser\n');
+        vfs.writeFile(`${userDesktop}/terminal.desktop`, '[Desktop Entry]\nName=Terminal\nExec=terminal\nIcon=💻\nType=Application\nComment=GNU Bash Terminal\n');
+        vfs.writeFile(`${userDesktop}/filemgr.desktop`, '[Desktop Entry]\nName=File Manager\nExec=krypton-filemgr\nIcon=📁\nType=Application\nComment=Virtual Filesystem Browser\n');
+        vfs.writeFile(`${userDesktop}/settings.desktop`, '[Desktop Entry]\nName=Settings\nExec=krypton-settings\nIcon=⚙️\nType=Application\nComment=Krypton Control Center\n');
+    }
+
+    renderDynamicDesktopIcons(grid, false);
+
+    // Discover installed applications dynamically from /usr/share/applications/ for the Start Menu
     let installedApps = appLoader.getInstalledApps();
 
     // Ensure Terminal is always available as built-in core tool
@@ -632,32 +706,9 @@ function initMainInstalledDesktop() {
         });
     }
 
-    // Render Installed App Shortcuts Dynamically with Movable Freeform Drag & Drop
-    installedApps.forEach((app, idx) => {
-        const iconEl = document.createElement('div');
-        iconEl.className = 'desktop-icon';
-        iconEl.setAttribute('data-app-id', app.id);
-        iconEl.setAttribute('title', app.title);
-        iconEl.innerHTML = `
-            <div class="icon-image">${app.icon}</div>
-            <div class="icon-label">${app.title}</div>
-        `;
-
-        makeDesktopIconMovable(iconEl, `app-${app.id}`, idx);
-
-        iconEl.addEventListener('dblclick', () => {
-            sound.playClick();
-            app.open();
-        });
-
-        grid.appendChild(iconEl);
-    });
-
-    const u = localStorage.getItem('krypton_primary_user') || 'guest';
-
     // Initialize Start Menu with Dynamically Discovered Applications
     setupStartMenu({
-        title: `${u}@krypton-station`,
+        title: `${primaryUser}@krypton-station`,
         subtitle: 'Krypton 1.0.0.0 LTS (Linux 6.10.0-krypton-generic)',
         apps: installedApps,
         showSearch: true

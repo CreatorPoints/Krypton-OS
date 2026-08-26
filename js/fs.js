@@ -261,6 +261,10 @@ export class VirtualFileSystem {
                     }
                 }
             });
+
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('krypton_vfs_changed'));
+            }
         } catch (e) {
             console.warn('VFS save failed', e);
         }

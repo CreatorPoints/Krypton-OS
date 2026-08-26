@@ -179,10 +179,21 @@ export const PARROT_FRAMES = [
 `
 ];
 
-export function openTerminal() {
+export function openTerminal(options = {}) {
+    let initialDir = null;
+    if (typeof options === 'string') {
+        initialDir = options;
+    } else if (Array.isArray(options) && typeof options[0] === 'string') {
+        initialDir = options[0];
+    } else if (typeof options === 'object' && options !== null) {
+        initialDir = options.currentDir || options.dir || options.path || null;
+    }
+
     const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
     let currentUser = primaryUser;
-    let currentDir = vfs.getNode(`/home/${currentUser}`) ? `/home/${currentUser}` : '/home/guest';
+    let currentDir = (initialDir && vfs.getNode(initialDir)) 
+        ? initialDir 
+        : (vfs.getNode(`/home/${currentUser}`) ? `/home/${currentUser}` : '/home/guest');
     let prevDir = currentDir;
     let hostname = 'krypton-station';
     let lastExitCode = 0;

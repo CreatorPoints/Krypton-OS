@@ -609,6 +609,30 @@ export class VirtualFileSystem {
         return false;
     }
 
+    rename(oldPath, newPath) {
+        return this.move(oldPath, newPath);
+    }
+
+    chmod(pathStr, mode) {
+        const node = this.getNode(pathStr);
+        if (!node) return false;
+        node.mode = mode;
+        this.saveFileSystem();
+        return true;
+    }
+
+    stat(pathStr) {
+        const node = this.getNode(pathStr);
+        if (!node) return null;
+        return {
+            name: node.name,
+            type: node.type,
+            size: node.type === 'file' ? (node.content || '').length : 4096,
+            mode: node.mode || (node.type === 'dir' ? '0755' : '0644'),
+            mtime: node.mtime || new Date().toISOString()
+        };
+    }
+
     listDir(pathStr) {
         const node = this.getNode(pathStr);
         if (!node || node.type !== 'dir') return null;

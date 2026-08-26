@@ -18,6 +18,7 @@ import { openSettings } from './apps/settings.js';
 import { openSystemLogs } from './apps/messages.js';
 import { appLoader } from './loader.js';
 import { telemetry } from './telemetry.js';
+import { showContextMenu, showFilePropertiesDialog, showRenameDialog } from './contextmenu.js';
 
 // Expose core subsystem singletons on window for dynamic apps & plugins
 window.wm = wm;
@@ -422,8 +423,174 @@ export function renderDynamicDesktopIcons(grid, isLiveBoot = false) {
             iconEl.addEventListener('dblclick', onDoubleClick);
         }
 
+        // Right-Click Context Menu for Desktop Icon
+        iconEl.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            sound.playClick();
+
+            showContextMenu(e, [
+                {
+                    label: 'Open',
+                    icon: '🚀',
+                    shortcut: 'Enter',
+                    action: () => {
+                        if (onDoubleClick) onDoubleClick();
+                    }
+                },
+                {
+                    separator: true
+                },
+                {
+                    label: 'Rename',
+                    icon: '✏️',
+                    shortcut: 'F2',
+                    action: () => {
+                        showRenameDialog(fullPath, () => {
+                            renderDynamicDesktopIcons(grid, isLiveBoot);
+                        });
+                    }
+                },
+                {
+                    label: 'Delete',
+                    icon: '🗑️',
+                    shortcut: 'Del',
+                    action: () => {
+                        vfs.remove(fullPath, true);
+                        sound.playTrash();
+                        story.showToast('🗑️ Item Deleted', `Removed ${item.name}`, 'info');
+                        renderDynamicDesktopIcons(grid, isLiveBoot);
+                    }
+                },
+                {
+                    label: 'Create Shortcut',
+                    icon: '🔗',
+                    action: () => {
+                        const baseName = item.name.replace(/\.[^/.]+$/, "");
+                        const shortcutPath = `${desktopPath}/${baseName}_shortcut.desktop`;
+                        const shortcutContent = `[Desktop Entry]\nName=${baseName}\nExec=${fullPath}\nIcon=${iconEmoji}\nType=Application\nComment=Shortcut to ${item.name}\n`;
+                        vfs.writeFile(shortcutPath, shortcutContent);
+                        sound.playSuccess();
+                        story.showToast('🔗 Shortcut Created', `Created shortcut on Desktop`, 'success');
+                        renderDynamicDesktopIcons(grid, isLiveBoot);
+                    }
+                },
+                {
+                    separator: true
+                },
+                {
+                    label: 'Properties & Permissions (chmod)',
+                    icon: '🛡️',
+                    action: () => {
+                        showFilePropertiesDialog(fullPath);
+                    }
+                }
+            ]);
+        });
+
         grid.appendChild(iconEl);
     });
+
+    // Desktop Background Right-Click Context Menu
+    grid.oncontextmenu = (e) => {
+        if (e.target.closest('.desktop-icon')) return;
+
+        e.preventDefault();
+        sound.playClick();
+
+        showContextMenu(e, [
+            {
+                label: 'Personalize & Appearance',
+                icon: '🎨',
+                action: () => {
+                    appLoader.launch('settings', 'appearance');
+                }
+            },
+            {
+                label: 'Refresh Desktop',
+                icon: '🔄',
+                shortcut: 'F5',
+                action: () => {
+                    sound.playClick();
+                    renderDynamicDesktopIcons(grid, isLiveBoot);
+                    story.showToast('🔄 Desktop Refreshed', 'Filesystem & icons synced', 'info');
+                }
+            },
+            {
+                separator: true
+            },
+            {
+                label: 'New',
+                icon: '➕',
+                submenu: [
+                    {
+                        label: 'Empty Text File',
+                        icon: '📝',
+                        action: () => {
+                            let baseName = 'New_Document.txt';
+                            let counter = 1;
+                            while (vfs.exists(`${desktopPath}/${baseName}`)) {
+                                baseName = `New_Document_${counter++}.txt`;
+                            }
+                            vfs.writeFile(`${desktopPath}/${baseName}`, '');
+                            sound.playSuccess();
+                            story.showToast('📝 Created File', `Created ${baseName} on Desktop`, 'success');
+                            renderDynamicDesktopIcons(grid, isLiveBoot);
+                        }
+                    },
+                    {
+                        label: 'New Folder',
+                        icon: '📁',
+                        action: () => {
+                            let baseName = 'New_Folder';
+                            let counter = 1;
+                            while (vfs.exists(`${desktopPath}/${baseName}`)) {
+                                baseName = `New_Folder_${counter++}`;
+                            }
+                            vfs.mkdir(`${desktopPath}/${baseName}`, true);
+                            sound.playSuccess();
+                            story.showToast('📁 Created Folder', `Created ${baseName} on Desktop`, 'success');
+                            renderDynamicDesktopIcons(grid, isLiveBoot);
+                        }
+                    },
+                    {
+                        label: 'Shell Script (.sh)',
+                        icon: '📜',
+                        action: () => {
+                            let baseName = 'script.sh';
+                            let counter = 1;
+                            while (vfs.exists(`${desktopPath}/${baseName}`)) {
+                                baseName = `script_${counter++}.sh`;
+                            }
+                            vfs.writeFile(`${desktopPath}/${baseName}`, '#!/bin/bash\n# KryptonOS Shell Script\necho "Hello from KryptonOS!"\n');
+                            vfs.chmod(`${desktopPath}/${baseName}`, '0755');
+                            sound.playSuccess();
+                            story.showToast('📜 Created Script', `Created executable ${baseName} on Desktop`, 'success');
+                            renderDynamicDesktopIcons(grid, isLiveBoot);
+                        }
+                    }
+                ]
+            },
+            {
+                separator: true
+            },
+            {
+                label: 'Open Terminal Here',
+                icon: '💻',
+                shortcut: 'Ctrl+Alt+T',
+                action: () => {
+                    openTerminal({ currentDir: desktopPath });
+                }
+            },
+            {
+                label: 'Open File Manager',
+                icon: '📂',
+                action: () => {
+                    appLoader.launch('filemgr', [desktopPath]);
+                }
+            }
+        ]);
+    };
 }
 
 export function checkEnvironmentState() {

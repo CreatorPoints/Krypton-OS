@@ -83,9 +83,9 @@
     "version": "1.0.4-release",
     "architecture": "amd64",
     "section": "utils/files",
-    "size": 5099,
-    "installed_size": 4398,
-    "sha256": "b5a57f7bd6ff4f36188f395c81e6451ae29b17155b46cdd877791e8be7941f1d",
+    "size": 19104,
+    "installed_size": 17856,
+    "sha256": "e6fac7f3efa62e32f8f217ff1c32ef02f9be0dbfc2cf62256416161733320111",
     "file": "krypton-filemgr.deb",
     "summary": "Interactive Virtual Filesystem File Explorer & Directory Navigator",
     "maintainer": "Krypton Maintainers <packages@krypton-os.org>"

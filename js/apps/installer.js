@@ -739,23 +739,123 @@ export function openInstallerWizard() {
 
         // 2. Block Storage Partitioning & Format
         await executeStep('sfdisk /dev/nvme0n1: Writing GPT label (p1: EFI 512MB, p2: Root ext4 930GB, p3: Swap 4GB)...', () => {
-            vfs.createDirectory('/boot');
-            vfs.createDirectory('/boot/grub');
-            vfs.createDirectory('/etc');
-            vfs.createDirectory('/etc/apt');
-            vfs.createDirectory('/var');
-            vfs.createDirectory('/var/log');
-            vfs.createDirectory('/var/lib');
-            vfs.createDirectory('/var/lib/dpkg');
-            vfs.createDirectory('/var/lib/apt');
-            vfs.createDirectory('/var/lib/apt/lists');
-            vfs.createDirectory('/var/cache');
-            vfs.createDirectory('/var/cache/apt');
-            vfs.createDirectory('/var/cache/apt/archives');
-            vfs.createDirectory('/usr');
-            vfs.createDirectory('/usr/bin');
-            vfs.createDirectory('/usr/share');
-            vfs.createDirectory('/usr/share/applications');
+            const coreDirs = [
+                '/bin', '/sbin', '/boot', '/boot/grub', '/boot/efi',
+                '/etc', '/etc/apt', '/etc/network',
+                '/usr', '/usr/bin', '/usr/sbin', '/usr/lib', '/usr/local', '/usr/local/bin', '/usr/share', '/usr/share/applications',
+                '/var', '/var/log', '/var/lib', '/var/lib/dpkg', '/var/lib/apt', '/var/lib/apt/lists', '/var/cache', '/var/cache/apt', '/var/cache/apt/archives', '/var/tmp',
+                '/dev', '/proc', '/sys', '/tmp', '/run', '/mnt', '/media', '/opt', '/root'
+            ];
+            coreDirs.forEach(d => {
+                if (!vfs.exists(d)) vfs.createDirectory(d);
+            });
+
+            // Populate core GNU binaries in /bin
+            const binFiles = {
+                bash: '#!/bin/bash\n# GNU Bourne-Again SHell binary',
+                sh: '#!/bin/sh\n# POSIX shell binary',
+                ls: '#!/bin/ls\n# List directory contents',
+                cat: '#!/bin/cat\n# Concatenate files and print on standard output',
+                grep: '#!/bin/grep\n# Pattern matching utility',
+                cp: '#!/bin/cp\n# Copy files and directories',
+                mv: '#!/bin/mv\n# Move and rename files',
+                rm: '#!/bin/rm\n# Remove files and directories',
+                mkdir: '#!/bin/mkdir\n# Make directories',
+                rmdir: '#!/bin/rmdir\n# Remove empty directories',
+                touch: '#!/bin/touch\n# Change file timestamps or create empty files',
+                echo: '#!/bin/echo\n# Display a line of text',
+                pwd: '#!/bin/pwd\n# Print name of current/working directory',
+                uname: '#!/bin/uname\n# Print system information',
+                date: '#!/bin/date\n# Print or set system date and time',
+                whoami: '#!/bin/whoami\n# Print effective userid',
+                id: '#!/bin/id\n# Print real and effective user and group IDs',
+                ps: '#!/bin/ps\n# Report a snapshot of current processes',
+                kill: '#!/bin/kill\n# Send a signal to a process',
+                killall: '#!/bin/killall\n# Kill processes by name',
+                ping: '#!/bin/ping\n# Send ICMP ECHO_REQUEST to network hosts',
+                sed: '#!/bin/sed\n# Stream editor',
+                awk: '#!/bin/awk\n# Pattern scanning and text processing language',
+                find: '#!/bin/find\n# Search for files in a directory hierarchy',
+                which: '#!/bin/which\n# Locate a command',
+                tar: '#!/bin/tar\n# Archiving utility',
+                gzip: '#!/bin/gzip\n# Compress or expand files',
+                chmod: '#!/bin/chmod\n# Change file mode bits',
+                chown: '#!/bin/chown\n# Change file owner and group',
+                hostname: '#!/bin/hostname\n# Show or set system host name',
+                df: '#!/bin/df\n# Report file system disk space usage',
+                du: '#!/bin/du\n# Estimate file space usage',
+                free: '#!/bin/free\n# Display amount of free and used memory in the system',
+                uptime: '#!/bin/uptime\n# Tell how long the system has been running',
+                dmesg: '#!/bin/dmesg\n# Print or control the kernel ring buffer',
+                clear: '#!/bin/clear\n# Clear the terminal screen',
+                sleep: '#!/bin/sleep\n# Delay for a specified amount of time'
+            };
+
+            for (const [name, content] of Object.entries(binFiles)) {
+                vfs.writeFile(`/bin/${name}`, content);
+            }
+
+            // Populate core binaries in /sbin
+            const sbinFiles = {
+                reboot: '#!/sbin/reboot\n# Reboot the machine',
+                shutdown: '#!/sbin/shutdown\n# Halt, power-off or reboot the machine',
+                poweroff: '#!/sbin/poweroff\n# Power-off the machine',
+                init: '#!/sbin/init\n# Systemd initialization daemon',
+                ifconfig: '#!/sbin/ifconfig\n# Configure network interface parameters',
+                ip: '#!/sbin/ip\n# Show / manipulate routing, devices, policy routing and tunnels',
+                fdisk: '#!/sbin/fdisk\n# Manipulate disk partition table'
+            };
+
+            for (const [name, content] of Object.entries(sbinFiles)) {
+                vfs.writeFile(`/sbin/${name}`, content);
+            }
+
+            // Populate /usr/bin utilities
+            const usrBinFiles = {
+                curl: '#!/usr/bin/curl\n# Transfer a URL',
+                wget: '#!/usr/bin/wget\n# Non-interactive network downloader',
+                python3: '#!/usr/bin/python3\n# Python interpreter',
+                git: '#!/usr/bin/git\n# Revision control system',
+                neofetch: '#!/usr/bin/neofetch\n# CLI system information tool',
+                cmatrix: '#!/usr/bin/cmatrix\n# Matrix digital rain simulation',
+                cowsay: '#!/usr/bin/cowsay\n# Configurable talking cow',
+                sl: '#!/usr/bin/sl\n# Steam Locomotive display',
+                diff: '#!/usr/bin/diff\n# Compare files line by line',
+                stat: '#!/usr/bin/stat\n# Display file or file system status',
+                wc: '#!/usr/bin/wc\n# Print newline, word, and byte counts',
+                head: '#!/usr/bin/head\n# Output the first part of files',
+                tail: '#!/usr/bin/tail\n# Output the last part of files',
+                sort: '#!/usr/bin/sort\n# Sort lines of text files',
+                uniq: '#!/usr/bin/uniq\n# Report or omit repeated lines',
+                tree: '#!/usr/bin/tree\n# List contents of directories in a tree',
+                top: '#!/usr/bin/top\n# Display Linux processes',
+                htop: '#!/usr/bin/htop\n# Interactive process viewer',
+                nano: '#!/usr/bin/nano\n# Nano easy-to-use text editor',
+                vim: '#!/usr/bin/vim\n# Vi IMproved programmer text editor'
+            };
+
+            for (const [name, content] of Object.entries(usrBinFiles)) {
+                vfs.writeFile(`/usr/bin/${name}`, content);
+            }
+
+            // Populate devices in /dev
+            const devFiles = {
+                null: '',
+                zero: '',
+                urandom: '',
+                random: '',
+                nvme0n1: 'BLOCK_DEVICE_NVME_RAW',
+                nvme0n1p1: 'BLOCK_DEVICE_EFI_SYSTEM_PARTITION',
+                nvme0n1p2: 'BLOCK_DEVICE_LINUX_ROOT_EXT4',
+                nvme0n1p3: 'BLOCK_DEVICE_LINUX_SWAP',
+                sda: 'BLOCK_DEVICE_USB_FLASH_DRIVE',
+                sda1: 'BLOCK_DEVICE_USB_LIVE_ISO',
+                tty: 'VIRTUAL_TELETYPE_CONSOLE'
+            };
+
+            for (const [name, content] of Object.entries(devFiles)) {
+                vfs.writeFile(`/dev/${name}`, content);
+            }
         }, 800000);
 
         await executeStep('mkfs.ext4 -F -O 64bit,dir_index,sparse_super -L "krypton-root" /dev/nvme0n1p2 (blocksize=4096)...', null, 1500000);

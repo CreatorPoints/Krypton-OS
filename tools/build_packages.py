@@ -240,19 +240,6 @@ def build_all_packages():
             }
         },
         {
-            "id": "krypton-adblock",
-            "name": "krypton-adblock",
-            "file": "adblock.deb",
-            "version": "2.4.0-beryllium",
-            "arch": "all",
-            "section": "net/security",
-            "summary": "System-wide DNS sinkhole & tracker blocker for Krypton Web Browser",
-            "files": {
-                "/usr/bin/adblock": "#!/bin/bash\ncase \"$1\" in\n  enable|on) echo \"enabled=true\" > /etc/adblock.conf && echo \"[ OK ] AdBlocker ENABLED\" ;;\n  disable|off) echo \"enabled=false\" > /etc/adblock.conf && echo \"[ OK ] AdBlocker DISABLED\" ;;\n  status) cat /etc/adblock.conf ;;\n  *) echo \"Usage: adblock {enable|disable|status}\" ;;\nesac\n",
-                "/etc/adblock.conf": "enabled=true\n"
-            }
-        },
-        {
             "id": "antigravity",
             "name": "antigravity",
             "file": "antigravity.deb",

@@ -6,32 +6,13 @@ import { vfs } from './fs.js';
 
 export class SystemService {
     constructor() {
-        this.adblockEnabled = false;
         this.petInstalled = false;
         this.antigravityInstalled = false;
         this.listeners = [];
-
-        // Initialize adblock state from /etc/adblock.conf if present
-        const conf = vfs.readFile('/etc/adblock.conf');
-        if (conf && conf.includes('enabled=true')) {
-            this.adblockEnabled = true;
-        }
     }
 
     logUserAction(action, detail) {
         // Safe no-op logger for legacy action hooks
-    }
-
-    setAdblock(enabled) {
-        this.adblockEnabled = enabled;
-        vfs.writeFile('/etc/adblock.conf', `enabled=${enabled}\n`);
-        const trayText = document.getElementById('tray-adblock-text');
-        if (trayText) {
-            trayText.textContent = enabled ? 'ON' : 'OFF';
-            trayText.className = `adblock-badge ${enabled ? 'on' : 'off'}`;
-        }
-        this.showToast('🛡️ AdBlocker', `KryptonOS Network Shield is now ${enabled ? 'ENABLED' : 'DISABLED'}.`, enabled ? 'success' : 'warning');
-        this.notifyListeners();
     }
 
     showToast(title, message, type = 'info') {

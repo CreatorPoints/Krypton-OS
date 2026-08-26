@@ -208,8 +208,7 @@ export class VirtualFileSystem {
                 apt: createDir('apt', {
                     'sources.list': createFile('sources.list', `deb https://deb.krypton-os.org/krypton beryllium main contrib non-free\ndeb https://raw.githubusercontent.com/CreatorPoints/Krypton-Repo/main/apt/ beryllium main\n`)
                 }),
-                shells: createFile('shells', `/bin/sh\n/bin/bash\n/usr/bin/bash\n/bin/dash\n/usr/bin/dash\n`),
-                'adblock.conf': createFile('adblock.conf', `enabled=false\n`)
+                shells: createFile('shells', `/bin/sh\n/bin/bash\n/usr/bin/bash\n/bin/dash\n/usr/bin/dash\n`)
             }),
             proc: createDir('proc', {
                 version: createFile('version', `Linux version 6.10.0-krypton-generic (gcc 13.2.0) #1 SMP PREEMPT_DYNAMIC\n`),

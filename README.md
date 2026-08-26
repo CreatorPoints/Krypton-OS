@@ -80,7 +80,7 @@ Step-by-step graphical operating system installation wizard:
   dpkg -s <pkg>
   dpkg -l
   ```
-- **Included Packages**: `cmatrix`, `cowsay`, `neofetch`, `sl`, `krypton-desktop`, `krypton-browser`, `krypton-taskmgr`, `krypton-filemgr`, `krypton-notes`, `krypton-calculator`, `adblock`.
+- **Included Packages**: `cmatrix`, `cowsay`, `neofetch`, `sl`, `krypton-desktop`, `krypton-browser`, `krypton-taskmgr`, `krypton-filemgr`, `krypton-notes`, `krypton-calculator`, `antigravity`.
 
 ---
 

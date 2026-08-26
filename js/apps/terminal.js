@@ -1825,19 +1825,21 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
 
         callback({
             lines: [
-                { text: "=== KRYPTON OS LINUX CORE UTILITIES (LINUX 6.10.0-GENERIC) ===", type: 'info' },
-                { text: "  Filesystem:  ls, cd, pwd, mkdir, rmdir, touch, rm, cp, mv, cat, head, tail, tree, stat, diff, find", type: 'normal' },
+                { text: "KryptonOS GNU/Linux 6.10.0-generic Core Shell Utilities:", type: 'cyan' },
+                { text: "  Navigation:  cd, pwd, ls, tree, mkdir, rmdir, touch, cp, mv, rm, stat", type: 'normal' },
+                { text: "  Viewing:     cat, less, more, head, tail, view", type: 'normal' },
                 { text: "  Text Ops:    grep, echo, sed, awk, cut, tr, sort, uniq, rev, wc, base64, md5sum, sha256sum", type: 'normal' },
                 { text: "  System:      uname, neofetch, hostname, date, cal, uptime, free, df, du, lscpu, lspci, lsusb, lsblk", type: 'normal' },
                 { text: "  Process:     ps, top, htop, kill, killall", type: 'normal' },
                 { text: "  Network:     ping, ifconfig, ip, netstat, curl, wget, nslookup", type: 'normal' },
                 { text: "  Package:     apt (install, update, upgrade, remove, list), dpkg", type: 'normal' },
-                { text: "  Admin:       sudo, su, reboot, shutdown, adblock, chmod, chown", type: 'normal' },
+                { text: "  Admin:       sudo, su, reboot, shutdown, chmod, chown", type: 'normal' },
                 { text: "  Utilities:   nano, vim, cmatrix, cowsay, figlet, sl, fortune, bc, sleep, history, alias", type: 'normal' },
                 { text: "  Pipeline:    Supports |, >, >>, &&, ;, $VAR expansion", type: 'muted' }
             ],
             exitCode: 0
         });
+        return;
         return;
     }
 
@@ -3523,37 +3525,6 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
         return;
     }
 
-    if (cmd === 'adblock') {
-        const binCheck = vfs.getNode('/usr/bin/adblock');
-        if (!binCheck) {
-            callback({
-                lines: [
-                    { text: "bash: adblock: command not found", type: 'error' },
-                    { text: "Package 'krypton-adblock' is not installed. To install it via APT, run:", type: 'warning' },
-                    { text: "  sudo apt install adblock", type: 'cyan' }
-                ],
-                exitCode: 127
-            });
-            return;
-        }
-
-        const act = (args[0] || 'status').toLowerCase();
-        if (act === 'enable' || act === 'on') {
-            story.setAdblock(true);
-            vfs.writeFile('/etc/adblock.conf', 'enabled=true\n');
-            vfs.saveFileSystem();
-            callback({ lines: [{ text: "[ OK ] KryptonOS System AdBlocker: ENABLED", type: 'success' }], exitCode: 0 });
-        } else if (act === 'disable' || act === 'off') {
-            story.setAdblock(false);
-            vfs.writeFile('/etc/adblock.conf', 'enabled=false\n');
-            vfs.saveFileSystem();
-            callback({ lines: [{ text: "[ OK ] KryptonOS System AdBlocker: DISABLED", type: 'warning' }], exitCode: 0 });
-        } else {
-            callback({ lines: [{ text: `KryptonOS AdBlocker Status: ${story.adblockEnabled ? 'ENABLED' : 'DISABLED'} (/etc/adblock.conf)`, type: 'info' }], exitCode: 0 });
-        }
-        return;
-    }
-
     /* 8. Package Management (apt, apt-get, dpkg) */
     if (cmd === 'apt' || cmd === 'apt-get') {
         executeAptCommand(args, currentUser === 'root', callback);
@@ -3572,12 +3543,6 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
             const cleanName = target.split('/').pop().replace(/\.(deb|dpkg)$/, '');
             if (cleanName === 'antigravity') {
                 story.setAntigravity(true);
-            }
-            if (cleanName === 'adblock' || cleanName === 'krypton-adblock') {
-                vfs.writeFile('/usr/bin/adblock', '#!/bin/bash\n# KryptonOS AdBlocker Utility\ncase "$1" in\n  enable|on) echo "enabled=true" > /etc/adblock.conf && echo "[ OK ] AdBlocker ENABLED" ;;\n  disable|off) echo "enabled=false" > /etc/adblock.conf && echo "[ OK ] AdBlocker DISABLED" ;;\n  status) cat /etc/adblock.conf ;;\n  *) echo "Usage: adblock {enable|disable|status}" ;;\nesac\n');
-                vfs.writeFile('/etc/adblock.conf', 'enabled=true\n');
-                vfs.saveFileSystem();
-                story.setAdblock(true);
             }
             callback({
                 lines: [
@@ -4334,7 +4299,6 @@ async function executeAptCommand(args, isRoot, callback) {
                 }
 
                 if (found.id === 'antigravity') story.setAntigravity(true);
-                if (found.id === 'adblock' || found.id === 'krypton-adblock') story.setAdblock(true);
 
                 // Update /var/lib/dpkg/status
                 const currentDpkgStatus = vfs.readFile('/var/lib/dpkg/status') || '';
@@ -4389,8 +4353,6 @@ async function executeAptCommand(args, isRoot, callback) {
 
         if (pkg === 'antigravity') {
             story.setAntigravity(false);
-        } else if (pkg === 'adblock' || pkg === 'krypton-adblock') {
-            story.setAdblock(false);
         }
 
         // Standard package removal

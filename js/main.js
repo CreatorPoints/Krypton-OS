@@ -513,7 +513,6 @@ export function renderDynamicDesktopIcons(grid, isLiveBoot = false) {
                 action: () => {
                     sound.playClick();
                     renderDynamicDesktopIcons(grid, isLiveBoot);
-                    story.showToast('🔄 Desktop Refreshed', 'Filesystem & icons synced', 'info');
                 }
             },
             {
@@ -646,7 +645,6 @@ document.addEventListener('contextmenu', (e) => {
             action: () => {
                 sound.playClick();
                 if (grid) renderDynamicDesktopIcons(grid, isLiveBoot);
-                story.showToast('🔄 Desktop Refreshed', 'Filesystem & icons synced', 'info');
             }
         },
         {
@@ -1368,15 +1366,6 @@ function initSystemTrayControls() {
     if (soundTestBtn) {
         soundTestBtn.addEventListener('click', () => {
             sound.playSuccess();
-        });
-    }
-
-    // 2. Adblock Shield Status Indicator Click
-    const adblockTray = document.getElementById('tray-adblock-status');
-    if (adblockTray) {
-        adblockTray.addEventListener('click', () => {
-            sound.playClick();
-            story.showToast('🛡️ Shield Status', 'KryptonOS Sandbox Network Shield is Active.', 'info');
         });
     }
 }

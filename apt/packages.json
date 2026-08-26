@@ -182,19 +182,6 @@
     "maintainer": "Krypton Maintainers <packages@krypton-os.org>"
   },
   {
-    "id": "krypton-adblock",
-    "name": "krypton-adblock",
-    "version": "2.4.0-beryllium",
-    "architecture": "all",
-    "section": "net/security",
-    "size": 713,
-    "installed_size": 318,
-    "sha256": "40a31845e435d991cf5419998a31cafac0afed58b43dd24a0b7fc2576ee0584b",
-    "file": "adblock.deb",
-    "summary": "System-wide DNS sinkhole & tracker blocker for Krypton Web Browser",
-    "maintainer": "Krypton Maintainers <packages@krypton-os.org>"
-  },
-  {
     "id": "antigravity",
     "name": "antigravity",
     "version": "4.2.0-beryllium",

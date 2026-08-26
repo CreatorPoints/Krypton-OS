@@ -248,15 +248,25 @@
 .terminal-prompt-line {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
 }
 
 .terminal-prompt-text {
     font-weight: 700;
     user-select: text !important;
     -webkit-user-select: text !important;
-    display: inline-flex;
-    align-items: center;
+    display: inline;
+    white-space: pre;
+}
+
+.prompt-user,
+.prompt-at,
+.prompt-host,
+.prompt-colon,
+.prompt-path,
+.prompt-char,
+.prompt-cmd {
+    display: inline;
 }
 
 .prompt-user { color: #4ade80; font-weight: 700; }

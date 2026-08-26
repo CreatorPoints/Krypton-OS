@@ -269,7 +269,7 @@ export function openTerminal() {
             ? currentDir.replace('/home/' + currentUser, '~') 
             : currentDir;
 
-        promptText.innerHTML = `<span class="prompt-user">${currentUser}</span><span class="prompt-at">@</span><span class="prompt-host">${hostname}</span><span class="prompt-colon">:</span><span class="prompt-path">${displayPath}</span><span class="prompt-char">${symbol}</span>&nbsp;`;
+        promptText.innerHTML = `<span class="prompt-user">${currentUser}</span><span class="prompt-at">@</span><span class="prompt-host">${hostname}</span><span class="prompt-colon">:</span><span class="prompt-path">${displayPath}</span><span class="prompt-char">${symbol}</span> `;
 
         if (currentUser === 'root') {
             promptText.classList.add('terminal-prompt-root');
@@ -300,7 +300,7 @@ export function openTerminal() {
 
         const promptSpan = document.createElement('span');
         promptSpan.className = 'terminal-prompt-text';
-        promptSpan.innerHTML = `<span class="prompt-user">${currentUser}</span><span class="prompt-at">@</span><span class="prompt-host">${hostname}</span><span class="prompt-colon">:</span><span class="prompt-path">${displayPath}</span><span class="prompt-char">${symbol}</span>&nbsp;`;
+        promptSpan.innerHTML = `<span class="prompt-user">${currentUser}</span><span class="prompt-at">@</span><span class="prompt-host">${hostname}</span><span class="prompt-colon">:</span><span class="prompt-path">${displayPath}</span><span class="prompt-char">${symbol}</span> `;
 
         const cmdSpan = document.createElement('span');
         cmdSpan.className = 'prompt-cmd';
@@ -774,14 +774,22 @@ export function openTerminal() {
         }
     });
 
+    // Clipboard Text Sanitizer (Normalizes Prompt Formatting)
+    const cleanTerminalClipboardText = (rawText) => {
+        if (!rawText) return '';
+        return rawText
+            .replace(/([a-zA-Z0-9_.-]+)\r?\n@\r?\n([a-zA-Z0-9_.-]+)\r?\n:\r?\n([^\r\n]+)\r?\n([$#])(?:\r?\n|\s+)?/g, '$1@$2:$3$4 ')
+            .replace(/\u00A0/g, ' ');
+    };
+
     // Content-wide keyboard copy & paste interceptor
     content.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
             const selectedText = window.getSelection()?.toString() || '';
             if (selectedText.length > 0) {
-                // User is copying selected text
+                const cleaned = cleanTerminalClipboardText(selectedText);
                 if (navigator.clipboard) {
-                    navigator.clipboard.writeText(selectedText).catch(() => {});
+                    navigator.clipboard.writeText(cleaned).catch(() => {});
                 }
             }
         }
@@ -799,9 +807,12 @@ export function openTerminal() {
     // Browser Native Copy Event Hook
     content.addEventListener('copy', (e) => {
         const selectedText = window.getSelection()?.toString() || '';
-        if (selectedText.length > 0 && e.clipboardData) {
-            e.clipboardData.setData('text/plain', selectedText);
-            e.preventDefault();
+        if (selectedText.length > 0) {
+            const cleaned = cleanTerminalClipboardText(selectedText);
+            if (e.clipboardData) {
+                e.clipboardData.setData('text/plain', cleaned);
+                e.preventDefault();
+            }
         }
     });
 
@@ -810,8 +821,9 @@ export function openTerminal() {
         const selection = window.getSelection();
         const selectedText = selection?.toString() || '';
         if (selectedText.length > 0) {
+            const cleaned = cleanTerminalClipboardText(selectedText);
             if (navigator.clipboard) {
-                navigator.clipboard.writeText(selectedText).catch(() => {});
+                navigator.clipboard.writeText(cleaned).catch(() => {});
             }
         } else {
             e.preventDefault();

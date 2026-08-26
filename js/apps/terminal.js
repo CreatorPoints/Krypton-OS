@@ -216,6 +216,7 @@ export function openTerminal() {
 
     const commandHistory = [];
     let historyIdx = -1;
+    const sessionStack = [];
 
     const content = document.createElement('div');
     content.className = 'terminal-app';
@@ -321,6 +322,28 @@ export function openTerminal() {
 
     const runCommandWithResult = (rawLine) => {
         executeCommandLine(rawLine, currentDir, currentUser, env, aliases, prevDir, (res) => {
+            if (res.pushSession) {
+                sessionStack.push({
+                    user: currentUser,
+                    dir: currentDir,
+                    prevDir: prevDir,
+                    env: { ...env }
+                });
+            }
+
+            if (res.popSession) {
+                if (sessionStack.length > 0) {
+                    const prev = sessionStack.pop();
+                    currentUser = prev.user;
+                    currentDir = prev.dir;
+                    prevDir = prev.prevDir || currentDir;
+                    Object.assign(env, prev.env);
+                } else {
+                    wm.closeWindow('terminal');
+                    return;
+                }
+            }
+
             if (res.newDir) {
                 prevDir = currentDir;
                 currentDir = res.newDir;
@@ -667,6 +690,15 @@ export function openTerminal() {
             return;
         }
 
+        // Ctrl+D (EOF / Exit)
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+            if (input.value === '') {
+                e.preventDefault();
+                runCommandWithResult('exit');
+                return;
+            }
+        }
+
         // Copy & Interrupt Handling (Ctrl+C / Ctrl+Shift+C)
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
             if (activeStreamInterval) {
@@ -867,9 +899,12 @@ export function switchToTTYConsole() {
     const ttyPrompt = document.getElementById('tty-prompt');
     const ttyInput = document.getElementById('tty-input');
 
-    let ttyUser = 'guest';
-    let ttyDir = '/home/guest';
+    const primaryUser = localStorage.getItem('krypton_primary_user') || 'guest';
+    let ttyUser = primaryUser;
+    let ttyDir = ttyUser === 'root' ? '/root' : `/home/${ttyUser}`;
+    if (!vfs.exists(ttyDir)) vfs.mkdir(ttyDir, true);
     let ttyHostname = 'krypton-station';
+    const ttySessionStack = [];
 
     const hNode = vfs.getNode('/etc/hostname');
     if (hNode && hNode.content) ttyHostname = hNode.content.trim();
@@ -910,6 +945,16 @@ export function switchToTTYConsole() {
             }
 
             executeCommandLine(line, ttyDir, ttyUser, { PWD: ttyDir, USER: ttyUser, HOME: ttyUser === 'root' ? '/root' : `/home/${ttyUser}` }, {}, ttyDir, (res) => {
+                if (res.pushSession) {
+                    ttySessionStack.push({ user: ttyUser, dir: ttyDir });
+                }
+                if (res.popSession) {
+                    if (ttySessionStack.length > 0) {
+                        const prev = ttySessionStack.pop();
+                        ttyUser = prev.user;
+                        ttyDir = prev.dir;
+                    }
+                }
                 if (res.newDir) ttyDir = res.newDir;
                 if (res.newUser) ttyUser = res.newUser;
                 updateTTYPrompt();
@@ -1501,28 +1546,49 @@ function executeSingleCommand(cmdStr, currentDir, currentUser, env, aliases, pre
     }
 
     if (cmd === 'su' || (cmd === 'sudo' && (args[0] === 'su' || args[0] === '-i' || args[0] === '-s' || args[0] === 'bash'))) {
-        const targetUser = (cmd === 'su' && args[0] && args[0] !== '-' && args[0] !== 'root') ? args[0] : 'root';
+        let targetUser = 'root';
+        if (cmd === 'su') {
+            const userArg = args.find(a => a !== '-' && !a.startsWith('-'));
+            if (userArg) targetUser = userArg;
+        } else if (cmd === 'sudo') {
+            if (args[0] === 'su') {
+                const userArg = args.slice(1).find(a => a !== '-' && !a.startsWith('-'));
+                if (userArg) targetUser = userArg;
+            }
+        }
+
+        const passwd = vfs.readFile('/etc/passwd') || '';
+        const userExists = targetUser === 'root' || targetUser === 'guest' || targetUser === localStorage.getItem('krypton_primary_user') || passwd.includes(`${targetUser}:`);
+
+        if (!userExists) {
+            callback({
+                lines: [{ text: `su: user ${targetUser} does not exist`, type: 'error' }],
+                exitCode: 1
+            });
+            return;
+        }
+
+        const targetHome = targetUser === 'root' ? '/root' : `/home/${targetUser}`;
+        if (!vfs.exists(targetHome)) {
+            vfs.mkdir(targetHome, true);
+        }
+
         callback({
-            lines: [{ text: `Switched session to ${targetUser}. (Root privilege granted)`, type: 'success' }],
+            lines: [],
+            pushSession: true,
             newUser: targetUser,
-            newDir: targetUser === 'root' ? '/root' : `/home/${targetUser}`,
+            newDir: targetHome,
             exitCode: 0
         });
         return;
     }
 
     if (cmd === 'exit' || cmd === 'logout') {
-        if (currentUser === 'root') {
-            callback({
-                lines: [{ text: "exit: logout from root", type: 'info' }],
-                newUser: 'guest',
-                newDir: '/home/guest',
-                exitCode: 0
-            });
-        } else {
-            wm.closeWindow('terminal');
-            callback({ lines: [], stop: true });
-        }
+        callback({
+            lines: [{ text: "exit", type: 'muted' }],
+            popSession: true,
+            exitCode: 0
+        });
         return;
     }
 

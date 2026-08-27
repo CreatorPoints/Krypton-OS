@@ -1,33 +1,21 @@
-# 🐧 KryptonOS: Realistic Linux Desktop & Sandbox Simulator
+#KryptonOS
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-krypton--os.web.app-00e5ff?style=for-the-badge&logo=firebase)](https://krypton-os.web.app)
-[![Linux Standard](https://img.shields.io/badge/Standard-FHS_3.0_%26_POSIX-10b981?style=for-the-badge&logo=linux)](https://github.com/CreatorPoints/Krypton-OS)
-[![Architecture](https://img.shields.io/badge/Arch-x86__64_%2F_Wayland-7928ca?style=for-the-badge)](https://github.com/CreatorPoints/Krypton-OS)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-> **"An authentic, breakable, 1:1 realistic Linux operating system simulator in your browser with zero fictional tech jargon."**
-
-**KryptonOS** is a client-side Linux workstation and sandbox operating system simulator engineered with pure modern web technologies (HTML5, Vanilla CSS3, ES Modules). It faithfully replicates hardware POST routines, UEFI setup, Linux FHS 3.0 directory trees, GNU Coreutils CLI behaviors, APT package management, and system destruction/recovery lifecycles.
+**KryptonOS** is a Web-based operating system, with some minimal apps [for now] and **CRAZY** loaded terminal just for you to get knowledge of how linux works, or break it, Your choice!
 
 ---
 
-## 🌐 Live Production Deployment
+## Links
 
-- **Official Web Instance**: **[https://krypton-os.web.app](https://krypton-os.web.app)**
-- **Firebase Mirror**: [https://krypton-os.firebaseapp.com](https://krypton-os.firebaseapp.com)
-- **Source Repository**: [https://github.com/CreatorPoints/Krypton-OS](https://github.com/CreatorPoints/Krypton-OS)
+- **Live Demo**: **[https://krypton-os.web.app](https://krypton-os.web.app)**
+- **GitHub Repository**: [https://github.com/CreatorPoints/Krypton-OS](https://github.com/CreatorPoints/Krypton-OS)
 
 ---
 
-## ⚡ Core Engineering & Architecture
+## How to get into the OS?
 
-### 🖥️ 1. Hardware POST, BIOS/UEFI & Boot Sequence
-- **Authentic Motherboard POST**: Accurate American Megatrends (AMI Aptio V) POST banner with real-world hardware telemetry:
-  - **CPU**: `Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz` (8 Cores, 16 Threads)
-  - **Memory**: `DDR4-3200 Dual-Channel 16384 MB OK`
-  - **Storage**: `Samsung SSD 980 PRO 1TB (PCIe 4.0 NVMe)` + `SanDisk Ultra 32GB USB`
-- **Interactive Aptio Setup Utility**: Navigate Main, Advanced, Security, and Boot priority tabs with keyboard navigation (`DEL` / `F2` / `F11`).
-- **GNU GRUB 2.06 & Kernel Init**: Authentic `systemd` target initialization logs and fallback `grub rescue>` partition explorer.
+Its pretty simple (or complicated if you don't know whats a BIOS). All you have
 
 ---
 
